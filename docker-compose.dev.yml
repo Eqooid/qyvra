@@ -1,0 +1,5 @@
+# Host-run API/web development only. Start postgres explicitly with both files.
+services:
+  postgres:
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"

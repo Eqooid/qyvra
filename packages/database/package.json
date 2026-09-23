@@ -1,0 +1,39 @@
+{
+  "name": "@brainless/database",
+  "version": "0.0.1",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "prisma"
+  ],
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "lint": "eslint src/index.ts prisma.config.ts",
+    "generate": "prisma generate",
+    "validate": "prisma validate",
+    "build": "npm run generate && tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "format": "prisma format && prettier --write src/index.ts prisma.config.ts package.json tsconfig.json .eslintrc.cjs",
+    "format:check": "prisma format --check && prettier --check src/index.ts prisma.config.ts package.json tsconfig.json .eslintrc.cjs",
+    "migrate:deploy": "prisma migrate deploy"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.0.0",
+    "@prisma/client": "^7.0.0",
+    "pg": "^8.16.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/pg": "^8.15.0",
+    "@typescript-eslint/eslint-plugin": "^8.70.0",
+    "@typescript-eslint/parser": "^8.70.0",
+    "eslint": "^8.57.1",
+    "prettier": "^3.0.0",
+    "prisma": "^7.0.0",
+    "typescript": "^5.9.0"
+  }
+}

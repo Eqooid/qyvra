@@ -1,0 +1,32 @@
+{
+  "name": "@brainless/storage",
+  "version": "0.0.1",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "format": "prettier --write src test package.json tsconfig.json .eslintrc.cjs",
+    "format:check": "prettier --check src test package.json tsconfig.json .eslintrc.cjs",
+    "lint": "eslint src test --ext .ts,.cjs",
+    "pretest": "npm run build",
+    "test": "node --test test/keys.test.cjs",
+    "pretest:integration": "npm run build",
+    "test:integration": "node --test test/local.test.cjs"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.70.0",
+    "@typescript-eslint/parser": "^8.70.0",
+    "eslint": "^8.57.1",
+    "prettier": "^3.0.0",
+    "typescript": "^5.9.0"
+  }
+}

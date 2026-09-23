@@ -1,0 +1,136 @@
+# Keep the existing Compose project name: it selects the existing named volumes.
+x-database: &database
+  POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+  POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB}
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment: *database
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 2s
+      retries: 10
+      start_period: 10s
+
+  migrate:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/api.Dockerfile
+      target: migration
+    environment: *database
+    init: true
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/api.Dockerfile
+      target: runtime
+    init: true
+    restart: unless-stopped
+    environment:
+      <<: *database
+      # Compiled application, but HTTP-local cookie policy. Production validation stays strict.
+      NODE_ENV: ${NODE_ENV:-development}
+      HTTP_HOST: 0.0.0.0
+      PORT: "3001"
+      STORAGE_PROVIDER: local
+      LOCAL_STORAGE_ROOT: /data/brainless
+      CORS_ORIGINS: ${PUBLIC_APP_URL:-http://localhost:8080}
+      CORS_CREDENTIALS: "false"
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      COOKIE_SAME_SITE: lax
+      COOKIE_PATH: /
+      COOKIE_REFRESH_PATH: /api/v1/auth
+      UPLOAD_MAX_BYTES: ${UPLOAD_MAX_BYTES:-52428800}
+      UPLOAD_MAX_PAGES: ${UPLOAD_MAX_PAGES:-500}
+      UPLOAD_MAX_PIXELS: ${UPLOAD_MAX_PIXELS:-40000000}
+      UPLOAD_TIMEOUT_MS: ${UPLOAD_TIMEOUT_MS:-120000}
+      UPLOAD_INSPECTION_TIMEOUT_MS: ${UPLOAD_INSPECTION_TIMEOUT_MS:-15000}
+      UPLOAD_CONCURRENCY: ${UPLOAD_CONCURRENCY:-2}
+    volumes:
+      - storage_data:/data/brainless
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('node:fs').accessSync('/data/brainless', 6); fetch('http://127.0.0.1:3001/api/v1/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  web:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/web.Dockerfile
+      args:
+        NEXT_PUBLIC_UPLOAD_MAX_BYTES: ${UPLOAD_MAX_BYTES:-52428800}
+    init: true
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: "3000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  nginx:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/nginx.Dockerfile
+    restart: unless-stopped
+    environment:
+      UPLOAD_MAX_BYTES: ${UPLOAD_MAX_BYTES:-52428800}
+      NGINX_ENVSUBST_FILTER: ^NGINX_MAX_BODY_BYTES
+    ports:
+      - "127.0.0.1:${NGINX_PORT:-8080}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -q -O /dev/null http://127.0.0.1/api/v1/health/ready && wget -q -O /dev/null http://127.0.0.1/login",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+# Default bridge network is project-private; only Nginx publishes a port.
+networks:
+  default:
+    driver: bridge
+volumes:
+  postgres_data:
+  storage_data:

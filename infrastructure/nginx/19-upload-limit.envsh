@@ -1,0 +1,11 @@
+#!/bin/sh
+# Sourced by the official entrypoint before envsubst. Bound arithmetic before rendering.
+set -eu
+case "${UPLOAD_MAX_BYTES:-}" in ''|*[!0-9]*) echo 'Invalid UPLOAD_MAX_BYTES' >&2; exit 1;; esac
+if [ "${#UPLOAD_MAX_BYTES}" -gt 9 ] || [ "$UPLOAD_MAX_BYTES" -lt 1 ] || [ "$UPLOAD_MAX_BYTES" -gt 209715200 ]; then
+  echo 'Invalid UPLOAD_MAX_BYTES' >&2
+  exit 1
+fi
+# Multipart headers and bounded text metadata need room beyond the file byte limit.
+upload_decimal=$(printf "%s" "$UPLOAD_MAX_BYTES" | sed 's/^0*//')
+export NGINX_MAX_BODY_BYTES=$((upload_decimal + 1048576))

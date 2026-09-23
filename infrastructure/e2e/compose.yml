@@ -1,0 +1,9 @@
+# This override is used only with the explicit brainless-e2e project.
+services:
+  api:
+    environment:
+      AUTH_SESSION_TTL_SECONDS: ${E2E_SESSION_TTL:-3600}
+      AUTH_REFRESH_TTL_SECONDS: ${E2E_SESSION_TTL:-3600}
+      AUTH_REGISTER_RATE_LIMIT: "100"
+      AUTH_LOGIN_RATE_LIMIT: "200"
+      AUTH_GLOBAL_RATE_LIMIT: "1000"

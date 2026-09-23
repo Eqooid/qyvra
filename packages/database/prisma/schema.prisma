@@ -1,0 +1,221 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum IdentityProvider {
+  LOCAL
+  KEYCLOAK
+  OIDC
+
+  @@map("identity_provider")
+}
+
+model User {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email       String    @unique @db.VarChar(320)
+  displayName String?   @map("display_name") @db.VarChar(100)
+  locale      String    @default("en") @db.VarChar(35)
+  timezone    String    @default("UTC") @db.VarChar(100)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(3)
+  lastLoginAt DateTime? @map("last_login_at") @db.Timestamptz(3)
+
+  identities       UserIdentity[]
+  localCredentials LocalCredential?
+  sessions         AuthSession[]
+  categories       Category[]
+  tags             Tag[]
+  documents        Document[]
+  uploads          DocumentUpload[]
+
+  @@map("users")
+}
+
+// Case-insensitive owner/name uniqueness is enforced by a custom SQL expression index.
+model Tag {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  name      String   @db.VarChar(100)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  documents DocumentTag[]
+
+  @@unique([id, userId])
+  @@index([userId, id])
+  @@map("tags")
+}
+
+// Case-insensitive owner/name uniqueness is enforced by a custom SQL expression index.
+model Category {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  name      String   @db.VarChar(100)
+  color     String?  @db.VarChar(7)
+  icon      String?  @db.VarChar(50)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  documents Document[]
+
+  @@unique([id, userId])
+  @@index([userId, id])
+  @@map("categories")
+}
+
+model UserIdentity {
+  id        String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String           @map("user_id") @db.Uuid
+  provider  IdentityProvider
+  issuer    String           @db.VarChar(2048)
+  subject   String           @db.VarChar(255)
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([provider, issuer, subject])
+  @@index([userId])
+  @@map("user_identities")
+}
+
+model LocalCredential {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId              String    @unique @map("user_id") @db.Uuid
+  passwordHash        String    @map("password_hash")
+  passwordChangedAt   DateTime  @default(now()) @map("password_changed_at") @db.Timestamptz(3)
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  lastFailedLoginAt   DateTime? @map("last_failed_login_at") @db.Timestamptz(3)
+  lockedUntil         DateTime? @map("locked_until") @db.Timestamptz(3)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@map("local_credentials")
+}
+
+model AuthSession {
+  consumedRefreshTokens ConsumedRefreshToken[]
+  authenticationMethod  String                 @default("LOCAL_PASSWORD") @map("authentication_method") @db.VarChar(32)
+  id                    String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                String                 @map("user_id") @db.Uuid
+  tokenHash             String                 @unique @map("token_hash") @db.VarChar(64)
+  refreshTokenHash      String?                @unique @map("refresh_token_hash") @db.VarChar(64)
+  expiresAt             DateTime               @map("expires_at") @db.Timestamptz(3)
+  refreshExpiresAt      DateTime?              @map("refresh_expires_at") @db.Timestamptz(3)
+  revokedAt             DateTime?              @map("revoked_at") @db.Timestamptz(3)
+  lastSeenAt            DateTime?              @map("last_seen_at") @db.Timestamptz(3)
+  createdAt             DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([userId, revokedAt, expiresAt])
+  @@index([expiresAt])
+  @@index([refreshExpiresAt])
+  @@map("auth_sessions")
+}
+
+model ConsumedRefreshToken {
+  tokenHash  String      @id @map("token_hash") @db.VarChar(64)
+  sessionId  String      @map("session_id") @db.Uuid
+  consumedAt DateTime    @default(now()) @map("consumed_at") @db.Timestamptz(3)
+  session    AuthSession @relation(fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+
+  @@index([sessionId])
+  @@map("consumed_refresh_tokens")
+}
+
+model Document {
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String            @map("user_id") @db.Uuid
+  categoryId      String?           @map("category_id") @db.Uuid
+  title           String            @db.VarChar(300)
+  documentType    String            @default("OTHER") @map("document_type") @db.VarChar(50)
+  status          String            @default("UPLOADED") @db.VarChar(32)
+  issuer          String?           @db.VarChar(200)
+  referenceNumber String?           @map("reference_number") @db.VarChar(200)
+  documentDate    DateTime?         @map("document_date") @db.Date
+  expirationDate  DateTime?         @map("expiration_date") @db.Date
+  verifiedSummary String?           @map("verified_summary") @db.VarChar(10000)
+  isArchived      Boolean           @default(false) @map("is_archived")
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt       DateTime?         @map("deleted_at") @db.Timestamptz(3)
+  user            User              @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  category        Category?         @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Restrict, onUpdate: Restrict)
+  tags            DocumentTag[]
+  versions        DocumentVersion[]
+
+  @@unique([id, userId])
+  @@index([userId, createdAt, id])
+  @@index([userId, status, documentDate])
+  @@index([userId, categoryId])
+  @@map("documents")
+}
+
+model DocumentTag {
+  documentId String   @map("document_id") @db.Uuid
+  tagId      String   @map("tag_id") @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  document   Document @relation(fields: [documentId, userId], references: [id, userId], onDelete: Cascade, onUpdate: Restrict)
+  tag        Tag      @relation(fields: [tagId, userId], references: [id, userId], onDelete: Cascade, onUpdate: Restrict)
+
+  @@id([documentId, tagId])
+  @@index([userId, tagId, documentId])
+  @@map("document_tags")
+}
+
+model DocumentVersion {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  documentId       String   @map("document_id") @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  versionNumber    Int      @map("version_number")
+  originalFilename String   @map("original_filename") @db.VarChar(255)
+  storageKey       String   @unique @map("storage_key") @db.VarChar(512)
+  mimeType         String   @map("mime_type") @db.VarChar(100)
+  fileSize         Int      @map("file_size")
+  checksumSha256   String   @map("checksum_sha256") @db.VarChar(64)
+  pageCount        Int?     @map("page_count")
+  extractionStatus String   @default("PENDING") @map("extraction_status") @db.VarChar(32)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  document         Document @relation(fields: [documentId, userId], references: [id, userId], onDelete: Cascade, onUpdate: Restrict)
+
+  @@unique([documentId, versionNumber])
+  @@unique([userId, checksumSha256])
+  @@index([checksumSha256])
+  @@index([documentId, createdAt, id])
+  @@map("document_versions")
+}
+
+model DocumentUpload {
+  userId      String   @map("user_id") @db.Uuid
+  scope       String   @default("create") @db.VarChar(64)
+  key         String   @db.Uuid
+  attemptId   String   @map("attempt_id") @db.Uuid
+  state       String   @default("RECEIVING") @db.VarChar(16)
+  fingerprint String?  @db.VarChar(64)
+  documentId  String?  @map("document_id") @db.Uuid
+  response    Json?
+  expiresAt   DateTime @map("expires_at") @db.Timestamptz(3)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([userId, scope, key])
+  @@index([expiresAt])
+  @@map("document_uploads")
+}
