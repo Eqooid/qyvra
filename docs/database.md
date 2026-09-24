@@ -1,4 +1,35 @@
-# Brainless Database and Storage Model
+# Brainless database and storage model - v1.0.0
+
+[Documentation index](README.md) | [Architecture](architecture.md)
+
+The [Prisma schema](../packages/database/prisma/schema.prisma) and
+[ten SQL migrations](../packages/database/prisma/migrations) are authoritative.
+SQL-only checks, expression indexes and triggers are not fully represented by Prisma.
+Implemented models: User, UserIdentity, LocalCredential, AuthSession,
+ConsumedRefreshToken, Category, Tag, Document, DocumentTag, DocumentVersion and
+DocumentUpload. Binaries live only in private storage. Future entities in the
+[specification](specification.md) are **Planned**, not existing tables.
+
+```mermaid
+erDiagram
+    User ||--o{ UserIdentity : identifies
+    User ||--o| LocalCredential : authenticates
+    User ||--o{ AuthSession : owns
+    AuthSession ||--o{ ConsumedRefreshToken : retains
+    User ||--o{ Category : owns
+    User ||--o{ Tag : owns
+    User ||--o{ Document : owns
+    User ||--o{ DocumentUpload : reserves
+    Category o|--o{ Document : groups
+    Document ||--o{ DocumentTag : assigns
+    Tag ||--o{ DocumentTag : labels
+    Document ||--o{ DocumentVersion : versions
+```
+
+This diagram shows relationships, not a column catalog. Upload receipts intentionally
+do not have a cascading document foreign key. Sections below retain migration-specific
+rationale and constraints; statements about what a migration introduces are scoped
+to that migration, not the whole release.
 
 ## Implemented PostgreSQL foundation
 
@@ -29,7 +60,9 @@ createdAt/updatedAt/expiresAt and expiry index. Its owner FK restricts user dele
 Null receipt fields are required while receiving; completed rows require all receipt
 fields. The receipt document ID is not a cascading foreign key so maintenance can
 retain a completed creation receipt independently. Rows are operation-specific,
-contain safe response metadata only and expire according to docs/api.md.
+contain safe response metadata only; completed receipts last 24 hours. Receiving
+leases last receive timeout + three inspection timeouts + 120 seconds. Expired keys
+can be replaced on reuse; no automated receipt cleanup exists.
 Advisory locks serialize key reservations and completion; the entire document,
 first version, tag joins and completed receipt commit in one short transaction.
 Storage is staged before SQL, never while receiving inside a transaction. Failed
@@ -72,7 +105,7 @@ archive/status consistency, valid date ordering, title hygiene and uppercase str
 identifiers. They complement DTO validation; no PostgreSQL enums are introduced.
 Metadata updates lock the owned document row and atomically validate associations,
 update metadata and replace joins. Reads select safe fields and batch associations.
-See `docs/api.md` for null/omission semantics and lifecycle transitions.
+See [document workflows](features/documents.md) for null/omission semantics and lifecycle transitions.
 
 ### Tags migration
 
@@ -214,8 +247,8 @@ constraints in addition to the generated Prisma DDL, wrapped in a transaction.
 No previously applied history was edited. Inject the target `DATABASE_URL` and run
 `npm --prefix packages/database run migrate:deploy` before using these models.
 
-Docker Compose provides PostgreSQL 17 with a named `postgres_data` volume and a
-loopback-only host port. Set the placeholder initialization variables in root `.env`.
+Docker Compose provides PostgreSQL 17 with a named `postgres_data` volume. Only the development override publishes a
+loopback host port; canonical Compose keeps PostgreSQL private. Set the placeholder initialization variables in root `.env`.
 Initialization values apply only to an empty volume; changing them does not change
 an existing database. Do not remove the volume to change credentials or apply schema.
 
@@ -230,106 +263,11 @@ authentication constraint tests insert/update rows inside transactions that alwa
 roll back. Apply the migration to an isolated test database before running them.
 Tests never reset, truncate, or drop existing tables.
 
-# 6. Data and storage specification
 
-| **Entity**              | **Purpose**                                         | **Key rule**                       |
-| ----------------------- | --------------------------------------------------- | ---------------------------------- |
-| users                   | Internal, provider-independent application identity | email unique; soft delete          |
-| user_identities         | LOCAL/KEYCLOAK/OIDC identity mapping                | provider + issuer + subject unique |
-| local_credentials       | Current PostgreSQL password authentication          | one per user; Argon2id             |
-| auth_sessions           | Server-side session lifecycle                       | hashed token; expiry/revocation    |
-| categories              | User-owned document category                        | user + name unique                 |
-| tags                    | User-owned flexible label                           | user + name unique                 |
-| documents               | Logical document and verified metadata              | owned by user                      |
-| document_tags           | Document/tag many-to-many join                      | composite unique                   |
-| document_versions       | Immutable uploaded file revision                    | document + version unique          |
-| document_chunks         | Canonical extracted chunk text                      | version + index unique             |
-| ai_model_profiles       | Provider/model/capability configuration             | code unique; no secrets            |
-| chunk_embeddings        | Qdrant point reference and index status             | chunk + profile unique             |
-| ai_processing_runs      | AI invocation audit and usage                       | correlation and prompt version     |
-| extracted_fields        | AI/OCR/user metadata candidates                     | verification lifecycle             |
-| processing_jobs         | Durable job state                                   | correlation ID unique              |
-| processing_job_attempts | Retry/error history                                 | job + attempt unique               |
-| reminders               | Scheduled document actions                          | idempotent delivery                |
-| chat_sessions           | RAG conversation scope                              | owned by user                      |
-| chat_messages           | User/assistant messages and usage                   | ordered by creation                |
-| message_citations       | Message-to-chunk provenance                         | citation order                     |
+## Planned storage and entities
 
-## 6.1 Core relationships
-
-- users 1:N documents, categories, tags, auth_sessions, chat_sessions
-
-- users 1:N user_identities and users 1:0..1 local_credentials
-
-- documents 1:N document_versions, reminders, processing_jobs, extracted_fields
-
-- document_versions 1:N document_chunks, AI runs, and processing jobs
-
-- document_chunks 1:N chunk_embeddings and message_citations
-
-- ai_model_profiles 1:N AI runs, embeddings, and generated chat messages
-
-## 6.2 Required indexes
-
-<table>
-<colgroup>
-<col style="width: 100%" />
-</colgroup>
-<thead>
-<tr class="header">
-<th>users(email) UNIQUE<br />
-user_identities(provider, issuer, subject) UNIQUE<br />
-documents(user_id, created_at DESC)<br />
-documents(user_id, status, document_date)<br />
-document_versions(document_id, version_number) UNIQUE<br />
-document_versions(checksum_sha256)<br />
-document_chunks(document_version_id, chunk_index) UNIQUE<br />
-chunk_embeddings(document_chunk_id, ai_model_profile_id) UNIQUE<br />
-processing_jobs(status, available_at)<br />
-reminders(status, remind_at)<br />
-chat_messages(chat_session_id, created_at)</th>
-</tr>
-</thead>
-<tbody>
-</tbody>
-</table>
-
-## 6.3 Storage paths
-
-The shared `packages/storage` key generator now produces the original-object form
-below with a validated extension in place of pdf. It uses trusted internal UUIDs;
-original filenames are display metadata only. No storage key or absolute path is
-accepted directly from clients or returned by current metadata/upload endpoints.
-First original file/version persistence now uses this convention. See the
-[storage contract](../packages/storage/README.md) for local volume and deletion semantics.
-
-<table>
-<colgroup>
-<col style="width: 100%" />
-</colgroup>
-<thead>
-<tr class="header">
-<th>documents/{userId}/{documentId}/{versionId}/original.pdf<br />
-documents/{userId}/{documentId}/{versionId}/preview/page-{n}.png<br />
-documents/{userId}/{documentId}/{versionId}/extracted.txt</th>
-</tr>
-</thead>
-<tbody>
-</tbody>
-</table>
-
-## 6.4 Deletion contract
-
-Soft deletion hides a record but keeps recoverable data. Permanent deletion creates a background job that removes the original file, previews, Qdrant points, Elasticsearch record, chunks, citations, and derived data before finalizing the database tombstone. Failures remain retryable and auditable.
-
-# Appendix A. Status models
-
-| **Object**      | **States**                                                                  |
-| --------------- | --------------------------------------------------------------------------- |
-| Document        | UPLOADED, PROCESSING, READY, PARTIALLY_READY, FAILED, ARCHIVED, DELETING    |
-| Extraction      | PENDING, PROCESSING, COMPLETED, PARTIAL, FAILED, CANCELLED                  |
-| Job             | PENDING, QUEUED, PROCESSING, COMPLETED, FAILED, CANCEL_REQUESTED, CANCELLED |
-| Embedding       | PENDING, PROCESSING, READY, FAILED, STALE                                   |
-| Extracted field | PENDING, VERIFIED, REJECTED, SUPERSEDED                                     |
-| Reminder        | SCHEDULED, SENT, FAILED, DISMISSED, CANCELLED                               |
-| Session         | ACTIVE, EXPIRED, REVOKED                                                    |
+Extraction/chunks, jobs, reminders, AI profiles, chat, search indexes and permanent
+purge are **Not Implemented**. The broader catalog remains in the
+[planned specification](specification.md). The current status vocabulary anticipates
+processing, but new uploads remain UPLOADED/PENDING. See [feature guides](README.md#features),
+[local migration setup](development/getting-started.md) and [storage contract](../packages/storage/README.md).

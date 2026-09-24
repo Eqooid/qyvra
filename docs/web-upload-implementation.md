@@ -1,5 +1,9 @@
 # Next.js document upload
 
+> Historical implementation checkpoint. Scope, test counts, file locations and pending
+> work below describe that task, not current release status. Phase 1 is complete;
+> use the [v1.0.0 snapshot](releases/v1.0.0.md) and [current guides](README.md) for the baseline.
+
 This slice adds only `/documents/upload` and its multipart data access. It reuses
 the authenticated document layout, existing AuthApi/currentUser refresh flow,
 TanStack Query, React Hook Form/Zod, shadcn Button and semantic theme variables.

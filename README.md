@@ -1,119 +1,98 @@
 # Brainless
 
-Brainless is a personal knowledge and document-management application. Its current implementation focuses on securely organizing, processing, searching, and discussing personal documents.
+Brainless is a personal document-management application for storing private files,
+organizing their metadata, and keeping immutable file versions.
 
-## Planned workspace
+**Stable release: v1.0.0 (24 September 2026). Phase 1 is complete.** Registration,
+account settings, categories/tags, document upload/download, metadata editing,
+archive/restore, soft deletion and version history are implemented. Processing,
+OCR, AI, full-text/semantic search and reminders are **Planned**, not available.
+
+## Architecture and stack
+
+The browser reaches Next.js and the NestJS REST API through Nginx. NestJS owns
+authorization and accesses PostgreSQL through Prisma and private files through
+the shared storage abstraction. See the [architecture diagram](docs/architecture.md).
+
+The repository uses Node.js 24+, TypeScript, NestJS 10, Next.js 16, React 19,
+Tailwind CSS 4, shadcn/Base UI, TanStack Query, React Hook Form/Zod, Prisma 7,
+PostgreSQL 17, Nginx 1.28 and Docker Compose. These are repository dependency/image
+majors; the four npm lockfiles record exact JavaScript dependency versions.
 
 ```text
-apps/
-  web/                 Next.js and shadcn/ui frontend
-  api/                 NestJS REST API
-  document-worker/     extraction, OCR, and chunking
-  indexing-worker/     Elasticsearch and Qdrant indexing
-  reminder-worker/     reminder scheduling and delivery
-packages/
-  database/            Prisma schema, migrations, and client
-  contracts/           shared provider-neutral contracts
-  messaging/           RabbitMQ message contracts
-  ai/                  AI provider interfaces
-  storage/             file-storage interfaces
-docs/                   product and engineering documentation
-infrastructure/         Docker and service configuration
+apps/api/             NestJS API
+apps/web/             Next.js App Router frontend
+packages/database/    Prisma schema, migrations and shared client
+packages/storage/     Streaming storage interface and local adapter
+infrastructure/       Docker images, Nginx and browser-test orchestration
+docs/                 Developer guides, release snapshots and verification reports
 ```
 
-Only create applications and packages when their roadmap phase begins. The existing Next.js application belongs in `apps/web`.
+Packages install independently with npm. There is no root `package.json`; the empty
+`pnpm-workspace.yml` does not define an active workspace.
 
-The Phase 1 usable tracker is complete, including account settings and real browser
-verification through Nginx. See the [final acceptance results](docs/phase-1-browser-verification.md).
+## Quick start with Docker
 
-Immutable additional-version uploads and version history are implemented. See
-[versioning verification and migration setup](docs/versioning-implementation.md).
-Next.js document pages and container runtime workflows are verified; see
-[Compose setup and verification](docs/compose.md).
-
-## Run the complete local application
-
-Account settings are available from the account menu. See
-[real browser verification](docs/phase-1-browser-verification.md) for the isolated
-Nginx E2E commands and latest Phase 1 verification results.
-
-Requires Docker Desktop with Linux containers and Compose v2. For a new checkout:
+Requires Docker with Linux containers and Compose v2. From a new checkout:
 
 ```sh
 cp .env.example .env
 ```
 
-PowerShell: `Copy-Item .env.example .env`. Replace the POSTGRES_PASSWORD placeholder.
-For existing data, preserve the actual POSTGRES_* values and Compose project name.
-
-```sh
-docker compose up --build
-```
-
-Open **http://localhost:8080**. API calls use the same origin at `/api/v1`.
-Migrations run automatically before the API starts. Background/status/logs/stop:
+PowerShell: `Copy-Item .env.example .env`. Replace the `POSTGRES_PASSWORD`
+placeholder before startup. Preserve an existing `.env`, database initialization
+values and Compose project name.
 
 ```sh
 docker compose up --build -d
 docker compose ps --all
 docker compose logs -f
-docker compose down
 ```
 
-Do not add `--volumes`: PostgreSQL and private uploaded files must survive shutdown.
-See [full setup](docs/compose.md) for service logs, configuration, rebuilds, manual
-migrations, persistence checks and backups. Docker Desktop's Linux engine must be
-running before starting the application or isolated browser tests.
+Open [Brainless](http://localhost:8080). Migrations run before API startup.
+Register, then log in. Stop with `docker compose down`; do not add `--volumes`,
+which deletes the database and uploaded files. This is a local HTTP deployment.
+See [Compose operations](docs/compose.md) for persistence, backups and deployment limits.
 
-For host development, use Node 24+ and the independent npm lockfiles. Start only
-PostgreSQL with `docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --wait postgres`.
-Follow [API setup](apps/api/README.md) and [web setup](apps/web/README.md), with a
-host DATABASE_URL, private LOCAL_STORAGE_ROOT and qpdf. Host commands are unchanged.
+## Develop and test
+
+Follow [getting started](docs/development/getting-started.md) for dependency installation,
+host PostgreSQL, qpdf, private storage, environment configuration and migrations.
+After setup, use separate terminals from the repository root:
+
+```sh
+npm --prefix apps/api run start:dev
+npm --prefix apps/web run dev
+```
+
+Common checks:
+
+```sh
+npm --prefix apps/api test -- --runInBand
+npm --prefix apps/api run test:e2e -- --runInBand
+npm --prefix apps/web test -- --maxWorkers=1
+npm --prefix apps/api run lint
+npm --prefix apps/web run lint
+npm --prefix apps/api run typecheck
+npm --prefix apps/web run typecheck
+npm --prefix apps/api run format:check
+npm --prefix apps/web run format:check
+npm --prefix apps/api run build
+npm --prefix apps/web run build
+```
+
+[Testing](docs/development/testing.md) covers storage tests, the isolated PostgreSQL
+integration suite and real browser tests through Nginx. API HTTP tests use a database
+double and do not replace database integration tests.
 
 ## Documentation
 
-- [Full specification](docs/specification.md)
-- [Architecture](docs/architecture.md)
-- [Database and storage](docs/database.md)
-- [API reference](docs/api.md)
-- [Delivery roadmap](docs/roadmap.md)
+- [Documentation index](docs/README.md) and [contributing](CONTRIBUTING.md)
+- [API conventions](docs/api.md), [local Swagger UI](http://localhost:8080/api/v1/docs/)
+  and [generated OpenAPI JSON](http://localhost:8080/api/v1/docs-json)
+- [Environment variables](docs/deployment/environment-variables.md)
+- [Changelog](CHANGELOG.md) and [v1.0.0 release snapshot](docs/releases/v1.0.0.md)
+- [Versioning policy](docs/development/conventions.md#versioning) and [roadmap](docs/roadmap.md)
 
-## Instructions for coding agents
-
-Read the root [AGENTS.md](AGENTS.md) before changing the repository. When modifying the frontend, also follow `apps/web/AGENTS.md`.
-
-## Continuing development
-
-```text
-Read AGENTS.md and the relevant documentation under docs/.
-
-Inspect the existing repository and current acceptance results. Implement only the explicitly requested task, preserving completed Phase 1 behavior. Before coding, provide a concise plan and list the files you will change. Run checks relevant to the change and update its documentation. Do not start a later phase without an explicit request.
-```
-
-## Branding compatibility
-
-Product branding is Brainless; the machine-readable slug is `brainless`. Packages
-are `@brainless/api`, `@brainless/web`, `@brainless/database`, and `@brainless/storage`. There is no root
-`package.json`; the independent npm installation layout remains unchanged. After
-updating, run `npm install` in `packages/database`, `apps/api`, and `apps/web` to
-refresh the local package link and lockfile metadata.
-
-Existing authentication identifiers are intentionally retained: cookie defaults
-`document_tracker_session` and `document_tracker_refresh`, the
-`document-tracker-auth` BroadcastChannel, and `document-tracker-auth:<api-base>`
-Web Lock. Keeping these allows old and new tabs to coordinate refresh and logout
-without invalidating current cookies. They are internal compatibility identifiers,
-not display branding. The identity issuer remains `local`; no identity or session
-records need migration. Tests and cookie-setting documentation retain these names.
-
-No tables, columns, migrations, populated environment files, database names, Docker
-service names, or persistent volumes are renamed. Keep the existing Compose project
-name (including any `COMPOSE_PROJECT_NAME` or `-p` setting) and `postgres_data` volume;
-changing the project name can select a different volume. Do not use `down -v`.
-If a local `.env` explicitly sets the old `APP_NAME`, change only that display value
-to `Brainless API` or remove it to use the new default. Leave database URLs and
-initialization settings pointing at the existing database. Nginx now provides the local entry point; no monitoring services are added.
-
-The latest [Phase 1 API review](docs/phase-1-review.md) records verification results
-and remaining acceptance gaps. Database integration tests require a separately
-migrated `TEST_DATABASE_URL`; a successful API build is not a substitute for them.
+Coding-agent instructions live separately in [AGENTS.md](AGENTS.md) and the nested
+application AGENTS files.

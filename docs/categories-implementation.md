@@ -1,5 +1,9 @@
 # Categories implementation and Phase 1 audit
 
+> Historical implementation checkpoint. Scope, test counts, file locations and pending
+> work below describe that task, not current release status. Phase 1 is complete;
+> use the [v1.0.0 snapshot](releases/v1.0.0.md) and [current guides](README.md) for the baseline.
+
 Completed 14 September 2026. This task audited the remaining usable-tracker scope
 and implemented Categories only. Authentication/profile code and frontend code
 were preserved. Git metadata was unavailable in the supplied workspace; inspection

@@ -1,5 +1,9 @@
 # Document metadata foundation implementation
 
+> Historical implementation checkpoint. Scope, test counts, file locations and pending
+> work below describe that task, not current release status. Phase 1 is complete;
+> use the [v1.0.0 snapshot](releases/v1.0.0.md) and [current guides](README.md) for the baseline.
+
 Scope: Phase 1 document metadata only, 14 September 2026. Authentication/profile,
 Categories and Tags were already implemented. No Document/DocumentTag model or
 document routes existed at the start of this task. This checkout has no `.git`

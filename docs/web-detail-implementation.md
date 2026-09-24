@@ -1,5 +1,9 @@
 # Document detail and Phase 1 actions
 
+> Historical implementation checkpoint. Scope, test counts, file locations and pending
+> work below describe that task, not current release status. Phase 1 is complete;
+> use the [v1.0.0 snapshot](releases/v1.0.0.md) and [current guides](README.md) for the baseline.
+
 Implemented `/documents/[documentId]` with existing authentication, TanStack Query,
 React Hook Form/Zod, shadcn buttons, Base UI primitives and semantic light/dark
 colors. No backend, schema, migration, environment or dependency changes.

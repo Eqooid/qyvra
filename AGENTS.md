@@ -2,12 +2,17 @@
 
 ## Required context
 
-Before changing code, read `README.md` and the relevant files under `docs/`:
+Before changing code, read `README.md`, [the documentation index](docs/README.md),
+and the relevant files under `docs/`. Phase 1 is released as v1.0.0; use
+[the release snapshot](docs/releases/v1.0.0.md) for shipped scope. Human setup/testing
+guides live under `docs/development/`; this file remains agent instructions.
 
-- `docs/specification.md` for product scope and acceptance criteria.
+Required topic context:
+
+- `docs/specification.md` for planned product scope and acceptance criteria.
 - `docs/architecture.md` for system boundaries and infrastructure rules.
 - `docs/database.md` for storage ownership, entities, and constraints.
-- `docs/api.md` for HTTP contracts and endpoints.
+- `docs/api.md` for HTTP conventions and links to generated OpenAPI.
 - `docs/roadmap.md` for delivery phases and current scope.
 
 Also read the nearest nested `AGENTS.md` for the application being changed.
@@ -16,12 +21,16 @@ Also read the nearest nested `AGENTS.md` for the application being changed.
 
 - `apps/web`: Next.js frontend using TypeScript, Tailwind CSS, and shadcn/ui.
 - `apps/api`: NestJS REST API.
-- `apps/*-worker`: asynchronous workers.
+- Planned: `apps/*-worker` for asynchronous workers (not present in v1.0.0).
 - `packages/database`: Prisma schema, migrations, and database client.
-- `packages/contracts`: provider-neutral shared contracts.
-- `infrastructure`: Docker, Nginx, RabbitMQ, and service configuration.
+- `packages/storage`: implemented streaming file-storage contract and local adapter.
+- Planned: `packages/contracts` for shared contracts (not present in v1.0.0).
+- `infrastructure`: Docker, Nginx and test orchestration; RabbitMQ is planned.
 
 ## Architecture rules
+
+Worker, queue, search and AI rules below apply when those planned components are
+authorized for implementation; they do not imply those services exist today.
 
 - Build a modular monolith with independently runnable workers.
 - PostgreSQL is the system of record; Qdrant and Elasticsearch are rebuildable indexes.

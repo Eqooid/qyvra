@@ -1,5 +1,9 @@
 # Frontend document data access and list
 
+> Historical implementation checkpoint. Scope, test counts, file locations and pending
+> work below describe that task, not current release status. Phase 1 is complete;
+> use the [v1.0.0 snapshot](releases/v1.0.0.md) and [current guides](README.md) for the baseline.
+
 Implemented only the protected `/documents` list and typed read access for
 `GET /documents`, `GET /categories` and `GET /tags`. No backend, schema, migration,
 environment or dependency changes. There are no shared frontend contracts in the

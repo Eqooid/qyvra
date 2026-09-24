@@ -1,5 +1,9 @@
 # Tags implementation and verification
 
+> Historical implementation checkpoint. Scope, test counts, file locations and pending
+> work below describe that task, not current release status. Phase 1 is complete;
+> use the [v1.0.0 snapshot](releases/v1.0.0.md) and [current guides](README.md) for the baseline.
+
 Tags is implemented as a Phase 1 API feature. No Documents, document joins, storage,
 frontend tag pages, or later roadmap features were added.
 

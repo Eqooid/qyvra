@@ -4,20 +4,24 @@ These instructions apply to `apps/api` and extend the repository-root `AGENTS.md
 
 ## Required context
 
-Before changing the API, read:
+Before changing the API, read [the documentation index](../../docs/README.md) and
+[v1.0.0 snapshot](../../docs/releases/v1.0.0.md), then:
 
 - The repository-root `AGENTS.md`.
 - `docs/specification.md` for product behavior.
 - `docs/architecture.md` for system boundaries and asynchronous workflows.
 - `docs/database.md` before changing entities, Prisma models, indexes, or migrations.
-- `docs/api.md` before adding or changing HTTP contracts.
+- `docs/api.md` and its generated OpenAPI reference before adding or changing HTTP contracts.
 - `docs/roadmap.md` to confirm the current implementation phase.
 
 Inspect the existing NestJS configuration and conventions before introducing a new pattern or dependency.
 
 ## Application responsibility
 
-`apps/api` owns synchronous HTTP use cases, authorization, validation, persistence orchestration, file-upload coordination, and publishing background jobs.
+`apps/api` owns synchronous HTTP use cases, authorization, validation, persistence
+orchestration and file-upload coordination. Publishing background jobs is planned.
+Worker/broker/search/AI rules and module names below are future guidance, not
+implemented v1.0.0 capabilities; inspect AppModule for current modules.
 
 It must not perform expensive document extraction, OCR, embedding generation, Qdrant indexing, Elasticsearch indexing, or reminder delivery inside HTTP request handlers. Those operations belong to workers.
 

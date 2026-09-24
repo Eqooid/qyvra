@@ -1,5 +1,8 @@
 # Phase 1 local Docker Compose
 
+[Documentation index](README.md) | [Environment reference](deployment/environment-variables.md) |
+[Host onboarding](development/getting-started.md) | [v1.0.0 snapshot](releases/v1.0.0.md)
+
 ## Status and boundaries
 
 The complete Phase 1 stack is implemented and verified through its public Nginx

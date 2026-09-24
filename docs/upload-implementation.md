@@ -1,5 +1,9 @@
 # Streaming upload implementation — 15 September 2026
 
+> Historical implementation checkpoint. Scope, test counts, file locations and pending
+> work below describe that task, not current release status. Phase 1 is complete;
+> use the [v1.0.0 snapshot](releases/v1.0.0.md) and [current guides](README.md) for the baseline.
+
 Only `POST /api/v1/documents` was added. Existing authentication, Categories, Tags,
 metadata CRUD and lifecycle behavior were preserved. No download, additional version,
 processing, frontend or Phase 2 functionality was implemented.

@@ -2,6 +2,9 @@
 
 These instructions extend the repository-root `AGENTS.md` for `apps/web`.
 
+Read [the documentation index](../../docs/README.md), [frontend architecture](../../docs/architecture.md#frontend-and-api-communication)
+and the relevant feature guide before editing.
+
 ## Frontend stack
 
 - Next.js App Router
@@ -22,7 +25,7 @@ These instructions extend the repository-root `AGENTS.md` for `apps/web`.
 - Every data-driven page must provide loading, empty, error, and success states.
 - Forms must provide accessible labels, keyboard support, validation messages, and safe submission states.
 - Interfaces must work on desktop and mobile.
-- Treat API contracts in `docs/api.md` as authoritative; do not silently invent incompatible response shapes.
+- Use `docs/api.md` for conventions and generated OpenAPI for endpoint contracts; do not silently invent incompatible response shapes.
 - Temporary mock data must be isolated behind the same interface used by the future API client and clearly marked for removal.
 
 Before completing frontend work, run the available lint, type-check, test, and production-build commands from this application or the workspace root.

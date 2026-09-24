@@ -1,5 +1,10 @@
 # Brainless web
 
+**v1.0.0 / Phase 1 complete.** Start with [onboarding](../../docs/development/getting-started.md),
+[feature guides](../../docs/README.md#features), [test commands](../../docs/development/testing.md)
+and [release evidence](../../docs/releases/v1.0.0.md). The UI refinement and theme
+verification sections below retain earlier checkpoints, not current test counts.
+
 For the current frontend component foundation, route audit, retained compositions
 and verification, see [UI standardization](UI-STANDARDIZATION.md).
 
@@ -18,7 +23,7 @@ npm --prefix apps/web run dev
 Copy `apps/web/.env.example` to **apps/web/.env.local** and replace the placeholder:
 
 ```dotenv
-NEXT_PUBLIC_API_BASE_URL=http://localhost:3002/api/v1
+NEXT_PUBLIC_API_BASE_URL=http://localhost:3001/api/v1
 ```
 
 This is a public address, never a secret. Next.js does not read root `.env`.
@@ -26,10 +31,10 @@ The setting is embedded at build time, so rebuild for production URL changes.
 Omitting it selects `/api/v1`, which requires a same-origin reverse proxy routing
 that path to NestJS. There is no automatic Next.js API proxy in this implementation.
 
-For frontend localhost:3000 and API localhost:3002, configure the **API's root .env**:
+For frontend localhost:3000 and API localhost:3001, configure the **API's root .env**:
 
 ```dotenv
-PORT=3002
+PORT=3001
 CORS_ORIGINS=http://localhost:3000
 CORS_CREDENTIALS=true
 ```
@@ -213,7 +218,7 @@ revokes other sessions; logout-all also revokes this browser. Individual session
 management UI remains outside this task. See the [real browser verification](../../docs/phase-1-browser-verification.md)
 for commands, isolated test data, results and current completion status.
 
-## UI refinement
+## Historical UI refinement checkpoint
 
 The shared shell uses a responsive sidebar, nested-route active indicators and a
 Base UI modal navigation drawer with focus containment, Escape dismissal and focus
@@ -248,7 +253,7 @@ fixtures, not developer records. Live API integration, other browser engines and
 physical-device accessibility remain manual checks. No additional feature scope
 or Phase 1 completion is claimed by this visual refinement.
 
-## Verification
+## Historical theme verification checkpoint
 
 The dashboard header includes a **Change theme** menu with Light, Dark, and System
 options. It reuses the root `next-themes` provider and existing semantic light/dark
@@ -295,4 +300,5 @@ image uses standalone output and fixes the browser API base to `/api/v1` at buil
 time; root UPLOAD_MAX_BYTES supplies its public upload-size UX setting. Existing
 apps/web/.env.local is excluded from the Docker build context. Only Nginx publishes
 a port. Local `npm run dev` commands and direct API URLs remain supported.
-Container smoke testing is pending Docker engine availability.
+Container startup, persistence and browser workflows have passed; see
+[final browser verification](../../docs/phase-1-browser-verification.md).

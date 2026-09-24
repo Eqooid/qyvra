@@ -1,5 +1,9 @@
 # Additional immutable document versions
 
+> Historical implementation checkpoint. Scope, test counts, file locations and pending
+> work below describe that task, not current release status. Phase 1 is complete;
+> use the [v1.0.0 snapshot](releases/v1.0.0.md) and [current guides](README.md) for the baseline.
+
 The interrupted implementation already contained the three routes, upload reuse,
 scoped receipt migration, unit tests and PostgreSQL tests. The resumed work added
 HTTP contract/security tests, exercised both multipart modes with a generated large

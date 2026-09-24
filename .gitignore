@@ -1,0 +1,3 @@
+.tools/
+*.verification.log
+.env

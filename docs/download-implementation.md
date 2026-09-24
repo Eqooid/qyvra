@@ -1,5 +1,9 @@
 # Secure current-version download — 15 September 2026
 
+> Historical implementation checkpoint. Scope, test counts, file locations and pending
+> work below describe that task, not current release status. Phase 1 is complete;
+> use the [v1.0.0 snapshot](releases/v1.0.0.md) and [current guides](README.md) for the baseline.
+
 Implemented only `GET /api/v1/documents/:documentId/download`. Existing upload,
 authentication, Categories, Tags and metadata behavior remain intact. No migration,
 dependency, configuration variable or storage-interface change was required.

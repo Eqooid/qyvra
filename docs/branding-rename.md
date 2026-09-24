@@ -1,9 +1,13 @@
 # Brainless branding rename
 
+> Historical branding checkpoint (13 September 2026). Infrastructure and verification
+> gaps below describe that time. For current status and retained compatibility names,
+> see the [v1.0.0 snapshot](releases/v1.0.0.md).
+
 The product name is **Brainless**, the slug is `brainless`, and npm packages use
 `@brainless/*`. Document-domain names, routes, roadmap phases and implementation
-scope are unchanged. See the root README for the product description and
-authentication/storage compatibility decisions.
+scope are unchanged. See the [root README](../README.md) for the product description and the
+[release snapshot](releases/v1.0.0.md#deployment-and-upgrade-notes) for compatibility.
 
 ## Source files changed
 

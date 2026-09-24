@@ -1,5 +1,9 @@
 # Category and tag management UI — 18 September 2026
 
+> Historical implementation checkpoint. Scope, test counts, file locations and pending
+> work below describe that task, not current release status. Phase 1 is complete;
+> use the [v1.0.0 snapshot](releases/v1.0.0.md) and [current guides](README.md) for the baseline.
+
 ## Routes and contract
 
 Authenticated `/categories` and `/tags` pages reuse DashboardShell and its desktop

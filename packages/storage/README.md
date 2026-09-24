@@ -23,11 +23,13 @@ Late stream errors are sanitized too. No credentials, keys or contents are logge
 
 ## Local adapter
 
+The publication rationale is recorded in [ADR-001](../../docs/decisions/ADR-001-create-only-file-publication.md).
+
 `LocalFileStorage` uses a dedicated absolute root supplied by configuration. It
 performs no disk writes at construction; operations check accessibility and create
-needed directories lazily. No current HTTP use case reads/writes stored files, so
-storage is not added to readiness yet. The mounted root must be provisioned and
-accessible to the service account before future file operations are enabled.
+needed directories lazily. Upload and current-version download use this adapter. API readiness checks
+PostgreSQL only; the Compose API healthcheck additionally checks storage-root access.
+The root must be provisioned and accessible to the service account.
 
 Writes use backpressure through Node pipeline into exclusive, private temporary
 files beside the destination. Atomic hard-link publication followed by temporary
@@ -44,7 +46,7 @@ encoding, empty segments, Windows device aliases, alternate streams and trailing
 dots/spaces are rejected. `originalDocumentKey` builds
 `documents/{userId}/{documentId}/{versionId}/original.{extension}` from trusted
 UUIDs and a validated lowercase extension. Original filenames are display metadata
-only and must never be passed as keys. No DocumentVersion database records are added.
+only and must never be passed as keys. DocumentVersion records are coordinated by the API, not this package.
 
 The adapter checks every ancestor with lstat and rejects symlinks/junctions and
 non-directories. Reads reject non-regular files, use O_NOFOLLOW where available,
@@ -60,7 +62,8 @@ public object. They are rejected as storage keys. No automatic scavenger deletes
 potentially active writes; inspect stale files during maintenance with all storage
 writers stopped. Cleanup failures return WRITE_FAILED and need operator attention.
 Atomic visibility does not promise power-loss durability or an atomic PostgreSQL
-transaction. Future upload coordination must handle storage/database compensation.
+transaction. API upload coordination handles storage/database compensation; automatic crash
+reconciliation is not implemented. See [architecture](../../docs/architecture.md).
 
 ## API and Compose
 
@@ -77,7 +80,7 @@ migrations automatically, and starts Nginx/web/API with `docker compose up --bui
 The image runs as UID 1000 (`node`); fresh volumes inherit its private directory
 ownership. Existing mounts must already permit that account. See
 [Compose setup](../../docs/compose.md) for HTTP cookie policy, backups, host development
-and the pending Docker runtime checks. Never use `down -v` to update code.
+and recorded passing Docker/browser verification. Never use `down -v` to update code.
 
 A future S3-compatible adapter implements the same interface and neutral errors,
 using conditional create semantics and streaming bodies. Only provider selection

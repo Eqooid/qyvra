@@ -1,5 +1,9 @@
 # Frontend version history — 18 September 2026
 
+> Historical implementation checkpoint. Scope, test counts, file locations and pending
+> work below describe that task, not current release status. Phase 1 is complete;
+> use the [v1.0.0 snapshot](releases/v1.0.0.md) and [current guides](README.md) for the baseline.
+
 The protected `/documents/[documentId]/versions` page is linked from document
 detail and returns there through Back to document. It uses the existing AuthApi,
 TanStack Query and shadcn/Base UI controls; no dependencies or backend changes.
