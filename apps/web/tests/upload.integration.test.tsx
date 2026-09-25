@@ -131,6 +131,19 @@ describe("upload form through real API adapter", () => {
     await waitFor(() => expect(TestXHR.requests).toHaveLength(1))
     expect(TestXHR.requests[0].body?.has("categoryId")).toBe(false)
   })
+  it("submits the optional description from the upload form", async () => {
+    render(tree())
+    const user = await fill()
+    await user.type(
+      screen.getByLabelText("Description (optional)"),
+      "Quarterly financial report"
+    )
+    await user.click(screen.getByRole("button", { name: "Upload document" }))
+    await waitFor(() => expect(TestXHR.requests).toHaveLength(1))
+    expect(TestXHR.requests[0].body?.get("description")).toBe(
+      "Quarterly financial report"
+    )
+  })
   it("warns before leaving an active upload and aborts when unmounted", async () => {
     const view = render(tree())
     const user = await fill()

@@ -31,6 +31,18 @@ export function formatBytes(bytes: number) {
       ? `${(bytes / 1024).toFixed(1)} KiB`
       : `${(bytes / 1024 / 1024).toFixed(1)} MiB`
 }
+export function mimeLabel(mimeType: string) {
+  switch (mimeType) {
+    case "application/pdf":
+      return "PDF"
+    case "image/jpeg":
+      return "JPEG image"
+    case "image/png":
+      return "PNG image"
+    default:
+      return mimeType
+  }
+}
 const text = (max: number) =>
   z
     .string()
@@ -54,6 +66,7 @@ const date = z
 export const uploadFormSchema = z
   .object({
     title: text(300).refine((value) => value.length > 0, "Enter a title."),
+    description: text(2000).optional(),
     documentType: z
       .string()
       .trim()

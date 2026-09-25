@@ -36,6 +36,28 @@ describe("upload contract and validation", () => {
     expect(body.get("tagIds")).toBe(JSON.stringify([id]))
     expect(body.getAll("file")).toHaveLength(1)
   })
+  it("sends optional description only when supplied and includes it in attempt identity", () => {
+    const selected = file()
+    expect(uploadBody(selected, values).has("description")).toBe(false)
+    expect(
+      uploadBody(selected, { ...values, description: "Quarterly report" }).get(
+        "description"
+      )
+    ).toBe("Quarterly report")
+    expect(
+      uploadBody(selected, { ...values, description: "" }).get("description")
+    ).toBe("")
+    const attempt = new UploadAttempt()
+    const originalKey = attempt.key(selected, values)
+    const describedKey = attempt.key(selected, {
+      ...values,
+      description: "Quarterly report",
+    })
+    expect(describedKey).not.toBe(originalKey)
+    expect(
+      attempt.key(selected, { ...values, description: "Quarterly report" })
+    ).toBe(describedKey)
+  })
   it("reuses keys only for the same selected file and normalized metadata", () => {
     const attempt = new UploadAttempt(),
       selected = file()
@@ -126,7 +148,10 @@ describe("focused multipart transport", () => {
     xhr.progress(2, 0)
     expect(progress.mock.calls).toEqual([[25], [null]])
     xhr.respond()
-    expect(await pending).not.toHaveProperty("storageKey")
+    const receipt = await pending
+    expect(receipt).not.toHaveProperty("storageKey")
+    expect(receipt).not.toHaveProperty("description")
+    expect(receipt).not.toHaveProperty("currentVersion")
   })
   it("aborts and makes no rollback claim", async () => {
     const controller = new AbortController()

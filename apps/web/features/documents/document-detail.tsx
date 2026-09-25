@@ -24,6 +24,8 @@ import {
   documentActionError,
 } from "@/lib/api/documents"
 import { DocumentEdit } from "./document-edit"
+import { formatBytes, mimeLabel } from "./upload-validation"
+import { versionTime } from "./version-metadata"
 
 export function DocumentDetailPage({ documentId }: { documentId: string }) {
   const api = useAuthApi(),
@@ -229,7 +231,9 @@ export function DocumentDetailPage({ documentId }: { documentId: string }) {
           </Button>
         )}
         <Button
-          disabled={disabled || deleting || missingFile}
+          disabled={
+            disabled || deleting || missingFile || !document.currentVersion
+          }
           onClick={() => void download()}
         >
           {downloading ? "Initiating download…" : "Download current file"}
@@ -299,6 +303,12 @@ export function DocumentDetailPage({ documentId }: { documentId: string }) {
       ) : (
         <Card className="space-y-4 p-6">
           <h2 className="text-xl font-semibold tracking-tight">Metadata</h2>
+          <div className="space-y-1 border-b border-border/60 pb-4">
+            <h3 className="text-sm text-muted-foreground">Description</h3>
+            <p className="break-words whitespace-pre-wrap">
+              {document.description ?? "No description"}
+            </p>
+          </div>
           <dl className="grid min-w-0 grid-cols-1 gap-5 sm:grid-cols-2">
             {[
               ["Issuer", document.issuer],
@@ -336,6 +346,34 @@ export function DocumentDetailPage({ documentId }: { documentId: string }) {
           </div>
         </Card>
       )}
+      <Card aria-labelledby="current-version-heading" className="space-y-4 p-6">
+        <h2
+          id="current-version-heading"
+          className="text-xl font-semibold tracking-tight"
+        >
+          Current version
+        </h2>
+        {document.currentVersion ? (
+          <dl className="grid min-w-0 grid-cols-1 gap-4 text-sm sm:grid-cols-2">
+            {[
+              ["Version", `v${document.currentVersion.versionNumber}`],
+              ["Filename", document.currentVersion.originalFilename],
+              ["File type", mimeLabel(document.currentVersion.mimeType)],
+              ["File size", formatBytes(document.currentVersion.fileSize)],
+              ["Uploaded", versionTime(document.currentVersion.createdAt)],
+            ].map(([label, value]) => (
+              <div key={label} className="min-w-0">
+                <dt className="text-muted-foreground">{label}</dt>
+                <dd className="mt-1 break-words">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            No current version available.
+          </p>
+        )}
+      </Card>
       {document.verifiedSummary && (
         <Card className="space-y-2 p-5">
           <h2 className="text-xl font-semibold tracking-tight">

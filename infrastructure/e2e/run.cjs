@@ -6,7 +6,9 @@ const root = resolve(__dirname, '../..');
 const env = resolve(root, '.tools/brainless-e2e.env');
 mkdirSync(resolve(root, '.tools'), { recursive: true });
 if (!existsSync(env)) writeFileSync(env, `POSTGRES_USER=brainless_e2e\nPOSTGRES_DB=brainless_e2e\nPOSTGRES_PASSWORD=${randomBytes(24).toString('hex')}\nNGINX_PORT=18080\nPUBLIC_APP_URL=http://localhost:18080\nUPLOAD_MAX_BYTES=2097152\n`, { mode: 0o600 });
-const args = ['compose', '-p', 'brainless-e2e', '--env-file', env, '-f', resolve(root, 'docker-compose.yml'), '-f', resolve(__dirname, 'compose.yml')];
+const project = process.env.E2E_PROJECT_NAME || 'brainless-e2e';
+if (!/^brainless-e2e(?:-[a-z0-9-]+)?$/.test(project)) throw new Error('Use an isolated brainless-e2e project name.');
+const args = ['compose', '-p', project, '--env-file', env, '-f', resolve(root, 'docker-compose.yml'), '-f', resolve(__dirname, 'compose.yml')];
 function compose(extra, overrides = {}) {
   const result = spawnSync('docker', [...args, ...extra], { cwd: root, stdio: 'inherit', env: { ...process.env, ...overrides }, shell: false });
   if (result.error) throw result.error;

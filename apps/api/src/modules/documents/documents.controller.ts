@@ -56,6 +56,7 @@ const documentSchema = {
   properties: {
     id: { type: 'string', format: 'uuid' },
     title: { type: 'string' },
+    description: { type: 'string', nullable: true, maxLength: 2000 },
     documentType: { type: 'string' },
     status: { type: 'string' },
     issuer: { type: 'string', nullable: true },
@@ -67,6 +68,19 @@ const documentSchema = {
     createdAt: { type: 'string', format: 'date-time' },
     updatedAt: { type: 'string', format: 'date-time' },
     deletedAt: { type: 'string', format: 'date-time', nullable: true },
+    currentVersion: {
+      type: 'object',
+      nullable: true,
+      additionalProperties: false,
+      properties: {
+        id: { type: 'string', format: 'uuid' },
+        versionNumber: { type: 'integer' },
+        originalFilename: { type: 'string' },
+        mimeType: { type: 'string' },
+        fileSize: { type: 'integer' },
+        createdAt: { type: 'string', format: 'date-time' },
+      },
+    },
     category: {
       ...relation,
       nullable: true,

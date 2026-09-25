@@ -17,6 +17,7 @@ export const category = { ...tag, name: "Records", color: null, icon: null }
 export const document = {
   id,
   title: "Insurance policy",
+  description: null,
   documentType: "INSURANCE",
   status: "UPLOADED",
   issuer: "Example insurer",
@@ -28,6 +29,14 @@ export const document = {
   isArchived: false,
   category,
   tags: [tag],
+  currentVersion: {
+    id: secondId,
+    versionNumber: 2,
+    originalFilename: "policy.pdf",
+    mimeType: "application/pdf",
+    fileSize: 1024,
+    createdAt: tag.createdAt,
+  },
   storageKey: "private-storage-key",
   userId: "private-owner",
   checksumSha256: "private-checksum",

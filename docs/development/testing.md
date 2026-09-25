@@ -4,7 +4,8 @@
 
 All commands run from the repository root after dependency installation. Choose
 checks that exercise changed behavior. Report new results separately from the
-[recorded release evidence](../releases/v1.0.0.md#verification-evidence).
+[recorded release evidence](../releases/v1.0.0.md#verification-evidence) and the
+[v1.1.0 acceptance snapshot](../releases/v1.1.0.md#acceptance-evidence).
 
 ## Unit, HTTP and component tests
 
@@ -40,6 +41,13 @@ transactions, ownership, auth rotation and upload/version persistence. Some fixt
 roll back transactions; others commit unique synthetic records and clean them up.
 No database reset is part of the workflow. PDF inspection tests need host qpdf.
 
+The v1.1.0 upgrade test requires a separate **empty, disposable** database whose
+name contains `test`. Supply it as `TEST_MIGRATION_DATABASE_URL`, then run
+`npm --prefix packages/database run test:migration`. The test applies Phase 1
+migrations, inserts representative existing rows, deploys the description
+migration, and verifies preserved values and constraints. Never point it at a
+developer or production database.
+
 ## Real browsers through Nginx
 
 Requires running Docker Linux containers, installed web dependencies, and Chromium:
@@ -57,6 +65,13 @@ volumes and generated credentials, then stops it without deleting volumes. Do no
 run tests concurrently against that project. Full commands, artifact rules and
 focused runs are in [browser verification](../phase-1-browser-verification.md).
 This is separate from the API's similarly named `test:e2e` script.
+
+If a retained E2E PostgreSQL volume has credentials from an older generated
+`.tools/brainless-e2e.env`, migration startup fails with `P1000`. Preserve the old
+volume and select a fresh isolated Compose project instead. In PowerShell, set
+`$env:E2E_PROJECT_NAME='brainless-e2e-v11'` before running `test:e2e`; use the same
+setting for `node infrastructure/e2e/run.cjs down`. The default project name remains
+`brainless-e2e`. Keep port 18080 free; do not run both projects simultaneously.
 
 ## Formatting, lint, type checking and builds
 

@@ -1,6 +1,8 @@
 import { Transform } from 'class-transformer';
 import {
   ArrayMaxSize,
+  ArrayMinSize,
+  ArrayUnique,
   IsArray,
   IsBoolean,
   IsIn,
@@ -17,6 +19,7 @@ import {
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { documentStatuses } from './document-lifecycle';
+import { documentSorts, DocumentSort } from './document-pagination';
 
 /**
  * @author Cristono Wijaya
@@ -48,6 +51,8 @@ const nullable = (_object: unknown, value: unknown) =>
   value !== undefined && value !== null;
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
+const trimNullableDescription = ({ value }: { value: unknown }) =>
+  typeof value === 'string' ? value.trim() || null : value;
 const calendar = () =>
   ValidateBy({ name: 'calendarDate', validator: { validate: isCalendarDate } });
 
@@ -57,6 +62,14 @@ const calendar = () =>
  * @tags Documents
  */
 export class UpdateDocumentDto {
+  @ApiPropertyOptional({ type: String, nullable: true, maxLength: 2000 })
+  @ValidateIf(nullable)
+  @Transform(trimNullableDescription)
+  @IsString()
+  @MaxLength(2000)
+  @Matches(/^[^\u0000-\u001f\u007f]+$/)
+  declare description?: string | null;
+
   /**
    * @author Cristono Wijaya
    * @description The title of the document. Must be a non-empty string with a maximum length of 300 characters.
@@ -256,38 +269,38 @@ export class DocumentListQuery {
 
   /**
    * @author Cristono Wijaya
-   * @description The sort order for the document list. Must be either '-createdAt' for descending order or 'createdAt' for ascending order. Defaults to '-createdAt'.
+   * @description An allow-listed document sort; a leading minus means descending. Defaults to '-createdAt'.
    * @tags Documents
    * @optional
-   * @enum ['-createdAt', 'createdAt']
+   * @enum ['-createdAt', 'createdAt', '-updatedAt', 'title', '-title', '-fileSize']
    * @default '-createdAt'
    * @validation IsIn
    */
   @ApiPropertyOptional({
-    enum: ['-createdAt', 'createdAt'],
+    enum: [...documentSorts],
     default: '-createdAt',
   })
-  @IsIn(['-createdAt', 'createdAt'])
-  sort: '-createdAt' | 'createdAt' = '-createdAt';
+  @IsIn(documentSorts)
+  sort: DocumentSort = '-createdAt';
 
   /**
    * @author Cristono Wijaya
-   * @description The cursor for pagination. Must be a base64url-encoded string with a maximum length of 512 characters. Used to fetch the next page of results based on the preceding page's cursor.
+   * @description The cursor for pagination. Must be a base64url-encoded string with a maximum length of 4096 characters. Used to fetch the next page of results based on the preceding page's cursor.
    * @tags Documents
    * @optional
    * @type String
-   * @maxLength 512
+   * @maxLength 4096
    * @pattern "^[A-Za-z0-9_-]+$"
    * @validation IsString, MaxLength, Matches
    */
   @ApiPropertyOptional({
-    maxLength: 512,
+    maxLength: 4096,
     description:
       'Opaque cursor from the preceding page using the same filters/order.',
   })
   @ValidateIf(optional)
   @IsString()
-  @MaxLength(512)
+  @MaxLength(4096)
   @Matches(/^[A-Za-z0-9_-]+$/)
   declare cursor?: string;
 
@@ -365,6 +378,74 @@ export class DocumentListQuery {
   @ValidateIf(optional)
   @IsUUID()
   declare tagId?: string;
+
+  @ApiPropertyOptional({
+    type: String,
+    description:
+      'Comma-separated list of 1–10 distinct owned tag UUIDs; all must match. Cannot accompany tagId.',
+  })
+  @ValidateIf(optional)
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string'
+      ? value.split(',').map((id) => id.toLowerCase())
+      : null,
+  )
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(10)
+  @ArrayUnique()
+  @IsUUID(undefined, { each: true })
+  declare tagIds?: string[];
+
+  @ApiPropertyOptional({
+    maxLength: 200,
+    description:
+      'Literal case-insensitive substring of current originalFilename.',
+  })
+  @ValidateIf(optional)
+  @Transform(trim)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  @Matches(/^[^\u0000-\u001f\u007f]+$/)
+  declare filename?: string;
+
+  @ApiPropertyOptional({ enum: ['application/pdf', 'image/jpeg', 'image/png'] })
+  @ValidateIf(optional)
+  @IsIn(['application/pdf', 'image/jpeg', 'image/png'])
+  declare mimeType?: 'application/pdf' | 'image/jpeg' | 'image/png';
+
+  @ApiPropertyOptional({
+    format: 'date',
+    description: 'Inclusive UTC calendar day on document createdAt.',
+  })
+  @ValidateIf(optional)
+  @calendar()
+  declare createdFrom?: string;
+
+  @ApiPropertyOptional({
+    format: 'date',
+    description: 'Inclusive UTC calendar day on document createdAt.',
+  })
+  @ValidateIf(optional)
+  @calendar()
+  declare createdTo?: string;
+
+  @ApiPropertyOptional({
+    format: 'date',
+    description: 'Inclusive UTC calendar day on document updatedAt.',
+  })
+  @ValidateIf(optional)
+  @calendar()
+  declare updatedFrom?: string;
+
+  @ApiPropertyOptional({
+    format: 'date',
+    description: 'Inclusive UTC calendar day on document updatedAt.',
+  })
+  @ValidateIf(optional)
+  @calendar()
+  declare updatedTo?: string;
 
   /**
    * @author Cristono Wijaya

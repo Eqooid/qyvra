@@ -12,6 +12,10 @@
 > queued processing job; local Compose uses HTTP, not TLS; the implemented CSRF policy
 > uses an Origin check and custom header, not a token endpoint. ORM selection is
 > resolved as Prisma 7. Historical MVP/MVP+ labels are planning labels, not release status.
+> Phase 2 is the implemented [v1.1.0 organization/metadata release candidate](roadmap.md#phase-2--v110-release-ready).
+> Processing/reminders follow in Phase 3, AI/semantic retrieval in Phase 4 and
+> advanced keyword search in Phase 5. This target catalog remains planned until
+> the owning API/database guides and generated OpenAPI record implementation.
 
 API-first reference architecture for NestJS, PostgreSQL, RabbitMQ, Redis, Elasticsearch, Qdrant, Nginx, Docker, and provider-neutral AI
 
@@ -129,16 +133,16 @@ Personal records are usually scattered across local folders, email, cloud drives
 | F-04   | Document catalog        | Create, edit, archive, restore, delete, filter             | MVP         |
 | F-05   | Categories and tags     | User-owned organization and filtering                      | MVP         |
 | F-06   | Versioning              | Upload new versions and inspect version history            | MVP+        |
-| F-07   | Text extraction         | Incremental PDF extraction; OCR extension point            | Phase 2     |
-| F-08   | Processing status       | Visible progress, retries, errors, cancellation            | Phase 2     |
-| F-09   | AI metadata             | Classification, structured fields, confidence, review      | Phase 3     |
-| F-10   | Summaries               | Generate and review a document summary                     | Phase 3     |
-| F-11   | Semantic search         | Embed chunks and query Qdrant                              | Phase 3     |
-| F-12   | Keyword search          | Elasticsearch matching, highlighting, filters              | Phase 4     |
-| F-13   | Hybrid search           | Combine semantic and lexical results                       | Phase 4     |
-| F-14   | Document Q&A            | RAG answers with page/chunk citations                      | Phase 3     |
-| F-15   | Reminders               | Expiry, renewal, payment, and custom reminders             | Phase 2     |
-| F-16   | Operations              | Health, queues, job retry, reindex, usage audit            | Phase 2+    |
+| F-07   | Text extraction         | Incremental PDF extraction; OCR extension point            | Phase 3     |
+| F-08   | Processing status       | Visible progress, retries, errors, cancellation            | Phase 3     |
+| F-09   | AI metadata             | Classification, structured fields, confidence, review      | Phase 4     |
+| F-10   | Summaries               | Generate and review a document summary                     | Phase 4     |
+| F-11   | Semantic search         | Embed chunks and query Qdrant                              | Phase 4     |
+| F-12   | Keyword search          | Elasticsearch matching, highlighting, filters              | Phase 5     |
+| F-13   | Hybrid search           | Combine semantic and lexical results                       | Phase 5     |
+| F-14   | Document Q&A            | RAG answers with page/chunk citations                      | Phase 4     |
+| F-15   | Reminders               | Expiry, renewal, payment, and custom reminders             | Phase 3     |
+| F-16   | Operations              | Health, queues, job retry, reindex, usage audit            | Phase 3+    |
 
 ## 2.1 Authentication and profile
 
@@ -186,7 +190,7 @@ The worker can request a structured extraction containing document type, issuer,
 
 - Create reminders manually or propose them from verified expiration dates.
 
-- Support in-app delivery in Phase 2; email/Telegram can be added later.
+- Support in-app delivery in Phase 3; email/Telegram can be added later.
 
 - A reminder is idempotently delivered and records SENT, FAILED, or CANCELLED state.
 
@@ -533,7 +537,7 @@ All paths below are relative to /api/v1. USER endpoints are ownership-scoped. AD
 The implemented Tags contract is detailed in docs/api.md: Categories-compatible
 NFKC/whitespace normalization, per-owner lower(name) uniqueness, UUID cursor paging,
 optional literal case-insensitive q search, and permanent owned deletion. Document
-join cleanup will be implemented and verified with Documents, not the Tags slice.
+join cleanup is implemented and covered by document/organization tests.
 
 | **Method** | **Path**                 | **Access** | **Purpose**                            | **Phase** |
 | ---------- | ------------------------ | ---------- | -------------------------------------- | --------- |
@@ -557,10 +561,10 @@ join cleanup will be implemented and verified with Documents, not the Tags slice
 | POST       | /documents/{documentId}/archive  | USER       | Archive document                                     | MVP       |
 | POST       | /documents/{documentId}/restore  | USER       | Restore archived/soft-deleted document               | MVP+      |
 | DELETE     | /documents/{documentId}          | USER       | Soft delete document                                 | MVP       |
-| POST       | /documents/{documentId}/purge    | USER       | Queue permanent deletion                             | Phase 2   |
+| POST       | /documents/{documentId}/purge    | USER       | Queue permanent deletion                             | Phase 3   |
 | GET        | /documents/{documentId}/download | USER       | Authorized original-file download                    | MVP       |
 | GET        | /documents/{documentId}/preview  | USER       | Return preview manifest or signed links              | MVP+      |
-| GET        | /documents/{documentId}/activity | USER       | Audit processing and user changes                    | Phase 2   |
+| GET        | /documents/{documentId}/activity | USER       | Audit processing and user changes                    | Phase 3   |
 
 ## 8.4 Versions, processing and extracted fields
 
@@ -569,48 +573,48 @@ join cleanup will be implemented and verified with Documents, not the Tags slice
 | GET        | /documents/{id}/versions                          | USER       | List versions                   | MVP+      |
 | POST       | /documents/{id}/versions                          | USER       | Upload new immutable version    | MVP+      |
 | GET        | /documents/{id}/versions/{versionId}              | USER       | Version detail                  | MVP+      |
-| GET        | /documents/{id}/versions/{versionId}/chunks       | USER       | Paged extracted chunks          | Phase 2   |
-| GET        | /documents/{id}/processing                        | USER       | Current job states and progress | Phase 2   |
-| POST       | /documents/{id}/reprocess                         | USER       | Queue selected processing steps | Phase 2   |
-| POST       | /documents/{id}/processing/cancel                 | USER       | Request cancellation            | Phase 2   |
-| GET        | /documents/{id}/extracted-fields                  | USER       | List AI/OCR suggestions         | Phase 3   |
-| POST       | /documents/{id}/extracted-fields/{fieldId}/verify | USER       | Accept and promote field        | Phase 3   |
-| POST       | /documents/{id}/extracted-fields/{fieldId}/reject | USER       | Reject candidate                | Phase 3   |
-| POST       | /documents/{id}/summary/regenerate                | USER       | Queue summary regeneration      | Phase 3   |
+| GET        | /documents/{id}/versions/{versionId}/chunks       | USER       | Paged extracted chunks          | Phase 3   |
+| GET        | /documents/{id}/processing                        | USER       | Current job states and progress | Phase 3   |
+| POST       | /documents/{id}/reprocess                         | USER       | Queue selected processing steps | Phase 3   |
+| POST       | /documents/{id}/processing/cancel                 | USER       | Request cancellation            | Phase 3   |
+| GET        | /documents/{id}/extracted-fields                  | USER       | List AI/OCR suggestions         | Phase 4   |
+| POST       | /documents/{id}/extracted-fields/{fieldId}/verify | USER       | Accept and promote field        | Phase 4   |
+| POST       | /documents/{id}/extracted-fields/{fieldId}/reject | USER       | Reject candidate                | Phase 4   |
+| POST       | /documents/{id}/summary/regenerate                | USER       | Queue summary regeneration      | Phase 4   |
 
 ## 8.5 Search
 
 | **Method** | **Path**            | **Access** | **Purpose**                             | **Phase** |
 | ---------- | ------------------- | ---------- | --------------------------------------- | --------- |
-| GET        | /search/documents   | USER       | Unified keyword/semantic/hybrid search  | Phase 3/4 |
-| POST       | /search/semantic    | USER       | Semantic search with structured filters | Phase 3   |
-| POST       | /search/hybrid      | USER       | Hybrid retrieval and rank fusion        | Phase 4   |
-| GET        | /search/suggestions | USER       | Autocomplete issuers, tags and titles   | Phase 4   |
+| GET        | /search/documents   | USER       | Unified keyword/semantic/hybrid search  | Phase 4/5 |
+| POST       | /search/semantic    | USER       | Semantic search with structured filters | Phase 4   |
+| POST       | /search/hybrid      | USER       | Hybrid retrieval and rank fusion        | Phase 5   |
+| GET        | /search/suggestions | USER       | Autocomplete issuers, tags and titles   | Phase 5   |
 
 ## 8.6 RAG chat
 
 | **Method** | **Path**                             | **Access** | **Purpose**                           | **Phase** |
 | ---------- | ------------------------------------ | ---------- | ------------------------------------- | --------- |
-| GET        | /chat-sessions                       | USER       | List chat sessions                    | Phase 3   |
-| POST       | /chat-sessions                       | USER       | Create scoped chat                    | Phase 3   |
-| GET        | /chat-sessions/{sessionId}           | USER       | Get session and messages              | Phase 3   |
-| PATCH      | /chat-sessions/{sessionId}           | USER       | Rename/change allowed scope           | Phase 3   |
-| DELETE     | /chat-sessions/{sessionId}           | USER       | Soft delete chat                      | Phase 3   |
-| POST       | /chat-sessions/{sessionId}/messages  | USER       | Ask question and return/stream answer | Phase 3   |
-| GET        | /chat-messages/{messageId}/citations | USER       | Resolve cited chunks/pages            | Phase 3   |
+| GET        | /chat-sessions                       | USER       | List chat sessions                    | Phase 4   |
+| POST       | /chat-sessions                       | USER       | Create scoped chat                    | Phase 4   |
+| GET        | /chat-sessions/{sessionId}           | USER       | Get session and messages              | Phase 4   |
+| PATCH      | /chat-sessions/{sessionId}           | USER       | Rename/change allowed scope           | Phase 4   |
+| DELETE     | /chat-sessions/{sessionId}           | USER       | Soft delete chat                      | Phase 4   |
+| POST       | /chat-sessions/{sessionId}/messages  | USER       | Ask question and return/stream answer | Phase 4   |
+| GET        | /chat-messages/{messageId}/citations | USER       | Resolve cited chunks/pages            | Phase 4   |
 | POST       | /chat-messages/{messageId}/feedback  | USER       | Store helpful/not-helpful feedback    | Later     |
 
 ## 8.7 Reminders
 
 | **Method** | **Path**                        | **Access** | **Purpose**                | **Phase** |
 | ---------- | ------------------------------- | ---------- | -------------------------- | --------- |
-| GET        | /reminders                      | USER       | List upcoming/history      | Phase 2   |
-| POST       | /reminders                      | USER       | Create reminder            | Phase 2   |
-| GET        | /reminders/{reminderId}         | USER       | Reminder detail            | Phase 2   |
-| PATCH      | /reminders/{reminderId}         | USER       | Reschedule/update reminder | Phase 2   |
-| POST       | /reminders/{reminderId}/dismiss | USER       | Dismiss reminder           | Phase 2   |
+| GET        | /reminders                      | USER       | List upcoming/history      | Phase 3   |
+| POST       | /reminders                      | USER       | Create reminder            | Phase 3   |
+| GET        | /reminders/{reminderId}         | USER       | Reminder detail            | Phase 3   |
+| PATCH      | /reminders/{reminderId}         | USER       | Reschedule/update reminder | Phase 3   |
+| POST       | /reminders/{reminderId}/dismiss | USER       | Dismiss reminder           | Phase 3   |
 | POST       | /reminders/{reminderId}/snooze  | USER       | Create next delivery time  | Later     |
-| DELETE     | /reminders/{reminderId}         | USER       | Cancel reminder            | Phase 2   |
+| DELETE     | /reminders/{reminderId}         | USER       | Cancel reminder            | Phase 3   |
 
 ## 8.8 Operations and configuration
 
@@ -618,14 +622,14 @@ join cleanup will be implemented and verified with Documents, not the Tags slice
 | ---------- | ------------------------------ | ---------- | ------------------------------------- | --------- |
 | GET        | /health/live                   | Internal   | Process liveness                      | MVP       |
 | GET        | /health/ready                  | Internal   | Required dependency readiness         | MVP       |
-| GET        | /admin/jobs                    | ADMIN      | Filter job and attempt history        | Phase 2   |
-| POST       | /admin/jobs/{jobId}/retry      | ADMIN      | Retry eligible failed job             | Phase 2   |
-| POST       | /admin/search/reindex          | ADMIN      | Queue Elasticsearch rebuild           | Phase 4   |
-| POST       | /admin/vectors/reindex         | ADMIN      | Queue embedding profile rebuild       | Phase 3   |
-| GET        | /admin/ai-profiles             | ADMIN      | List provider-neutral profiles        | Phase 3   |
-| POST       | /admin/ai-profiles             | ADMIN      | Create profile without secret         | Phase 3   |
-| PATCH      | /admin/ai-profiles/{profileId} | ADMIN      | Activate/update safe profile settings | Phase 3   |
-| GET        | /admin/usage/ai                | ADMIN      | Usage, latency and estimated cost     | Phase 3   |
+| GET        | /admin/jobs                    | ADMIN      | Filter job and attempt history        | Phase 3   |
+| POST       | /admin/jobs/{jobId}/retry      | ADMIN      | Retry eligible failed job             | Phase 3   |
+| POST       | /admin/search/reindex          | ADMIN      | Queue Elasticsearch rebuild           | Phase 5   |
+| POST       | /admin/vectors/reindex         | ADMIN      | Queue embedding profile rebuild       | Phase 4   |
+| GET        | /admin/ai-profiles             | ADMIN      | List provider-neutral profiles        | Phase 4   |
+| POST       | /admin/ai-profiles             | ADMIN      | Create profile without secret         | Phase 4   |
+| PATCH      | /admin/ai-profiles/{profileId} | ADMIN      | Activate/update safe profile settings | Phase 4   |
+| GET        | /admin/usage/ai                | ADMIN      | Usage, latency and estimated cost     | Phase 4   |
 
 ## 8.9 Important endpoint behavior
 
@@ -651,18 +655,18 @@ join cleanup will be implemented and verified with Documents, not the Tags slice
 | /documents/:id            | Document detail   | Preview, verified fields, tags, status, actions          | MVP       |
 | /documents/:id/edit       | Edit metadata     | Trusted metadata editing                                 | MVP       |
 | /documents/:id/versions   | Version history   | Compare version metadata and processing                  | MVP+      |
-| /documents/:id/review     | AI review         | Accept/reject extracted fields and summary               | Phase 3   |
-| /documents/:id/processing | Processing detail | Steps, attempts, progress, retry                         | Phase 2   |
-| /search                   | Search            | Keyword, semantic, hybrid modes and filters              | Phase 3/4 |
-| /chat                     | Document chat     | Session list and scoped Q&A                              | Phase 3   |
-| /chat/:sessionId          | Chat session      | Answers, citations, source navigation                    | Phase 3   |
-| /reminders                | Reminders         | Upcoming, overdue, dismissed, history                    | Phase 2   |
+| /documents/:id/review     | AI review         | Accept/reject extracted fields and summary               | Phase 4   |
+| /documents/:id/processing | Processing detail | Steps, attempts, progress, retry                         | Phase 3   |
+| /search                   | Search            | Keyword, semantic, hybrid modes and filters              | Phase 4/5 |
+| /chat                     | Document chat     | Session list and scoped Q&A                              | Phase 4   |
+| /chat/:sessionId          | Chat session      | Answers, citations, source navigation                    | Phase 4   |
+| /reminders                | Reminders         | Upcoming, overdue, dismissed, history                    | Phase 3   |
 | /settings/profile         | Profile           | Name, timezone, locale                                   | MVP       |
 | /settings/security        | Security          | Password and session management                          | MVP+      |
-| /settings/ai              | AI preferences    | Available profiles and privacy choices                   | Phase 3   |
-| /admin/jobs               | Job operations    | Failures, attempts and retries                           | Phase 2   |
-| /admin/ai-profiles        | AI profiles       | Provider/model/index configuration                       | Phase 3   |
-| /admin/system             | System health     | Dependency status and queue metrics                      | Phase 2   |
+| /settings/ai              | AI preferences    | Available profiles and privacy choices                   | Phase 4   |
+| /admin/jobs               | Job operations    | Failures, attempts and retries                           | Phase 3   |
+| /admin/ai-profiles        | AI profiles       | Provider/model/index configuration                       | Phase 4   |
+| /admin/system             | System health     | Dependency status and queue metrics                      | Phase 3   |
 
 ## 9.1 Dashboard widgets
 
@@ -979,10 +983,11 @@ Maintain a small version-controlled evaluation dataset containing representative
 | --------- | ---------------- | -------------------------- | ------------------------------------------------- |
 | 0         | Foundation       | NestJS, PostgreSQL, Docker | Migrations, modules, CI tests, health             |
 | 1         | Usable tracker   | \+ Nginx, object storage   | Auth, CRUD, upload/download, categories/tags      |
-| 2         | Processing       | \+ RabbitMQ, Redis         | Extraction, progress, retries, reminders          |
-| 3         | Local/hosted AI  | \+ Ollama/OpenAI, Qdrant   | Reviewable extraction, semantic search, cited Q&A |
-| 4         | Advanced search  | \+ Elasticsearch           | Keyword, highlights, autocomplete, hybrid ranking |
-| 5         | Identity upgrade | \+ Keycloak                | OIDC migration without changing domain ownership  |
+| 2         | Organization and metadata | Existing stack | Description, current-file metadata, filters and sorting |
+| 3         | Processing       | \+ RabbitMQ, Redis where justified | Extraction, progress, retries, reminders |
+| 4         | Local/hosted AI  | \+ Ollama/OpenAI, Qdrant   | Reviewable extraction, semantic search, cited Q&A |
+| 5         | Advanced search  | \+ Elasticsearch           | Keyword, highlights, autocomplete, hybrid ranking |
+| 6         | Identity upgrade | \+ Keycloak                | OIDC migration without changing domain ownership  |
 
 ## 15.1 Suggested first development backlog
 
@@ -1021,7 +1026,7 @@ Maintain a small version-controlled evaluation dataset containing representative
 | Deployment     | The MVP starts through documented Docker Compose commands and is reached through Nginx.                                        |
 | Tests          | Critical ownership, upload, and document CRUD paths pass automated integration tests.                                          |
 
-## 16.1 Phase 3 AI acceptance criteria
+## 16.1 Phase 4 AI acceptance criteria
 
 - Every AI result records provider, model, prompt version, duration, and status.
 

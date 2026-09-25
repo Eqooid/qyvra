@@ -30,6 +30,7 @@ import { fileError, formatBytes, uploadFormSchema } from "./upload-validation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import type { UseFormRegister } from "react-hook-form"
 import { DatePickerControl } from "@/components/shared/date-picker-control"
 import {
@@ -418,6 +419,27 @@ export function UploadForm({ maxBytes }: { maxBytes: number }) {
                 register={register}
                 errors={errors}
               />
+              <Field className="min-w-0 space-y-2 sm:col-span-2">
+                <FieldLabel htmlFor="upload-description">
+                  Description (optional)
+                </FieldLabel>
+                <Textarea
+                  id="upload-description"
+                  rows={4}
+                  maxLength={2000}
+                  className="w-full resize-y"
+                  {...register("description")}
+                  aria-invalid={!!errors.description}
+                  aria-describedby={
+                    errors.description ? "upload-description-error" : undefined
+                  }
+                />
+                {errors.description && (
+                  <FieldError id="upload-description-error" role="alert">
+                    {errors.description.message}
+                  </FieldError>
+                )}
+              </Field>
               <TextField
                 name="documentType"
                 label="Document type *"

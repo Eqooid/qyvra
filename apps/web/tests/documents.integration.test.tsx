@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { act, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { format, subDays } from "date-fns"
+import { chooseDate } from "./date-picker"
 import { AuthProvider } from "@/features/auth/provider"
 import { DashboardShell } from "@/components/layout/dashboard-shell"
 import { DocumentsList } from "@/features/documents/documents-list"
@@ -57,18 +59,31 @@ function mount() {
 function mockApi(
   documents: (url: URL) => Response | Promise<Response> = () =>
     json(envelope([document])),
-  lookupsFail = false
+  lookupsFail = false,
+  tagRecords = [tag]
 ) {
   const fetcher = vi.fn<typeof fetch>(async (input) => {
     const url = new URL(String(input), "http://localhost")
     if (url.pathname.endsWith("/auth/me")) return json({ data: profile })
     if (url.pathname.endsWith("/categories"))
       return lookupsFail ? json({}, 503) : json(envelope([category]))
-    if (url.pathname.endsWith("/tags")) return json(envelope([tag]))
+    if (url.pathname.endsWith("/tags")) return json(envelope(tagRecords))
     return documents(url)
   })
   vi.stubGlobal("fetch", fetcher)
   return fetcher
+}
+async function openFilters() {
+  await userEvent.click(screen.getByRole("button", { name: "Filters" }))
+  return screen.findByRole("dialog", { name: "Filter documents" })
+}
+async function applyFilters() {
+  await userEvent.click(screen.getByRole("button", { name: "Apply filters" }))
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("dialog", { name: "Filter documents" })
+    ).not.toBeInTheDocument()
+  )
 }
 describe("documents page with real client and query hooks", () => {
   it("toggles optional columns while keeping the required columns visible", async () => {
@@ -131,30 +146,92 @@ describe("documents page with real client and query hooks", () => {
     expect(table).not.toHaveTextContent("private-owner")
     expect(table).not.toHaveTextContent("private-checksum")
   })
+  it("shows a clamped description preview and current file metadata from list responses", async () => {
+    const description = "Owner notes ".repeat(80)
+    const fetcher = mockApi(() =>
+      json(
+        envelope([
+          { ...document, description },
+          {
+            ...document,
+            id: secondId,
+            title: "Metadata only",
+            description: null,
+            currentVersion: null,
+          },
+        ])
+      )
+    )
+    mount()
+    await screen.findByRole("link", { name: document.title })
+    const table = screen.getByRole("table", { name: "Documents" })
+    expect(within(table).getByText(/Owner notes Owner notes/)).toHaveClass(
+      "line-clamp-2"
+    )
+    expect(
+      within(table).getByText(document.currentVersion.originalFilename)
+    ).toBeInTheDocument()
+    expect(
+      within(table).getByText(`v${document.currentVersion.versionNumber}`)
+    ).toBeInTheDocument()
+    expect(within(table).getByText("PDF")).toBeInTheDocument()
+    expect(within(table).getByText("1.0 KiB")).toBeInTheDocument()
+    expect(
+      within(table).getByRole("link", { name: "Metadata only" })
+    ).toBeInTheDocument()
+    expect(
+      fetcher.mock.calls.some(([url]) => String(url).includes("/versions"))
+    ).toBe(false)
+  })
 
   it("maps category, tag, archive and sort controls into bookmarked API queries", async () => {
     const fetcher = mockApi()
     const view = mount()
     await screen.findByText(document.title)
-    for (const [name, value, key, option] of [
-      ["Category", id, "categoryId", "Records"],
-      ["Tag", id, "tagId", "Finance"],
-      ["Archive state", "true", "archived", "Archived"],
-      ["Sort", "createdAt", "sort", "Oldest first"],
+    await openFilters()
+    for (const [name, option] of [
+      ["Category", "Records"],
+      ["Archive state", "Archived"],
     ]) {
       await userEvent.click(screen.getByRole("combobox", { name }))
       await userEvent.click(await screen.findByRole("option", { name: option }))
-      const url = navigation.push.mock.lastCall?.[0] as string
-      expect(new URL(url, "http://localhost").searchParams.get(key)).toBe(value)
-      view.visit(url.split("?")[1])
+      expect(navigation.push).not.toHaveBeenCalled()
     }
+    await userEvent.click(
+      screen.getByRole("button", { name: "Tags (match all)" })
+    )
+    await userEvent.click(
+      await screen.findByRole("checkbox", { name: "Finance" })
+    )
+    expect(navigation.push).not.toHaveBeenCalled()
+    await applyFilters()
+    let url = navigation.push.mock.lastCall?.[0] as string
+    expect(
+      new URL(url, "http://localhost").searchParams.get("categoryId")
+    ).toBe(id)
+    expect(new URL(url, "http://localhost").searchParams.get("archived")).toBe(
+      "true"
+    )
+    expect(new URL(url, "http://localhost").searchParams.get("tagIds")).toBe(id)
+    view.visit(url.split("?")[1])
+    await userEvent.click(
+      screen.getByRole("combobox", { name: "Sort direction" })
+    )
+    await userEvent.click(
+      await screen.findByRole("option", { name: "Ascending" })
+    )
+    url = navigation.push.mock.lastCall?.[0] as string
+    expect(new URL(url, "http://localhost").searchParams.get("sort")).toBe(
+      "createdAt"
+    )
+    view.visit(url.split("?")[1])
     await waitFor(() =>
       expect(
         fetcher.mock.calls.some(
           ([url]) =>
             String(url).includes("archived=true") &&
             String(url).includes("sort=createdAt") &&
-            String(url).includes(`tagId=${id}`)
+            String(url).includes(`tagIds=${id}`)
         )
       ).toBe(true)
     )
@@ -168,8 +245,12 @@ describe("documents page with real client and query hooks", () => {
     )
     mount()
     await screen.findByText("No documents yet")
+    await openFilters()
     expect(screen.getByRole("combobox", { name: "Category" })).toBeEnabled()
-    expect(screen.getByRole("combobox", { name: "Tag" })).toBeEnabled()
+    expect(
+      screen.getByRole("button", { name: "Tags (match all)" })
+    ).toBeEnabled()
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }))
     expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled()
     expect(
       screen.queryByRole("button", { name: "Load more categories" })
@@ -184,16 +265,20 @@ describe("documents page with real client and query hooks", () => {
     expect(
       screen.getByRole("link", { name: "Upload document" })
     ).toHaveAttribute("href", "/documents/upload")
+    await openFilters()
     await userEvent.click(screen.getByRole("combobox", { name: "Category" }))
     expect(
       await screen.findByRole("option", { name: "Records" })
     ).toBeInTheDocument()
     await userEvent.keyboard("{Escape}")
-    await userEvent.click(screen.getByRole("combobox", { name: "Tag" }))
+    await userEvent.click(
+      screen.getByRole("button", { name: "Tags (match all)" })
+    )
     expect(
-      await screen.findByRole("option", { name: "Finance" })
+      await screen.findByRole("checkbox", { name: "Finance" })
     ).toBeInTheDocument()
     await userEvent.keyboard("{Escape}")
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }))
     expect(
       screen.getByText("uploaded", { selector: "span" })
     ).toBeInTheDocument()
@@ -229,17 +314,18 @@ describe("documents page with real client and query hooks", () => {
     await userEvent.click(
       screen.getByRole("button", { name: "Clear all filters" })
     )
-    expect(navigation.push).toHaveBeenCalledWith("/documents", {
-      scroll: false,
-    })
+    expect(navigation.push.mock.lastCall?.[0]).not.toContain("q=")
   })
   it("keeps results available when an optional filter fails", async () => {
     mockApi(undefined, true)
     mount()
+    await screen.findByText(document.title)
+    await openFilters()
     expect(
       await screen.findByText("Categories unavailable.")
     ).toBeInTheDocument()
     expect(screen.getByRole("combobox", { name: "Category" })).toBeDisabled()
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }))
     expect(await screen.findByText(document.title)).toBeInTheDocument()
   })
   it("shows retry on API failure rather than an empty account", async () => {
@@ -256,13 +342,16 @@ describe("documents page with real client and query hooks", () => {
       screen.getByRole("button", { name: "Try again" })
     ).toBeInTheDocument()
   })
-  it("updates filters immediately, clears cursors, debounces search and restores URL on navigation", async () => {
+  it("stages filters, clears cursors on Apply, debounces search and restores URL state", async () => {
     mockApi()
     navigation.search = "cursor=old_cursor"
     const view = mount()
     await screen.findByText(document.title)
+    await openFilters()
     await userEvent.click(screen.getByRole("combobox", { name: "Status" }))
     await userEvent.click(await screen.findByRole("option", { name: "ready" }))
+    expect(navigation.push).not.toHaveBeenCalled()
+    await applyFilters()
     expect(navigation.push.mock.lastCall?.[0]).toContain("status=READY")
     expect(navigation.push.mock.lastCall?.[0]).not.toContain("cursor")
     view.visit("status=READY")
@@ -274,14 +363,85 @@ describe("documents page with real client and query hooks", () => {
       expect(navigation.push.mock.lastCall?.[0]).toContain("q=tax")
     )
     view.visit("q=tax&status=READY")
-    expect(screen.getByRole("searchbox")).toHaveFocus()
+    expect(
+      screen.getByRole("searchbox", { name: "Search documents" })
+    ).toHaveFocus()
     view.visit("q=insurance&status=FAILED")
-    expect(screen.getByRole("searchbox")).toHaveValue("insurance")
+    expect(
+      screen.getByRole("searchbox", { name: "Search documents" })
+    ).toHaveValue("insurance")
+    await openFilters()
     expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
       "failed"
     )
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }))
     view.visit("")
-    expect(screen.getByRole("searchbox")).toHaveValue("")
+    expect(
+      screen.getByRole("searchbox", { name: "Search documents" })
+    ).toHaveValue("")
+  })
+  it("keeps draft changes private until Apply and discards them on close", async () => {
+    mockApi()
+    navigation.search =
+      "mimeType=application%2Fpdf&sort=-title&cursor=old_cursor"
+    mount()
+    await screen.findByText(document.title)
+    expect(screen.getByRole("button", { name: "Filters" })).toHaveTextContent(
+      "1"
+    )
+    expect(
+      screen.queryByRole("combobox", { name: "Current file type" })
+    ).not.toBeInTheDocument()
+    await openFilters()
+    expect(
+      screen.getByRole("combobox", { name: "Current file type" })
+    ).toHaveTextContent("PDF")
+    await userEvent.click(
+      screen.getByRole("combobox", { name: "Current file type" })
+    )
+    await userEvent.click(
+      await screen.findByRole("option", { name: "JPEG image" })
+    )
+    expect(navigation.push).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }))
+    expect(navigation.push).not.toHaveBeenCalled()
+    await openFilters()
+    expect(
+      screen.getByRole("combobox", { name: "Current file type" })
+    ).toHaveTextContent("PDF")
+    await userEvent.click(screen.getByRole("button", { name: "Clear" }))
+    expect(
+      screen.getByRole("combobox", { name: "Current file type" })
+    ).toHaveTextContent("All file types")
+    expect(navigation.push).not.toHaveBeenCalled()
+    await applyFilters()
+    const params = new URL(
+      navigation.push.mock.lastCall?.[0] as string,
+      "http://localhost"
+    ).searchParams
+    expect(params.has("mimeType")).toBe(false)
+    expect(params.has("cursor")).toBe(false)
+    expect(params.get("sort")).toBe("-title")
+  })
+  it("counts filter categories without counting tags, range endpoints or sort", async () => {
+    mockApi()
+    navigation.search = `mimeType=application%2Fpdf&tagIds=${id},${secondId}&createdFrom=2026-01-01&createdTo=2026-12-31&sort=-title&cursor=old_cursor`
+    mount()
+    await screen.findByText(document.title)
+    expect(screen.getByRole("button", { name: "Filters" })).toHaveTextContent(
+      "3"
+    )
+    await openFilters()
+    expect(
+      screen.getByRole("button", { name: "Created from" })
+    ).toHaveTextContent("2026-01-01")
+    expect(
+      screen.getByRole("button", { name: "Created to" })
+    ).toHaveTextContent("2026-12-31")
+    await userEvent.keyboard("{Escape}")
+    expect(
+      screen.queryByRole("dialog", { name: "Filter documents" })
+    ).not.toBeInTheDocument()
   })
   it("follows the returned cursor while preserving filters and announces page loading", async () => {
     mockApi((url) =>
@@ -299,6 +459,204 @@ describe("documents page with real client and query hooks", () => {
     view.visit(next.split("?")[1])
     expect(await screen.findByText("Loading this view…")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled()
+  })
+  it("stages filename, MIME, all-of tags and UTC dates until Apply", async () => {
+    const secondTag = { ...tag, id: secondId, name: "2026" }
+    const fetcher = mockApi(undefined, false, [tag, secondTag])
+    navigation.search = "cursor=old_cursor&sort=-updatedAt"
+    const view = mount()
+    await screen.findByText(document.title)
+    await openFilters()
+    await userEvent.type(
+      screen.getByRole("textbox", { name: "Current filename" }),
+      "Annual Report"
+    )
+    await userEvent.click(
+      screen.getByRole("combobox", { name: "Current file type" })
+    )
+    await userEvent.click(await screen.findByRole("option", { name: "PDF" }))
+    await userEvent.click(
+      screen.getByRole("button", { name: "Tags (match all)" })
+    )
+    await userEvent.click(
+      await screen.findByRole("checkbox", { name: "Finance" })
+    )
+    await userEvent.click(screen.getByRole("checkbox", { name: "2026" }))
+    await userEvent.keyboard("{Escape}")
+    const day = format(new Date(), "yyyy-MM-dd")
+    await chooseDate("Created from", day)
+    await chooseDate("Created to", day)
+    await chooseDate("Updated from", day)
+    await chooseDate("Updated to", day)
+    expect(navigation.push).not.toHaveBeenCalled()
+    await applyFilters()
+    const url = navigation.push.mock.lastCall?.[0] as string
+    const params = new URL(url, "http://localhost").searchParams
+    expect(params.get("filename")).toBe("Annual Report")
+    expect(params.get("mimeType")).toBe("application/pdf")
+    expect(params.get("tagIds")).toBe(id + "," + secondId)
+    for (const key of ["createdFrom", "createdTo", "updatedFrom", "updatedTo"])
+      expect(params.get(key)).toBe(day)
+    expect(params.get("sort")).toBe("-updatedAt")
+    expect(params.has("cursor")).toBe(false)
+    view.visit(url.split("?")[1])
+    expect(screen.getByLabelText("Active filters")).toHaveTextContent(
+      "Tag: Finance"
+    )
+    expect(screen.getByLabelText("Active filters")).toHaveTextContent(
+      "Tag: 2026"
+    )
+    expect(screen.getByRole("button", { name: "Filters" })).toHaveTextContent(
+      "5"
+    )
+    expect(
+      fetcher.mock.calls.some(([request]) =>
+        String(request).includes("tagIds=")
+      )
+    ).toBe(true)
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "Remove Filename: Annual Report filter",
+      })
+    )
+    const removed = navigation.push.mock.lastCall?.[0] as string
+    expect(
+      new URL(removed, "http://localhost").searchParams.has("filename")
+    ).toBe(false)
+    view.visit(removed.split("?")[1])
+    await userEvent.click(screen.getByRole("button", { name: "Clear all" }))
+    const cleared = new URL(
+      navigation.push.mock.lastCall?.[0] as string,
+      "http://localhost"
+    )
+    expect(cleared.searchParams.get("sort")).toBe("-updatedAt")
+    expect(cleared.searchParams.has("tagIds")).toBe(false)
+  }, 15000)
+  it("rejects reversed date ranges and exposes only supported sort directions", async () => {
+    mockApi()
+    const view = mount()
+    await screen.findByText(document.title)
+    await openFilters()
+    await chooseDate("Created from", format(new Date(), "yyyy-MM-dd"))
+    await chooseDate("Created to", format(subDays(new Date(), 1), "yyyy-MM-dd"))
+    await userEvent.click(screen.getByRole("button", { name: "Apply filters" }))
+    expect(await screen.findByRole("alert", { name: "" })).toHaveTextContent(
+      "start date"
+    )
+    expect(navigation.push).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole("button", { name: "Clear" }))
+    await applyFilters()
+
+    await userEvent.click(screen.getByRole("combobox", { name: "Sort by" }))
+    for (const option of [
+      "Created date",
+      "Updated date",
+      "Title",
+      "Current file size",
+    ])
+      expect(screen.getByRole("option", { name: option })).toBeInTheDocument()
+    await userEvent.click(
+      screen.getByRole("option", { name: "Current file size" })
+    )
+    let url = navigation.push.mock.lastCall?.[0] as string
+    expect(new URL(url, "http://localhost").searchParams.get("sort")).toBe(
+      "-fileSize"
+    )
+    view.visit(url.split("?")[1])
+    await userEvent.click(
+      screen.getByRole("combobox", { name: "Sort direction" })
+    )
+    expect(
+      screen.queryByRole("option", { name: "Ascending" })
+    ).not.toBeInTheDocument()
+    await userEvent.keyboard("{Escape}")
+    await userEvent.click(screen.getByRole("combobox", { name: "Sort by" }))
+    await userEvent.click(await screen.findByRole("option", { name: "Title" }))
+    url = navigation.push.mock.lastCall?.[0] as string
+    expect(new URL(url, "http://localhost").searchParams.get("sort")).toBe(
+      "-title"
+    )
+    view.visit(url.split("?")[1])
+    expect(screen.getByRole("combobox", { name: "Sort by" })).toHaveTextContent(
+      "Title"
+    )
+    await userEvent.click(
+      screen.getByRole("combobox", { name: "Sort direction" })
+    )
+    await userEvent.click(
+      await screen.findByRole("option", { name: "Ascending" })
+    )
+    url = navigation.push.mock.lastCall?.[0] as string
+    expect(new URL(url, "http://localhost").searchParams.get("sort")).toBe(
+      "title"
+    )
+  })
+  it("navigates next and previous using opaque cursor history, then resets it on a filter change", async () => {
+    mockApi((url) => {
+      const cursor = url.searchParams.get("cursor")
+      return json(
+        envelope(
+          [document],
+          cursor === "cursor_b"
+            ? null
+            : cursor === "cursor_a"
+              ? "cursor_b"
+              : "cursor_a"
+        )
+      )
+    })
+    const view = mount()
+    await screen.findByText(document.title)
+    expect(screen.getByText(/Page 1 · Up to/)).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Previous page" })).toBeDisabled()
+    await userEvent.click(screen.getByRole("button", { name: "Next page" }))
+    let url = navigation.push.mock.lastCall?.[0] as string
+    expect(new URL(url, "http://localhost").searchParams.get("cursor")).toBe(
+      "cursor_a"
+    )
+    view.visit(url.split("?")[1])
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Next page" })).toBeEnabled()
+    )
+    expect(screen.getByText(/Page 2 · Up to/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole("button", { name: "Next page" }))
+    url = navigation.push.mock.lastCall?.[0] as string
+    expect(new URL(url, "http://localhost").searchParams.get("cursor")).toBe(
+      "cursor_b"
+    )
+    view.visit(url.split("?")[1])
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled()
+    )
+    expect(screen.getByText(/Page 3 · Up to/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole("button", { name: "Previous page" }))
+    url = navigation.push.mock.lastCall?.[0] as string
+    expect(new URL(url, "http://localhost").searchParams.get("cursor")).toBe(
+      "cursor_a"
+    )
+    view.visit(url.split("?")[1])
+    await openFilters()
+    await userEvent.click(
+      screen.getByRole("combobox", { name: "Current file type" })
+    )
+    await userEvent.click(screen.getByRole("option", { name: "PDF" }))
+    await applyFilters()
+    url = navigation.push.mock.lastCall?.[0] as string
+    expect(url).not.toContain("cursor=")
+    view.visit(url.split("?")[1])
+    expect(screen.getByRole("button", { name: "Previous page" })).toBeDisabled()
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Next page" })).toBeEnabled()
+    )
+    await userEvent.click(screen.getByRole("button", { name: "Next page" }))
+    url = navigation.push.mock.lastCall?.[0] as string
+    view.visit(url.split("?")[1])
+    await userEvent.click(screen.getByRole("combobox", { name: "Sort by" }))
+    await userEvent.click(await screen.findByRole("option", { name: "Title" }))
+    url = navigation.push.mock.lastCall?.[0] as string
+    expect(url).not.toContain("cursor=")
+    view.visit(url.split("?")[1])
+    expect(screen.getByRole("button", { name: "Previous page" })).toBeDisabled()
   })
   it("loads further lookup pages explicitly without unbounded fetching", async () => {
     const fetcher = mockApi()
@@ -318,6 +676,8 @@ describe("documents page with real client and query hooks", () => {
       return json(envelope([document]))
     })
     mount()
+    await screen.findByText(document.title)
+    await openFilters()
     await userEvent.click(
       await screen.findByRole("button", { name: "Load more categories" })
     )
@@ -343,14 +703,14 @@ describe("documents page with real client and query hooks", () => {
     )
     expect(screen.queryByText(document.title)).not.toBeInTheDocument()
   })
-  it("supports keyboard focus on the table search and Columns control", async () => {
+  it("supports keyboard focus on the search, Filters and Columns controls", async () => {
     mockApi()
     mount()
     await screen.findByText(document.title)
-    const search = screen.getByRole("searchbox")
+    const search = screen.getByRole("searchbox", { name: "Search documents" })
     act(() => search.focus())
     expect(search).toHaveFocus()
     await userEvent.tab()
-    expect(screen.getByRole("button", { name: "Columns" })).toHaveFocus()
+    expect(screen.getByRole("button", { name: "Filters" })).toHaveFocus()
   })
 })

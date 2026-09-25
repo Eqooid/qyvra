@@ -10,6 +10,17 @@ current original, archive, restore an archive or confirm soft deletion. The list
 keeps filters in the URL and uses cursor navigation. Its search matches metadata
 (title, issuer, reference number), not extracted file contents.
 
+The v1.1.0 catalog controls also filter by the current filename and MIME type,
+require all selected tags, and bound document creation/update dates by UTC calendar
+day. Advanced filters open from the list toolbar and apply together when **Apply
+filters** is selected; closing the dialog discards uncommitted edits. **Clear**
+resets the draft, while applied filter badges can be removed individually or all
+cleared from the list. The available sort choices are
+created date (both directions), updated date (newest first), title (both directions)
+and current file size (largest first). Previous-page navigation uses a short
+in-memory history of opaque cursors for the current filter and sort context;
+bookmarked cursor pages can always return to the first page.
+
 [DocumentsModule](../../apps/api/src/modules/documents) coordinates metadata,
 lifecycle, upload and download services. [Document components](../../apps/web/features/documents)
 and [API clients](../../apps/web/lib/api) own list/forms/detail and upload transport.
@@ -96,3 +107,34 @@ create-only files and traversal/symlink rejection. Frontend `documents`, `upload
 and [cancellation tests](../../apps/web/e2e/cancellation.spec.ts) verify cleanup.
 Historical detail is retained in [upload](../upload-implementation.md),
 [download](../download-implementation.md) and [metadata](../document-metadata-implementation.md) reports.
+
+## v1.1.0 document experience
+
+The [Phase 2 roadmap](../roadmap.md#phase-2--v110-release-ready) and
+[API contract](../api.md#v110-document-contract) describe the implemented release.
+The existing `/documents` list previews the owner description
+and current filename, type, size and version from the list response. Detail shows
+the complete description and current version's safe filename, type, byte size,
+version number and upload timestamp. Its metadata editor can update or clear the
+description; clearing sends `null` through the existing PATCH route. The upload
+API and form accept an optional description. Existing `verifiedSummary` stays
+read-only and separate.
+Metadata-only legacy/test records show no current file; no file details are
+fabricated.
+
+The catalog exposes URL-backed controls for current filename/MIME, multiple
+owned tags, and catalog creation/update date ranges. The API also supports
+document/expiration date filters, but the list has no dedicated controls for
+those ranges yet. Search text continues to match title, issuer and reference number;
+it is not full-text file search. Category, tag, archive and status controls
+continue to combine with the new filters. Sorting adds recently updated,
+title and largest current file to newest/oldest; changing any control returns
+to the first cursor page. Existing category/tag creation, assignment and cache
+refresh patterns remain in use. The layout must retain loading, empty and error
+states, mobile use, keyboard labels and light/dark themes.
+
+Focused API/PostgreSQL, frontend and browser tests through Nginx cover description
+creation/edit/clear, current-file changes, combined filters, sorting, cursor
+navigation and ownership. See the [v1.1.0 release snapshot](../releases/v1.1.0.md)
+for the acceptance evidence. The release remains untagged until a maintainer
+publishes it.

@@ -9,7 +9,6 @@ import {
 } from "@/components/ui/empty"
 
 import { Card } from "@/components/ui/card"
-import { NativeSelectOption } from "@/components/ui/native-select"
 import { Alert } from "@/components/ui/alert"
 
 import {
@@ -18,8 +17,9 @@ import {
   PaginationItem,
 } from "@/components/ui/pagination"
 import Link from "next/link"
-import { Files, CircleAlert, Upload } from "lucide-react"
+import { Files, CircleAlert, Upload, X } from "lucide-react"
 import { LoadingPanel } from "@/components/shared/loading-panel"
+import { Badge } from "@/components/ui/badge"
 import { DocumentsTable } from "./documents-table"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useEffect, useId, useState } from "react"
@@ -33,80 +33,46 @@ import { useAuthApi, useCurrentUser, userKey } from "@/features/auth/provider"
 import { ApiError } from "@/lib/api/client"
 import {
   DocumentQuery,
+  DocumentSort,
+  documentSortSchema,
   listDocuments,
   listCategories,
   listTags,
   queryString,
-  statuses,
 } from "@/lib/api/documents"
 import { hasFilters, readDocumentQuery } from "./query"
 import { Input } from "@/components/ui/input"
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion"
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { Field, FieldLabel } from "@/components/ui/field"
+import { DocumentFilterDialog } from "./document-filter-dialog"
+import { DocumentFilterSelect } from "./document-filter-select"
 
-const label = (value: string) => value.toLowerCase().replaceAll("_", " ")
-
-function FilterSelect({
-  title,
-  value,
-  options,
-  disabled,
-  onChange,
-}: {
-  title: string
-  value: string
-  options: { value: string; label: string }[]
-  disabled?: boolean
-  onChange: (value: string) => void
-}) {
-  const id = useId()
-  return (
-    <Field className="min-w-0">
-      <FieldLabel htmlFor={id}>{title}</FieldLabel>
-      <Select
-        items={options}
-        value={value}
-        disabled={disabled}
-        onValueChange={(next) => onChange(next ?? "")}
-      >
-        <SelectTrigger id={id} className="w-full min-w-0">
-          <SelectValue className="truncate" />
-        </SelectTrigger>
-        <SelectContent alignItemWithTrigger={false}>
-          <SelectGroup>
-            <SelectLabel>{title}</SelectLabel>
-            {options.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                <span className="truncate">{option.label}</span>
-              </SelectItem>
-            ))}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
-    </Field>
-  )
-}
+const sortFields: {
+  id: string
+  label: string
+  asc?: DocumentSort
+  desc: DocumentSort
+}[] = [
+  {
+    id: "createdAt",
+    label: "Created date",
+    asc: "createdAt",
+    desc: "-createdAt",
+  },
+  { id: "updatedAt", label: "Updated date", desc: "-updatedAt" },
+  { id: "title", label: "Title", asc: "title", desc: "-title" },
+  { id: "fileSize", label: "Current file size", desc: "-fileSize" },
+]
 
 function Search({
   value,
   commit,
+  label = "Search documents",
+  placeholder = "Search documents...",
 }: {
   value: string
   commit: (value: string) => void
+  label?: string
+  placeholder?: string
 }) {
   const id = useId()
   const [input, setInput] = useState({ external: value, draft: value })
@@ -119,14 +85,14 @@ function Search({
     return () => clearTimeout(timer)
   }, [draft, value, commit])
   return (
-    <Field className="w-full min-w-0 sm:max-w-sm">
+    <Field className="w-full min-w-0">
       <FieldLabel htmlFor={id} className="sr-only">
-        Search documents
+        {label}
       </FieldLabel>
       <Input
         id={id}
         type="search"
-        placeholder="Search documents..."
+        placeholder={placeholder}
         maxLength={200}
         value={draft}
         onChange={(event) =>
@@ -145,6 +111,19 @@ export function DocumentsList() {
   const search = useSearchParams()
   const query = readDocumentQuery(new URLSearchParams(search.toString()))
   const queryKey = queryString(query)
+  const context = queryString({ ...query, cursor: undefined })
+  const [trail, setTrail] = useState<{
+    context: string
+    cursors: (string | undefined)[]
+  }>({ context: "", cursors: [undefined] })
+  const cursors = trail.context === context ? trail.cursors : [undefined]
+  const pageIndex = cursors.findIndex((cursor) => cursor === query.cursor)
+  const selectedSort = documentSortSchema.parse(query.sort ?? "-createdAt")
+  const sortField =
+    sortFields.find(
+      (field) => field.asc === selectedSort || field.desc === selectedSort
+    ) ?? sortFields[0]
+  const sortDirection = sortField.asc === selectedSort ? "asc" : "desc"
   const owner = user.data?.id
   const actionNotice = useQuery<string | null>({
     queryKey: ["document-action-notice", owner],
@@ -190,30 +169,103 @@ export function DocumentsList() {
       last.meta.hasMore ? (last.meta.nextCursor ?? undefined) : undefined,
     retry: false,
   })
-  function navigate(next: DocumentQuery) {
+  function navigate(next: DocumentQuery, resetTrail = false) {
     const normalized = readDocumentQuery(new URLSearchParams(queryString(next)))
+    if (resetTrail)
+      setTrail({
+        context: queryString({ ...normalized, cursor: undefined }),
+        cursors: [undefined],
+      })
     router.push(`/documents?${queryString(normalized)}`, { scroll: false })
   }
   function change(key: keyof DocumentQuery, value: string) {
-    navigate({ ...query, cursor: undefined, [key]: value || undefined })
+    navigate({ ...query, cursor: undefined, [key]: value || undefined }, true)
   }
-  const clear = () => router.push("/documents", { scroll: false })
+  function changeFields(patch: Partial<DocumentQuery>) {
+    navigate({ ...query, ...patch, cursor: undefined }, true)
+  }
+  const clear = () => {
+    navigate({ sort: query.sort, limit: query.limit }, true)
+  }
   const categoryItems =
     categories.data?.pages.flatMap((page) => page.data) ?? []
   const tagItems = tags.data?.pages.flatMap((page) => page.data) ?? []
-  const types = [
-    "INVOICE",
-    "RECEIPT",
-    "STATEMENT",
-    "CONTRACT",
-    "CERTIFICATE",
-    "WARRANTY",
-    "INSURANCE",
-    "IDENTITY",
-    "OTHER",
-  ]
-  if (query.documentType && !types.includes(query.documentType))
-    types.push(query.documentType)
+  const selectedTagIds = query.tagIds ?? (query.tagId ? [query.tagId] : [])
+  function changeSortField(id: string) {
+    const field = sortFields.find((item) => item.id === id)
+    if (field)
+      changeFields({
+        sort: sortDirection === "asc" && field.asc ? field.asc : field.desc,
+      })
+  }
+  function changeSortDirection(direction: string) {
+    if (direction === "asc" && sortField.asc)
+      changeFields({ sort: sortField.asc })
+    if (direction === "desc") changeFields({ sort: sortField.desc })
+  }
+  function nextPage() {
+    const next = documents.data?.meta.nextCursor
+    if (!next || !documents.data?.meta.hasMore || documents.isFetching) return
+    setTrail({
+      context,
+      cursors: [
+        ...(pageIndex >= 0 ? cursors.slice(0, pageIndex + 1) : [query.cursor]),
+        next,
+      ],
+    })
+    navigate({ ...query, cursor: next })
+  }
+  const activeFilters: { key: string; label: string; remove: () => void }[] = []
+  for (const [key, title] of [
+    ["q", "Search"],
+    ["filename", "Filename"],
+    ["mimeType", "File type"],
+    ["documentType", "Document type"],
+    ["status", "Status"],
+    ["archived", "Archived"],
+    ["dateFrom", "Document from"],
+    ["dateTo", "Document to"],
+    ["expirationFrom", "Expires from"],
+    ["expirationTo", "Expires to"],
+  ] as const) {
+    const value = query[key]
+    if (value)
+      activeFilters.push({
+        key,
+        label: `${title}: ${value}`,
+        remove: () => change(key, ""),
+      })
+  }
+  if (query.createdFrom || query.createdTo)
+    activeFilters.push({
+      key: "createdRange",
+      label: `Created: ${query.createdFrom ?? "Any"} – ${query.createdTo ?? "Any"}`,
+      remove: () =>
+        changeFields({ createdFrom: undefined, createdTo: undefined }),
+    })
+  if (query.updatedFrom || query.updatedTo)
+    activeFilters.push({
+      key: "updatedRange",
+      label: `Updated: ${query.updatedFrom ?? "Any"} – ${query.updatedTo ?? "Any"}`,
+      remove: () =>
+        changeFields({ updatedFrom: undefined, updatedTo: undefined }),
+    })
+  if (query.categoryId)
+    activeFilters.push({
+      key: "categoryId",
+      label: `Category: ${categoryItems.find((item) => item.id === query.categoryId)?.name ?? "Selected category"}`,
+      remove: () => change("categoryId", ""),
+    })
+  for (const id of selectedTagIds)
+    activeFilters.push({
+      key: `tag-${id}`,
+      label: `Tag: ${tagItems.find((item) => item.id === id)?.name ?? "Selected tag"}`,
+      remove: () =>
+        changeFields({
+          tagId: undefined,
+          tagIds: selectedTagIds.filter((selected) => selected !== id),
+        }),
+    })
   if (!owner)
     return (
       <p role="status">
@@ -261,177 +313,7 @@ export function DocumentsList() {
             Find and organize your personal records.
           </p>
         </div>
-        <Link
-          href="/documents/upload"
-          className={buttonVariants({ size: "lg" })}
-        >
-          <Upload aria-hidden />
-          Upload document
-        </Link>
       </div>
-      <Accordion defaultValue={["filters"]}>
-        <AccordionItem value="filters" className="rounded-sm border p-3">
-          <AccordionTrigger>Filters and sorting</AccordionTrigger>
-          <AccordionContent>
-            <FieldGroup className="mt-4 grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              <Field className="min-w-0">
-                <FieldLabel htmlFor="document-type-filter">
-                  Document type
-                </FieldLabel>
-                <Input
-                  id="document-type-filter"
-                  list="document-types"
-                  placeholder="All types"
-                  value={query.documentType ?? ""}
-                  onChange={(event) =>
-                    change("documentType", event.target.value.toUpperCase())
-                  }
-                />
-                <datalist id="document-types">
-                  {types.map((type) => (
-                    <NativeSelectOption key={type} value={type} />
-                  ))}
-                </datalist>
-              </Field>
-              <FilterSelect
-                title="Status"
-                value={query.status ?? ""}
-                options={[
-                  { value: "", label: "All statuses" },
-                  ...statuses.map((status) => ({
-                    value: status,
-                    label: label(status),
-                  })),
-                ]}
-                onChange={(value) => change("status", value)}
-              />
-              <div className="min-w-0">
-                <FilterSelect
-                  title="Category"
-                  value={query.categoryId ?? ""}
-                  disabled={categories.isPending || categories.isError}
-                  options={[
-                    {
-                      value: "",
-                      label: categories.isPending
-                        ? "Loading categories..."
-                        : "All categories",
-                    },
-                    ...(query.categoryId &&
-                    !categoryItems.some((item) => item.id === query.categoryId)
-                      ? [
-                          {
-                            value: query.categoryId,
-                            label: "Selected category (not loaded)",
-                          },
-                        ]
-                      : []),
-                    ...categoryItems.map((item) => ({
-                      value: item.id,
-                      label: item.name,
-                    })),
-                  ]}
-                  onChange={(value) => change("categoryId", value)}
-                />
-                {categories.isError && (
-                  <Alert
-                    variant="destructive"
-                    role="alert"
-                    className="text-sm text-muted-foreground"
-                  >
-                    Categories unavailable.{" "}
-                    <Button
-                      variant="link"
-                      onClick={() => void categories.refetch()}
-                    >
-                      Retry categories
-                    </Button>
-                  </Alert>
-                )}
-                {categories.hasNextPage && (
-                  <Button
-                    variant="link"
-                    disabled={categories.isFetching}
-                    onClick={() => void categories.fetchNextPage()}
-                  >
-                    Load more categories
-                  </Button>
-                )}
-              </div>
-              <div className="min-w-0">
-                <FilterSelect
-                  title="Tag"
-                  value={query.tagId ?? ""}
-                  disabled={tags.isPending || tags.isError}
-                  options={[
-                    {
-                      value: "",
-                      label: tags.isPending ? "Loading tags..." : "All tags",
-                    },
-                    ...(query.tagId &&
-                    !tagItems.some((item) => item.id === query.tagId)
-                      ? [
-                          {
-                            value: query.tagId,
-                            label: "Selected tag (not loaded)",
-                          },
-                        ]
-                      : []),
-                    ...tagItems.map((item) => ({
-                      value: item.id,
-                      label: item.name,
-                    })),
-                  ]}
-                  onChange={(value) => change("tagId", value)}
-                />
-                {tags.isError && (
-                  <Alert
-                    variant="destructive"
-                    role="alert"
-                    className="text-sm text-muted-foreground"
-                  >
-                    Tags unavailable.{" "}
-                    <Button variant="link" onClick={() => void tags.refetch()}>
-                      Retry tags
-                    </Button>
-                  </Alert>
-                )}
-                {tags.hasNextPage && (
-                  <Button
-                    variant="link"
-                    disabled={tags.isFetching}
-                    onClick={() => void tags.fetchNextPage()}
-                  >
-                    Load more tags
-                  </Button>
-                )}
-              </div>
-              <FilterSelect
-                title="Archive state"
-                value={query.archived ?? ""}
-                options={[
-                  { value: "", label: "Active and archived" },
-                  { value: "false", label: "Not archived" },
-                  { value: "true", label: "Archived" },
-                ]}
-                onChange={(value) => change("archived", value)}
-              />
-              <FilterSelect
-                title="Sort"
-                value={query.sort ?? "-createdAt"}
-                options={[
-                  { value: "-createdAt", label: "Newest first" },
-                  { value: "createdAt", label: "Oldest first" },
-                ]}
-                onChange={(value) => change("sort", value)}
-              />
-            </FieldGroup>
-            <Button className="mt-4" variant="outline" onClick={clear}>
-              Clear filters
-            </Button>
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
       <section
         aria-label="Document results"
         aria-busy={documents.isFetching}
@@ -440,11 +322,100 @@ export function DocumentsList() {
         <DocumentsTable
           data={documents.data?.data}
           uploadedId={notice.data?.id}
+          action={
+            <Link
+              href="/documents/upload"
+              className={buttonVariants({
+                size: "default",
+                className: "justify-center",
+              })}
+            >
+              <Upload aria-hidden />
+              Upload document
+            </Link>
+          }
           toolbar={
-            <Search
-              value={query.q ?? ""}
-              commit={(value) => change("q", value)}
-            />
+            <div className="grid w-full min-w-0 gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+              <Search
+                value={query.q ?? ""}
+                commit={(value) => change("q", value)}
+              />
+              <div className="grid min-w-0 grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center lg:justify-end">
+                <DocumentFilterDialog
+                  query={query}
+                  categories={categoryItems}
+                  tags={tagItems}
+                  categoriesPending={categories.isPending}
+                  tagsPending={tags.isPending}
+                  categoriesError={categories.isError}
+                  tagsError={tags.isError}
+                  categoriesMore={Boolean(categories.hasNextPage)}
+                  tagsMore={Boolean(tags.hasNextPage)}
+                  categoriesFetching={categories.isFetching}
+                  tagsFetching={tags.isFetching}
+                  retryCategories={() => void categories.refetch()}
+                  retryTags={() => void tags.refetch()}
+                  loadCategories={() => void categories.fetchNextPage()}
+                  loadTags={() => void tags.fetchNextPage()}
+                  apply={changeFields}
+                />
+                <div className="min-w-0 sm:w-40">
+                  <DocumentFilterSelect
+                    compact
+                    title="Sort by"
+                    value={sortField.id}
+                    options={sortFields.map((field) => ({
+                      value: field.id,
+                      label: field.label,
+                    }))}
+                    onChange={changeSortField}
+                  />
+                </div>
+                <div className="min-w-0 sm:w-36">
+                  <DocumentFilterSelect
+                    compact
+                    title="Sort direction"
+                    value={sortDirection}
+                    options={
+                      sortField.asc
+                        ? [
+                            { value: "desc", label: "Descending" },
+                            { value: "asc", label: "Ascending" },
+                          ]
+                        : [{ value: "desc", label: "Descending only" }]
+                    }
+                    onChange={changeSortDirection}
+                  />
+                </div>
+              </div>
+              {activeFilters.length > 0 && (
+                <div
+                  aria-label="Active filters"
+                  className="flex min-w-0 flex-wrap items-center gap-2 lg:col-span-2"
+                >
+                  {activeFilters.map((filter) => (
+                    <Badge
+                      key={filter.key}
+                      variant="secondary"
+                      className="h-auto max-w-full py-1"
+                    >
+                      <span className="max-w-48 truncate">{filter.label}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        aria-label={`Remove ${filter.label} filter`}
+                        onClick={filter.remove}
+                      >
+                        <X aria-hidden />
+                      </Button>
+                    </Badge>
+                  ))}
+                  <Button variant="link" size="sm" onClick={clear}>
+                    Clear all
+                  </Button>
+                </div>
+              )}
+            </div>
           }
           hideRows={documents.isError || !documents.data?.data.length}
         >
@@ -530,6 +501,7 @@ export function DocumentsList() {
             <PaginationItem>
               <Button
                 variant="outline"
+                disabled={documents.isFetching}
                 onClick={() => navigate({ ...query, cursor: undefined })}
               >
                 First page
@@ -539,24 +511,33 @@ export function DocumentsList() {
           <PaginationItem>
             <Button
               variant="outline"
+              disabled={documents.isFetching || pageIndex <= 0}
+              onClick={() =>
+                navigate({ ...query, cursor: cursors[pageIndex - 1] })
+              }
+            >
+              Previous page
+            </Button>
+          </PaginationItem>
+          <PaginationItem>
+            <Button
+              variant="outline"
               disabled={
                 documents.isFetching ||
                 documents.isError ||
                 !documents.data?.meta.hasMore ||
                 !documents.data.meta.nextCursor
               }
-              onClick={() =>
-                navigate({
-                  ...query,
-                  cursor: documents.data?.meta.nextCursor ?? undefined,
-                })
-              }
+              onClick={nextPage}
             >
               Next page
             </Button>
           </PaginationItem>
           <PaginationItem>
             <span className="text-sm text-muted-foreground">
+              {cursors[0] === undefined && pageIndex >= 0
+                ? `Page ${pageIndex + 1} · `
+                : "Current page · "}
               Up to {query.limit} documents per page
             </span>
           </PaginationItem>

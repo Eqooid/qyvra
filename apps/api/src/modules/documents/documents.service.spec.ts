@@ -5,6 +5,7 @@ import { DocumentNotFound } from './document-lifecycle';
 
 describe('DocumentsService batching and ownership', () => {
   const client = {
+    $queryRaw: jest.fn(),
     document: { findMany: jest.fn(), findFirst: jest.fn() },
     category: { findMany: jest.fn() },
     documentTag: { findMany: jest.fn() },
@@ -18,12 +19,19 @@ describe('DocumentsService batching and ownership', () => {
     client.tag.findMany.mockResolvedValue([]);
   });
   it('loads a whole page using four batch operations, not per-document relationships', async () => {
+    client.$queryRaw.mockResolvedValue(
+      Array.from({ length: 25 }, (_, i) => ({
+        id: `${i}`,
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      })),
+    );
     client.document.findMany.mockResolvedValue(
       Array.from({ length: 25 }, (_, i) => ({
         id: `${i}`,
         categoryId: null,
         documentDate: null,
         expirationDate: null,
+        versions: [],
       })),
     );
     const result = await service.list('owner', new DocumentListQuery());
@@ -35,11 +43,24 @@ describe('DocumentsService batching and ownership', () => {
       client.tag,
     ])
       expect(model.findMany).toHaveBeenCalledTimes(1);
+    expect(client.$queryRaw).toHaveBeenCalledTimes(1);
     expect(client.document.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ userId: 'owner', deletedAt: null }),
-        take: 26,
-        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        select: expect.objectContaining({
+          versions: {
+            orderBy: { versionNumber: 'desc' },
+            take: 1,
+            select: {
+              id: true,
+              versionNumber: true,
+              originalFilename: true,
+              mimeType: true,
+              fileSize: true,
+              createdAt: true,
+            },
+          },
+        }),
       }),
     );
     expect(client.documentTag.findMany).toHaveBeenCalledWith(
@@ -52,10 +73,11 @@ describe('DocumentsService batching and ownership', () => {
     );
   });
   it('does no association queries for an empty page', async () => {
-    client.document.findMany.mockResolvedValue([]);
+    client.$queryRaw.mockResolvedValue([]);
     expect(
       (await service.list('owner', new DocumentListQuery())).items,
     ).toEqual([]);
+    expect(client.document.findMany).not.toHaveBeenCalled();
     expect(client.category.findMany).not.toHaveBeenCalled();
   });
   it('retains owner and non-deleted predicates on detail and hides missing rows', async () => {

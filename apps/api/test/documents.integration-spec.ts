@@ -1,7 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { Prisma } from '@brainless/database';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { Server } from 'node:http';
 import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
@@ -24,6 +24,29 @@ describe('Document metadata with PostgreSQL', () => {
   ) =>
     db.client.document.create({
       data: { title: 'Fixture document', ...data, userId: user.id },
+    });
+  const fixtureVersion = (
+    user: TestOwner,
+    documentId: string,
+    versionNumber: number,
+    createdAt: Date,
+    originalFilename = `report-v${versionNumber}.pdf`,
+    mimeType = 'application/pdf',
+    fileSize = versionNumber * 100,
+  ) =>
+    db.client.documentVersion.create({
+      data: {
+        userId: user.id,
+        documentId,
+        versionNumber,
+        originalFilename,
+        storageKey: `test/${randomUUID()}`,
+        mimeType,
+        fileSize,
+        pageCount: mimeType === 'application/pdf' ? 1 : null,
+        checksumSha256: createHash('sha256').update(randomUUID()).digest('hex'),
+        createdAt,
+      },
     });
   const get = (user: TestOwner, path = '') =>
     request(server).get(`/api/v1/documents${path}`).set('Cookie', user.cookie);
@@ -122,6 +145,7 @@ describe('Document metadata with PostgreSQL', () => {
       [
         'id',
         'title',
+        'description',
         'documentType',
         'status',
         'issuer',
@@ -133,16 +157,154 @@ describe('Document metadata with PostgreSQL', () => {
         'createdAt',
         'updatedAt',
         'deletedAt',
+        'currentVersion',
         'category',
         'tags',
       ].sort(),
     );
     expect(detail.body.data).toMatchObject({
       status: 'UPLOADED',
+      description: null,
       category: null,
       tags: [],
       verifiedSummary: null,
+      currentVersion: null,
     });
+  });
+  it('returns only each owned highest-numbered version across list, detail and PATCH', async () => {
+    const user = await owner();
+    const foreign = await owner();
+    const first = await fixtureDocument(user, { description: 'Original' });
+    const second = await fixtureDocument(user);
+    const other = await fixtureDocument(foreign);
+    await fixtureVersion(
+      user,
+      first.id,
+      1,
+      new Date('2026-07-01T00:00:00.000Z'),
+    );
+    const current = await fixtureVersion(
+      user,
+      first.id,
+      2,
+      new Date('2026-06-01T00:00:00.000Z'),
+    );
+    const secondCurrent = await fixtureVersion(
+      user,
+      second.id,
+      1,
+      new Date('2026-05-01T00:00:00.000Z'),
+    );
+    const foreignVersion = await fixtureVersion(
+      foreign,
+      other.id,
+      1,
+      new Date('2026-08-01T00:00:00.000Z'),
+    );
+    const summary = {
+      id: current.id,
+      versionNumber: 2,
+      originalFilename: 'report-v2.pdf',
+      mimeType: 'application/pdf',
+      fileSize: 200,
+      createdAt: '2026-06-01T00:00:00.000Z',
+    };
+    const page = await get(user).query({ limit: 1 }).expect(200);
+    const next = await get(user)
+      .query({ limit: 1, cursor: page.body.meta.nextCursor as string })
+      .expect(200);
+    const items = [...page.body.data, ...next.body.data] as Array<{
+      id: string;
+      currentVersion: unknown;
+    }>;
+    expect(items).toHaveLength(2);
+    expect(items.find((item) => item.id === first.id)?.currentVersion).toEqual(
+      summary,
+    );
+    expect(items.find((item) => item.id === second.id)?.currentVersion).toEqual(
+      {
+        ...summary,
+        id: secondCurrent.id,
+        versionNumber: 1,
+        originalFilename: 'report-v1.pdf',
+        fileSize: 100,
+        createdAt: '2026-05-01T00:00:00.000Z',
+      },
+    );
+    expect(JSON.stringify(items)).not.toContain(foreignVersion.id);
+    expect(JSON.stringify(items)).not.toMatch(
+      /storageKey|checksumSha256|userId/,
+    );
+    const detail = await get(user, `/${first.id}`).expect(200);
+    expect(detail.body.data.currentVersion).toEqual(summary);
+    await get(user, `/${other.id}`).expect(404);
+    await edit(foreign, first.id, { description: 'No access' }).expect(404);
+    const updated = await edit(user, first.id, {
+      description: 'Changed',
+    }).expect(200);
+    expect(updated.body.data).toMatchObject({
+      description: 'Changed',
+      currentVersion: summary,
+    });
+    const cleared = await edit(user, first.id, { description: null }).expect(
+      200,
+    );
+    expect(cleared.body.data).toMatchObject({
+      description: null,
+      currentVersion: summary,
+    });
+    expect(
+      await db.client.documentVersion.count({
+        where: { documentId: first.id },
+      }),
+    ).toBe(2);
+    await act(user, first.id, 'archive').expect(200);
+    expect(
+      (await get(user, `/${first.id}`).expect(200)).body.data.currentVersion,
+    ).toEqual(summary);
+  });
+  it('reads and patches owned descriptions, preserving omission and clearing with null', async () => {
+    const user = await owner();
+    const foreign = await owner();
+    const row = await fixtureDocument(user, { description: 'Original' });
+    expect(
+      (await get(user, `/${row.id}`).expect(200)).body.data.description,
+    ).toBe('Original');
+    const listed = await get(user).expect(200);
+    expect(
+      listed.body.data.find((item: { id: string }) => item.id === row.id)
+        .description,
+    ).toBe('Original');
+    expect(
+      (await edit(user, row.id, { title: 'Renamed' }).expect(200)).body.data
+        .description,
+    ).toBe('Original');
+    expect(
+      (await edit(user, row.id, { description: '  Updated  ' }).expect(200))
+        .body.data.description,
+    ).toBe('Updated');
+    expect(
+      (await db.client.document.findUniqueOrThrow({ where: { id: row.id } }))
+        .description,
+    ).toBe('Updated');
+    await edit(foreign, row.id, { description: 'Unauthorized' }).expect(404);
+    expect(
+      (await edit(user, row.id, { description: null }).expect(200)).body.data
+        .description,
+    ).toBeNull();
+    expect(
+      (await get(user, `/${row.id}`).expect(200)).body.data.description,
+    ).toBeNull();
+    expect(
+      (await edit(user, row.id, { description: '   ' }).expect(200)).body.data
+        .description,
+    ).toBeNull();
+    for (const description of ['x'.repeat(2001), 'bad\u0000value', 42])
+      await edit(user, row.id, { description }).expect(400);
+    expect(
+      (await db.client.document.findUniqueOrThrow({ where: { id: row.id } }))
+        .description,
+    ).toBeNull();
   });
   it('supports literal metadata search and combines owned type/status/category/tag/archive/date filters', async () => {
     const user = await owner();
@@ -201,6 +363,405 @@ describe('Document metadata with PostgreSQL', () => {
     expect(
       (await get(user).query({ archived: false }).expect(200)).body.data,
     ).toHaveLength(1);
+  });
+  it('filters current file, all requested tags and UTC document timestamps before pagination', async () => {
+    const user = await owner();
+    const foreign = await owner();
+    const [firstTag, secondTag, extraTag] = await Promise.all(
+      ['First', 'Second', 'Extra'].map((name) =>
+        db.client.tag.create({ data: { userId: user.id, name } }),
+      ),
+    );
+    const old = new Date('2025-12-31T23:59:59.000Z');
+    const created = new Date('2026-01-15T12:00:00.000Z');
+    const updated = new Date('2026-03-02T12:00:00.000Z');
+    const target = await fixtureDocument(user, {
+      createdAt: created,
+      updatedAt: updated,
+    });
+    const partial = await fixtureDocument(user, {
+      createdAt: old,
+      updatedAt: old,
+    });
+    const other = await fixtureDocument(foreign, {
+      createdAt: created,
+      updatedAt: updated,
+    });
+    await db.client.documentTag.createMany({
+      data: [
+        [target.id, firstTag.id],
+        [target.id, secondTag.id],
+        [target.id, extraTag.id],
+        [partial.id, firstTag.id],
+      ].map(([documentId, tagId]) => ({ documentId, tagId, userId: user.id })),
+    });
+    await fixtureVersion(
+      user,
+      target.id,
+      1,
+      new Date('2026-05-01T00:00:00.000Z'),
+      'old-name.png',
+      'image/png',
+    );
+    const current = await fixtureVersion(
+      user,
+      target.id,
+      2,
+      new Date('2026-04-01T00:00:00.000Z'),
+      'Final_%Report.pdf',
+    );
+    await fixtureVersion(
+      user,
+      partial.id,
+      1,
+      new Date('2026-04-01T00:00:00.000Z'),
+      'Final_%Report.pdf',
+    );
+    await fixtureVersion(
+      foreign,
+      other.id,
+      1,
+      new Date('2026-04-01T00:00:00.000Z'),
+      'Final_%Report.pdf',
+    );
+    const ids = async (query: Record<string, unknown>) =>
+      (
+        (await get(user).query(query).expect(200)).body.data as { id: string }[]
+      ).map((row) => row.id);
+    expect(await ids({ filename: 'final_%report' })).toEqual(
+      expect.arrayContaining([target.id, partial.id]),
+    );
+    expect(await ids({ filename: 'old-name' })).toEqual([]);
+    expect(await ids({ filename: 'unrelated' })).toEqual([]);
+    expect(await ids({ mimeType: 'application/pdf' })).toEqual(
+      expect.arrayContaining([target.id, partial.id]),
+    );
+    expect(await ids({ mimeType: 'image/png' })).toEqual([]);
+    expect(await ids({ tagIds: firstTag.id })).toEqual(
+      expect.arrayContaining([target.id, partial.id]),
+    );
+    expect(await ids({ tagIds: `${firstTag.id},${secondTag.id}` })).toEqual([
+      target.id,
+    ]);
+    expect(
+      await ids({ tagIds: `${firstTag.id},${secondTag.id},${extraTag.id}` }),
+    ).toEqual([target.id]);
+    expect(await ids({ tagIds: `${firstTag.id},${randomUUID()}` })).toEqual([]);
+    const foreignTag = await db.client.tag.create({
+      data: { userId: foreign.id, name: 'First' },
+    });
+    expect(await ids({ tagIds: foreignTag.id })).toEqual([]);
+    expect(await ids({ createdFrom: '2026-01-15' })).toEqual([target.id]);
+    expect(await ids({ createdTo: '2025-12-31' })).toEqual([partial.id]);
+    expect(
+      await ids({ createdFrom: '2026-01-15', createdTo: '2026-01-15' }),
+    ).toEqual([target.id]);
+    expect(await ids({ updatedFrom: '2026-03-02' })).toEqual([target.id]);
+    expect(await ids({ updatedTo: '2025-12-31' })).toEqual([partial.id]);
+    expect(
+      await ids({ updatedFrom: '2026-03-02', updatedTo: '2026-03-02' }),
+    ).toEqual([target.id]);
+    const combined = await get(user)
+      .query({
+        filename: 'final_%report',
+        mimeType: 'application/pdf',
+        tagIds: `${firstTag.id},${secondTag.id}`,
+        createdFrom: '2026-01-15',
+        createdTo: '2026-01-15',
+        updatedFrom: '2026-03-02',
+        updatedTo: '2026-03-02',
+      })
+      .expect(200);
+    expect(combined.body.data.map((row: { id: string }) => row.id)).toEqual([
+      target.id,
+    ]);
+    expect(combined.body.data[0].currentVersion).toMatchObject({
+      id: current.id,
+      originalFilename: 'Final_%Report.pdf',
+    });
+    expect(JSON.stringify(combined.body)).not.toContain(other.id);
+    for (const invalid of [
+      { tagIds: 'bad' },
+      { tagIds: `${firstTag.id},${firstTag.id}` },
+      { tagId: firstTag.id, tagIds: secondTag.id },
+      { mimeType: 'text/plain' },
+      { filename: '  ' },
+      { createdFrom: '2026-02-30' },
+      { updatedTo: 'tomorrow' },
+      { createdFrom: '2026-12-31', createdTo: '2026-01-01' },
+      { updatedFrom: '2026-12-31', updatedTo: '2026-01-01' },
+    ])
+      await get(user).query(invalid).expect(400);
+    await get(user)
+      .query({ tagIds: [firstTag.id, secondTag.id] })
+      .expect(400);
+  });
+  it('paginates the filtered dataset without duplicates or a fabricated total count', async () => {
+    const user = await owner();
+    const recent = new Date('2026-06-01T12:00:00.000Z');
+    const old = new Date('2025-06-01T12:00:00.000Z');
+    await Promise.all(
+      Array.from({ length: 8 }, () =>
+        fixtureDocument(user, { createdAt: recent }),
+      ),
+    );
+    await Promise.all(
+      Array.from({ length: 12 }, () =>
+        fixtureDocument(user, { createdAt: old }),
+      ),
+    );
+    const first = await get(user)
+      .query({ createdFrom: '2026-01-01', limit: 5 })
+      .expect(200);
+    expect(first.body.data).toHaveLength(5);
+    expect(first.body.meta).toMatchObject({ hasMore: true });
+    expect(first.body.meta).not.toHaveProperty('totalItems');
+    const second = await get(user)
+      .query({
+        createdFrom: '2026-01-01',
+        limit: 5,
+        cursor: first.body.meta.nextCursor as string,
+      })
+      .expect(200);
+    expect(second.body.data).toHaveLength(3);
+    expect(second.body.meta).toMatchObject({
+      hasMore: false,
+      nextCursor: null,
+    });
+    const ids = [...first.body.data, ...second.body.data].map(
+      (row: { id: string }) => row.id,
+    );
+    expect(new Set(ids).size).toBe(8);
+  });
+  it('treats filename wildcard characters literally and includes archived matches', async () => {
+    const user = await owner();
+    const literal = await fixtureDocument(user);
+    const lookalike = await fixtureDocument(user);
+    await fixtureVersion(
+      user,
+      literal.id,
+      1,
+      new Date('2026-01-01T00:00:00.000Z'),
+      'Plan_%Done.pdf',
+    );
+    await fixtureVersion(
+      user,
+      lookalike.id,
+      1,
+      new Date('2026-01-01T00:00:00.000Z'),
+      'PlanXYDone.pdf',
+    );
+    const matching = async () =>
+      (await get(user).query({ filename: '_%' }).expect(200)).body.data.map(
+        (row: { id: string }) => row.id,
+      );
+    expect(await matching()).toEqual([literal.id]);
+    await act(user, literal.id, 'archive').expect(200);
+    expect(await matching()).toEqual([literal.id]);
+    expect(
+      (await get(user).query({ filename: '_%', archived: false }).expect(200))
+        .body.data,
+    ).toEqual([]);
+  });
+  it('traverses every allowed sort with tied values and no duplicate or skipped documents', async () => {
+    const user = await owner();
+    const foreign = await owner();
+    const created = [
+      '2026-06-03',
+      '2026-06-03',
+      '2026-06-03',
+      '2026-06-02',
+      '2026-06-02',
+      '2026-06-01',
+      '2026-06-01',
+    ];
+    const updated = [
+      '2026-07-02',
+      '2026-07-02',
+      '2026-07-01',
+      '2026-07-02',
+      '2026-07-01',
+      '2026-07-01',
+      '2026-07-01',
+    ];
+    const titles = [
+      'Alpha',
+      'Alpha',
+      'beta',
+      'Delta',
+      'Alpha',
+      'beta',
+      'Alpha',
+    ];
+    const sizes: (number | null)[] = [100, 200, 200, null, null, 100, null];
+    const rows = [];
+    for (let index = 0; index < titles.length; index++)
+      rows.push(
+        await fixtureDocument(user, {
+          title: titles[index],
+          createdAt: new Date(`${created[index]}T12:00:00.000Z`),
+          updatedAt: new Date(`${updated[index]}T12:00:00.000Z`),
+        }),
+      );
+    await fixtureDocument(foreign, {
+      title: 'Alpha',
+      createdAt: rows[0].createdAt,
+      updatedAt: rows[0].updatedAt,
+    });
+    await fixtureVersion(
+      user,
+      rows[0].id,
+      1,
+      new Date(),
+      'old.pdf',
+      'application/pdf',
+      500,
+    );
+    await fixtureVersion(
+      user,
+      rows[0].id,
+      2,
+      new Date(),
+      'report.pdf',
+      'application/pdf',
+      100,
+    );
+    for (const index of [1, 2, 5])
+      await fixtureVersion(
+        user,
+        rows[index].id,
+        1,
+        new Date(),
+        'report.pdf',
+        'application/pdf',
+        sizes[index] as number,
+      );
+    await fixtureDocument(user, { title: 'Deleted', deletedAt: new Date() });
+    const sorts = [
+      '-createdAt',
+      'createdAt',
+      '-updatedAt',
+      'title',
+      '-title',
+      '-fileSize',
+    ] as const;
+    for (const sort of sorts) {
+      const expected = rows
+        .map((row, index) => ({ row, index }))
+        .sort((a, b) => {
+          const av = sort.includes('createdAt')
+            ? a.row.createdAt.getTime()
+            : sort === '-updatedAt'
+              ? a.row.updatedAt.getTime()
+              : sort.includes('title')
+                ? a.row.title
+                : sizes[a.index];
+          const bv = sort.includes('createdAt')
+            ? b.row.createdAt.getTime()
+            : sort === '-updatedAt'
+              ? b.row.updatedAt.getTime()
+              : sort.includes('title')
+                ? b.row.title
+                : sizes[b.index];
+          if (av === null || bv === null) {
+            if (av === null && bv !== null) return 1;
+            if (bv === null && av !== null) return -1;
+          }
+          const comparison = av! < bv! ? -1 : av! > bv! ? 1 : 0;
+          const direction = sort.startsWith('-') ? -1 : 1;
+          return comparison
+            ? direction * comparison
+            : direction * (a.row.id < b.row.id ? -1 : 1);
+        })
+        .map(({ row }) => row.id);
+      const seen: string[] = [];
+      let cursor: string | null = null;
+      for (let pageNumber = 0; pageNumber < 5; pageNumber++) {
+        const result = await get(user)
+          .query({ sort, limit: 2, ...(cursor ? { cursor } : {}) })
+          .expect(200);
+        const page = (result.body.data as { id: string }[]).map(
+          (item) => item.id,
+        );
+        seen.push(...page);
+        if (!result.body.meta.hasMore) {
+          expect(result.body.meta.nextCursor).toBeNull();
+          break;
+        }
+        cursor = result.body.meta.nextCursor as string;
+        expect(cursor).toEqual(expect.any(String));
+      }
+      expect(seen).toEqual(expected);
+      expect(new Set(seen).size).toBe(rows.length);
+    }
+    const first = await get(user)
+      .query({ sort: 'title', limit: 2 })
+      .expect(200);
+    await get(user)
+      .query({
+        sort: '-title',
+        limit: 2,
+        cursor: first.body.meta.nextCursor as string,
+      })
+      .expect(400);
+    await get(foreign)
+      .query({ sort: 'title', cursor: first.body.meta.nextCursor as string })
+      .expect(200);
+  });
+  it('combines all-of tags and current-file filters with file-size cursors', async () => {
+    const user = await owner();
+    const tags = await Promise.all(
+      ['One', 'Two'].map((name) =>
+        db.client.tag.create({ data: { userId: user.id, name } }),
+      ),
+    );
+    const rows = [];
+    for (const size of [100, 200, 300]) {
+      const row = await fixtureDocument(user, {
+        createdAt: new Date('2026-01-15T12:00:00.000Z'),
+        updatedAt: new Date('2026-02-15T12:00:00.000Z'),
+      });
+      rows.push({ row, size });
+      await fixtureVersion(
+        user,
+        row.id,
+        1,
+        new Date(),
+        'report.pdf',
+        'application/pdf',
+        size,
+      );
+      await db.client.documentTag.createMany({
+        data: tags.map((tag) => ({
+          userId: user.id,
+          documentId: row.id,
+          tagId: tag.id,
+        })),
+      });
+    }
+    const query = {
+      filename: 'report',
+      mimeType: 'application/pdf',
+      tagIds: tags.map((tag) => tag.id).join(','),
+      createdFrom: '2026-01-15',
+      createdTo: '2026-01-15',
+      updatedFrom: '2026-02-15',
+      updatedTo: '2026-02-15',
+      sort: '-fileSize',
+      limit: 1,
+    };
+    const ids: string[] = [];
+    let cursor: string | null = null;
+    for (let page = 0; page < 3; page++) {
+      const result = await get(user)
+        .query({ ...query, ...(cursor ? { cursor } : {}) })
+        .expect(200);
+      ids.push(result.body.data[0].id as string);
+      cursor = result.body.meta.nextCursor as string | null;
+      if (page < 2) expect(cursor).toEqual(expect.any(String));
+      else expect(cursor).toBeNull();
+    }
+    expect(ids).toEqual(rows.reverse().map(({ row }) => row.id));
   });
   it('updates metadata and owned relationships atomically with deduplicated tags and explicit nulls', async () => {
     const user = await owner();

@@ -53,6 +53,7 @@ and capture the shipped scope/evidence in `docs/releases/`. Future backlog belon
 in the [roadmap](../roadmap.md), not Unreleased until work actually starts.
 
 The four private npm manifests currently say `0.0.1`; generated OpenAPI uses version
-`1`, and HTTP uses `/api/v1`. Those identifiers serve different purposes and do not
-change the product release designation `v1.0.0`. This documentation task does not
-bump package versions or create Git tags. Tag/release automation is **Not Implemented**.
+  `1`, and HTTP uses `/api/v1`. Those identifiers serve different purposes and do not
+  change the product release designation. The v1.1.0 release candidate retains
+  them; the maintainer publishes the product version with a Git tag. Tag/release
+  automation is **Not Implemented**.

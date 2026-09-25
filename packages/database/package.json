@@ -19,7 +19,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "format": "prisma format && prettier --write src/index.ts prisma.config.ts package.json tsconfig.json .eslintrc.cjs",
     "format:check": "prisma format --check && prettier --check src/index.ts prisma.config.ts package.json tsconfig.json .eslintrc.cjs",
-    "migrate:deploy": "prisma migrate deploy"
+    "migrate:deploy": "prisma migrate deploy",
+    "test:migration": "node --test test/description-migration.test.cjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.0.0",

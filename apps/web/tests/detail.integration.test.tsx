@@ -107,7 +107,10 @@ describe("document detail actions through real client", () => {
     await user.click(
       await screen.findByRole("button", { name: "Edit metadata" })
     )
-    await user.type(screen.getByLabelText("Title *"), " changed")
+    await user.type(
+      screen.getByLabelText("Description (optional)"),
+      "New description"
+    )
     await user.dblClick(screen.getByRole("button", { name: "Save changes" }))
     await waitFor(() =>
       expect(
@@ -115,6 +118,7 @@ describe("document detail actions through real client", () => {
       ).toHaveLength(1)
     )
     expect(screen.getByRole("button", { name: "Save changes" })).toBeDisabled()
+    expect(screen.getByLabelText("Description (optional)")).toBeDisabled()
     await act(async () => complete(json({}, 503)))
     expect(screen.getByRole("button", { name: "Save changes" })).toBeEnabled()
   })
@@ -153,7 +157,7 @@ describe("document detail actions through real client", () => {
       "status"
     )
   })
-  it("renders safe metadata and no fabricated file section", async () => {
+  it("renders safe metadata and the owned current-version summary", async () => {
     mockApi()
     render(tree())
     expect(
@@ -162,10 +166,42 @@ describe("document detail actions through real client", () => {
     expect(screen.getByText(detail.verifiedSummary)).toBeInTheDocument()
     expect(screen.getByText("Records")).toBeInTheDocument()
     expect(screen.getByText("Finance")).toBeInTheDocument()
+    expect(screen.getByText("No description")).toBeInTheDocument()
+    expect(
+      screen.getByRole("heading", { name: "Current version" })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(detail.currentVersion.originalFilename)
+    ).toBeInTheDocument()
+    expect(screen.getByText("v2")).toBeInTheDocument()
+    expect(screen.getByText("PDF")).toBeInTheDocument()
+    expect(screen.getByText("1.0 KiB")).toBeInTheDocument()
+    expect(screen.getByText(/2026.*UTC/)).toBeInTheDocument()
     expect(screen.queryByText("private-storage-key")).not.toBeInTheDocument()
     expect(screen.queryByText("private-owner")).not.toBeInTheDocument()
     expect(screen.queryByText("private-checksum")).not.toBeInTheDocument()
     expect(screen.queryByText("Current file")).not.toBeInTheDocument()
+  })
+  it("shows the complete description and safely handles a metadata-only document", async () => {
+    current = {
+      ...detail,
+      description: "First line\nSecond line",
+      currentVersion: null,
+    }
+    mockApi()
+    render(tree())
+    expect(await screen.findByText("First line Second line")).toHaveClass(
+      "whitespace-pre-wrap"
+    )
+    expect(
+      screen.getByText("No current version available.")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", { name: "Download current file" })
+    ).toBeDisabled()
+    expect(
+      screen.getByRole("link", { name: "Version history" })
+    ).toHaveAttribute("href", `/documents/${id}/versions`)
   })
   it.each([
     [404, "Document not found"],
@@ -223,6 +259,83 @@ describe("document detail actions through real client", () => {
     expect(invalidation).toHaveBeenCalledWith({
       queryKey: ["document", id, id],
     })
+  })
+  it("updates and clears description through the existing PATCH and keeps current version", async () => {
+    current = { ...detail, description: "Existing description" }
+    const fetcher = mockApi((url) =>
+      url.includes("/documents?") ? json(envelope([current])) : undefined
+    )
+    const view = render(tree(true))
+    const user = userEvent.setup()
+    expect(
+      await screen.findByRole("link", { name: detail.title })
+    ).toHaveAttribute("href", `/documents/${id}`)
+    expect(await screen.findByText("Existing description")).toBeInTheDocument()
+    expect(
+      screen.getByText(detail.currentVersion.originalFilename)
+    ).toBeInTheDocument()
+    view.rerender(tree())
+    expect(
+      await screen.findByRole("heading", { name: detail.title })
+    ).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Edit metadata" }))
+    const description = screen.getByLabelText("Description (optional)")
+    expect(description).toHaveValue("Existing description")
+    await user.clear(description)
+    await user.type(description, "Updated description")
+    await user.click(screen.getByRole("button", { name: "Save changes" }))
+    expect(await screen.findByText("Updated description")).toBeInTheDocument()
+    const patches = () =>
+      fetcher.mock.calls
+        .filter(([, options]) => options?.method === "PATCH")
+        .map(([, options]) => JSON.parse(String(options?.body)))
+    expect(patches()).toEqual([{ description: "Updated description" }])
+    expect(
+      screen.getByText(detail.currentVersion.originalFilename)
+    ).toBeInTheDocument()
+
+    await user.click(screen.getByRole("button", { name: "Edit metadata" }))
+    await user.clear(screen.getByLabelText("Description (optional)"))
+    await user.click(screen.getByRole("button", { name: "Save changes" }))
+    expect(await screen.findByText("No description")).toBeInTheDocument()
+    expect(patches()).toEqual([
+      { description: "Updated description" },
+      { description: null },
+    ])
+    expect(
+      screen.getByText(detail.currentVersion.originalFilename)
+    ).toBeInTheDocument()
+  })
+  it("retains a failed description draft and leaves the saved value after cancel", async () => {
+    current = { ...detail, description: "Saved description" }
+    const fetcher = mockApi((_url, options) =>
+      options?.method === "PATCH"
+        ? json({ error: { message: "private provider path" } }, 503)
+        : undefined
+    )
+    render(tree())
+    const user = userEvent.setup()
+    await user.click(
+      await screen.findByRole("button", { name: "Edit metadata" })
+    )
+    await user.clear(screen.getByLabelText("Description (optional)"))
+    await user.type(
+      screen.getByLabelText("Description (optional)"),
+      "Draft description"
+    )
+    await user.click(screen.getByRole("button", { name: "Save changes" }))
+    expect(await screen.findByRole("alert")).toBeInTheDocument()
+    expect(screen.getByLabelText("Description (optional)")).toHaveValue(
+      "Draft description"
+    )
+    expect(screen.queryByText("private provider path")).not.toBeInTheDocument()
+    const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(true)
+    await user.click(screen.getByRole("button", { name: "Cancel editing" }))
+    expect(confirm).toHaveBeenCalledOnce()
+    expect(screen.getByText("Saved description")).toBeInTheDocument()
+    expect(
+      fetcher.mock.calls.filter(([, options]) => options?.method === "PATCH")
+    ).toHaveLength(1)
   })
   it("rejects invalid date order and allows selecting category/tag IDs", async () => {
     const fetcher = mockApi()

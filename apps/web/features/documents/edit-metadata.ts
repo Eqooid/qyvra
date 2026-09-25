@@ -3,6 +3,7 @@ import { UploadMetadata } from "@/lib/api/upload"
 export function editDefaults(document: DocumentDetail): UploadMetadata {
   return {
     title: document.title,
+    description: document.description ?? "",
     documentType: document.documentType,
     issuer: document.issuer ?? "",
     referenceNumber: document.referenceNumber ?? "",
@@ -21,6 +22,11 @@ export function metadataPatch(
     patch: DocumentPatch = {}
   for (const key of ["title", "documentType"] as const)
     if (values[key].trim() !== baseline[key]) patch[key] = values[key].trim()
+  if (
+    values.description !== undefined &&
+    values.description.trim() !== baseline.description
+  )
+    patch.description = values.description.trim() || null
   for (const key of [
     "issuer",
     "referenceNumber",

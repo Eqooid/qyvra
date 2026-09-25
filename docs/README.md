@@ -1,8 +1,9 @@
 # Brainless documentation
 
-**v1.0.0 / Phase 1 is complete.** Start with [getting started](development/getting-started.md).
-These guides describe the checked-in implementation; the [specification](specification.md)
-is a broader product plan. Later functionality is **Planned**, not shipped.
+**Phase 1 / v1.0.0 is released; Phase 2 / v1.1.0 is release-ready, pending a tag.**
+Start with [getting started](development/getting-started.md). These guides describe
+the checked-in implementation; the [specification](specification.md) is a broader
+product plan. See the [v1.1.0 snapshot](releases/v1.1.0.md) for release scope.
 
 ## Architecture
 
@@ -41,6 +42,7 @@ is a broader product plan. Later functionality is **Planned**, not shipped.
 
 - [Changelog](../CHANGELOG.md)
 - [v1.0.0: Phase 1 snapshot](releases/v1.0.0.md)
+- [v1.1.0: Phase 2 release candidate](releases/v1.1.0.md)
 - [Roadmap and deferred scope](roadmap.md)
 - [Documentation audit and retained evidence](documentation-audit.md)
 

@@ -7,6 +7,7 @@ import {
   prepareDocumentDownload,
 } from "@/lib/api/documents"
 import { metadataPatch, editDefaults } from "@/features/documents/edit-metadata"
+import { uploadFormSchema } from "@/features/documents/upload-validation"
 import { detail } from "./detail.fixture"
 import { id, json, profile } from "./documents.fixture"
 describe("document detail data access", () => {
@@ -17,6 +18,8 @@ describe("document detail data access", () => {
     const api = new AuthApi("/api/v1", fetcher)
     const value = await getDocument(api, id)
     expect(value.verifiedSummary).toBe(detail.verifiedSummary)
+    expect(value.description).toBeNull()
+    expect(value.currentVersion).toEqual(detail.currentVersion)
     expect(value).not.toHaveProperty("storageKey")
     await expect(getDocument(api, "../other")).rejects.toMatchObject({
       status: 404,
@@ -36,6 +39,36 @@ describe("document detail data access", () => {
       })
     ).toEqual({ title: "Updated", issuer: null, categoryId: null, tagIds: [] })
     expect(metadataPatch(detail, { ...values, tagIds: [id, id] })).toEqual({})
+    expect(
+      metadataPatch(detail, { ...values, description: " Owner notes " })
+    ).toEqual({ description: "Owner notes" })
+    expect(
+      metadataPatch(
+        { ...detail, description: "Existing" },
+        { ...values, description: "" }
+      )
+    ).toEqual({ description: null })
+    expect(
+      metadataPatch(
+        { ...detail, description: "Existing" },
+        { ...values, description: undefined }
+      )
+    ).toEqual({})
+  })
+  it("validates owner description length and control characters", () => {
+    const values = editDefaults(detail)
+    expect(
+      uploadFormSchema.safeParse({ ...values, description: "Useful notes" })
+        .success
+    ).toBe(true)
+    expect(
+      uploadFormSchema.safeParse({ ...values, description: "x".repeat(2001) })
+        .success
+    ).toBe(false)
+    expect(
+      uploadFormSchema.safeParse({ ...values, description: "line\u0000break" })
+        .success
+    ).toBe(false)
   })
   it("allowlists PATCH fields, uses credentials and CSRF, and preserves omission", async () => {
     const fetcher = vi
@@ -61,6 +94,31 @@ describe("document detail data access", () => {
         body: JSON.stringify({ issuer: null, tagIds: [id] }),
       }),
     ])
+  })
+  it("PATCH distinguishes omitted, updated, and cleared descriptions", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(json({ data: detail }))
+      .mockResolvedValueOnce(
+        json({ data: { ...detail, description: "Updated" } })
+      )
+      .mockResolvedValueOnce(json({ data: { ...detail, description: null } }))
+    const api = new AuthApi("/api/v1", fetcher)
+    await updateDocument(api, id, { title: "Other", description: undefined })
+    const updated = await updateDocument(api, id, { description: "Updated" })
+    const cleared = await updateDocument(api, id, { description: null })
+    expect(JSON.parse(String(fetcher.mock.calls[0][1]?.body))).toEqual({
+      title: "Other",
+    })
+    expect(JSON.parse(String(fetcher.mock.calls[1][1]?.body))).toEqual({
+      description: "Updated",
+    })
+    expect(JSON.parse(String(fetcher.mock.calls[2][1]?.body))).toEqual({
+      description: null,
+    })
+    expect(updated.currentVersion).toEqual(detail.currentVersion)
+    expect(cleared.currentVersion).toEqual(detail.currentVersion)
+    expect(cleared.description).toBeNull()
   })
   it.each(["archive", "restore", "delete"] as const)(
     "uses the authorized %s endpoint",

@@ -143,6 +143,7 @@ model Document {
   userId          String            @map("user_id") @db.Uuid
   categoryId      String?           @map("category_id") @db.Uuid
   title           String            @db.VarChar(300)
+  description     String?           @db.VarChar(2000)
   documentType    String            @default("OTHER") @map("document_type") @db.VarChar(50)
   status          String            @default("UPLOADED") @db.VarChar(32)
   issuer          String?           @db.VarChar(200)

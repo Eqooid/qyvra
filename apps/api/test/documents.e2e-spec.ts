@@ -156,8 +156,10 @@ describe('Document metadata HTTP contract', () => {
     'limit=0',
     'limit=101',
     'limit=1.5',
-    'sort=title',
+    'sort=-filename',
+    'sort=updatedAt',
     'sort=__proto__',
+    'direction=asc',
     'cursor=!',
     'q=%20',
     'q=a&q=b',
@@ -166,6 +168,14 @@ describe('Document metadata HTTP contract', () => {
     'documentType=bad',
     'categoryId=bad',
     'tagId=bad',
+    'tagIds=bad',
+    'tagIds=',
+    'tagIds=00000000-0000-4000-8000-000000000001&tagIds=00000000-0000-4000-8000-000000000002',
+    'filename=%20',
+    'mimeType=text/plain',
+    'createdFrom=2026-01-01T00:00:00Z',
+    'createdTo=2026-02-30',
+    'updatedFrom=tomorrow',
     'dateFrom=2026-02-30',
     'expirationTo=2026-13-01',
     'userId=foreign',
@@ -192,6 +202,47 @@ describe('Document metadata HTTP contract', () => {
       hasMore: false,
     });
     expect(response.body.data).toEqual([document]);
+  });
+  it.each([
+    '-createdAt',
+    'createdAt',
+    '-updatedAt',
+    'title',
+    '-title',
+    '-fileSize',
+  ])('accepts the allow-listed sort %s', async (sort) => {
+    await request(server)
+      .get('/api/v1/documents')
+      .set('Cookie', cookie)
+      .query({ sort })
+      .expect(200);
+    expect(service.list).toHaveBeenCalledWith(
+      owner,
+      expect.objectContaining({ sort }),
+    );
+  });
+  it('parses comma-separated all-of tags and validates current-file and UTC-day filters', async () => {
+    const tags = [randomUUID(), randomUUID()];
+    await request(server)
+      .get('/api/v1/documents')
+      .set('Cookie', cookie)
+      .query({
+        tagIds: `${tags[0].toUpperCase()},${tags[1].toUpperCase()}`,
+        filename: '  Report  ',
+        mimeType: 'application/pdf',
+        createdFrom: '2026-01-01',
+        updatedTo: '2026-12-31',
+      })
+      .expect(200);
+    expect(service.list).toHaveBeenCalledWith(owner, {
+      limit: 25,
+      sort: '-createdAt',
+      tagIds: tags,
+      filename: 'Report',
+      mimeType: 'application/pdf',
+      createdFrom: '2026-01-01',
+      updatedTo: '2026-12-31',
+    });
   });
   it('rejects route, query and body selectors, and protects mutations from CSRF', async () => {
     for (const [method, path] of routes) {
@@ -281,6 +332,13 @@ describe('Document metadata HTTP contract', () => {
         'documentType',
         'categoryId',
         'tagId',
+        'tagIds',
+        'filename',
+        'mimeType',
+        'createdFrom',
+        'createdTo',
+        'updatedFrom',
+        'updatedTo',
         'archived',
         'dateFrom',
         'dateTo',

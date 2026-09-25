@@ -153,10 +153,14 @@ export class UploadRepository {
       categoryId: dto.categoryId?.toLowerCase() ?? null,
       tagIds: [...new Set(dto.tagIds ?? [])].sort(),
     };
+    const description = dto.description ?? null;
     const fingerprint = createHash('sha256')
       .update(
         JSON.stringify({
           ...(scope === 'create' ? metadata : {}),
+          ...(scope === 'create' && description !== null
+            ? { description }
+            : {}),
           filename: file.filename,
           mime: file.mime,
           size: file.size,
@@ -244,6 +248,7 @@ export class UploadRepository {
                   id: documentId,
                   userId,
                   title: metadata.title ?? '',
+                  description,
                   documentType: metadata.documentType,
                   issuer: metadata.issuer,
                   referenceNumber: metadata.referenceNumber,

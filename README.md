@@ -3,10 +3,13 @@
 Brainless is a personal document-management application for storing private files,
 organizing their metadata, and keeping immutable file versions.
 
-**Stable release: v1.0.0 (24 September 2026). Phase 1 is complete.** Registration,
+**Latest tagged release: v1.0.0 (24 September 2026). Phase 1 is complete.** Registration,
 account settings, categories/tags, document upload/download, metadata editing,
 archive/restore, soft deletion and version history are implemented. Processing,
 OCR, AI, full-text/semantic search and reminders are **Planned**, not available.
+[Phase 2 / v1.1.0](docs/roadmap.md#phase-2--v110-release-ready) is release-ready,
+pending a maintainer's commit and tag. It adds document descriptions, current-file
+summaries, metadata filters, deterministic sorting and cursor navigation.
 
 ## Architecture and stack
 
@@ -91,7 +94,7 @@ double and do not replace database integration tests.
 - [API conventions](docs/api.md), [local Swagger UI](http://localhost:8080/api/v1/docs/)
   and [generated OpenAPI JSON](http://localhost:8080/api/v1/docs-json)
 - [Environment variables](docs/deployment/environment-variables.md)
-- [Changelog](CHANGELOG.md) and [v1.0.0 release snapshot](docs/releases/v1.0.0.md)
+- [Changelog](CHANGELOG.md) and [release snapshots](docs/README.md#releases)
 - [Versioning policy](docs/development/conventions.md#versioning) and [roadmap](docs/roadmap.md)
 
 Coding-agent instructions live separately in [AGENTS.md](AGENTS.md) and the nested

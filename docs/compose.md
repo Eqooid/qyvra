@@ -1,14 +1,17 @@
-# Phase 1 local Docker Compose
+# Brainless local Docker Compose
 
 [Documentation index](README.md) | [Environment reference](deployment/environment-variables.md) |
-[Host onboarding](development/getting-started.md) | [v1.0.0 snapshot](releases/v1.0.0.md)
+[Host onboarding](development/getting-started.md) | [v1.0.0 snapshot](releases/v1.0.0.md) |
+[v1.1.0 snapshot](releases/v1.1.0.md)
 
 ## Status and boundaries
 
-The complete Phase 1 stack is implemented and verified through its public Nginx
-entry point. Image builds, migrations, service health, real browser workflows,
-upload/download and persistence across application-container recreation passed.
-See [acceptance evidence](phase-1-browser-verification.md). Docker Desktop's Linux
+The same Compose/Nginx topology serves Phase 1 and the v1.1.0 release candidate.
+Image builds, migrations, service health, real browser workflows, upload/download
+and persistence across application-container recreation passed in Phase 1; the
+v1.1.0 six-test browser workflow also passed through an isolated Nginx Compose
+project. See [Phase 1 evidence](phase-1-browser-verification.md) and the
+[v1.1.0 snapshot](releases/v1.1.0.md). Docker Desktop's Linux
 engine must be running; a missing `dockerDesktopLinuxEngine` pipe means the engine
 is unavailable, not that application migration or upload validation failed.
 The dated infrastructure-task results below are retained as history.

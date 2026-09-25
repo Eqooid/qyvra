@@ -7,6 +7,7 @@ import { DatePickerControl } from "@/components/shared/date-picker-control"
 import { Alert } from "@/components/ui/alert"
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Field, FieldLabel, FieldError } from "@/components/ui/field"
 import { Card } from "@/components/ui/card"
 
@@ -224,6 +225,39 @@ export function DocumentEdit({
               </Field>
             )
           )}
+          <Field className="min-w-0 space-y-2 sm:col-span-2">
+            <FieldLabel
+              htmlFor="edit-description"
+              className="text-sm font-medium"
+            >
+              Description (optional)
+            </FieldLabel>
+            <Textarea
+              id="edit-description"
+              rows={4}
+              maxLength={2000}
+              className="w-full resize-y"
+              {...register("description")}
+              aria-invalid={!!errors.description}
+              aria-describedby={
+                errors.description
+                  ? "edit-description-error"
+                  : "edit-description-help"
+              }
+            />
+            <p
+              id="edit-description-help"
+              className="text-xs text-muted-foreground"
+            >
+              Up to 2,000 characters. Clear this field and save to remove the
+              description.
+            </p>
+            {errors.description && (
+              <FieldError id="edit-description-error" role="alert">
+                {errors.description.message}
+              </FieldError>
+            )}
+          </Field>
           <Field className="space-y-2">
             <FieldLabel htmlFor="edit-category" className="text-sm font-medium">
               Category (optional)

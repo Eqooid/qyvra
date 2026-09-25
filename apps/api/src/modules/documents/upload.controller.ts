@@ -62,6 +62,12 @@ export class UploadController {
       properties: {
         file: { type: 'string', format: 'binary' },
         title: { type: 'string', minLength: 1, maxLength: 300 },
+        description: {
+          type: 'string',
+          maxLength: 2000,
+          description:
+            'Optional; surrounding whitespace trimmed, empty stored as null.',
+        },
         documentType: { type: 'string', default: 'OTHER' },
         issuer: { type: 'string', maxLength: 200 },
         referenceNumber: { type: 'string', maxLength: 200 },

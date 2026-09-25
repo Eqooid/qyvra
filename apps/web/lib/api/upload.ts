@@ -3,6 +3,7 @@ import { AuthApi, ApiError, UploadCancelled, UploadOptions } from "./client"
 
 export type UploadMetadata = {
   title: string
+  description?: string
   documentType: string
   issuer: string
   referenceNumber: string
@@ -23,6 +24,7 @@ export const uploadReceipt = z.object({
 export function normalizedMetadata(values: UploadMetadata): UploadMetadata {
   return {
     title: values.title.trim(),
+    description: values.description,
     documentType: values.documentType.trim(),
     issuer: values.issuer.trim(),
     referenceNumber: values.referenceNumber.trim(),
@@ -45,6 +47,8 @@ export function uploadBody(file: File, values: UploadMetadata) {
     "categoryId",
   ] as const)
     if (data[key]) body.append(key, data[key])
+  if (data.description !== undefined)
+    body.append("description", data.description)
   if (data.tagIds.length) body.append("tagIds", JSON.stringify(data.tagIds))
   body.append("file", file)
   return body

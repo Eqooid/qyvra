@@ -330,6 +330,107 @@ describe('Streaming upload PostgreSQL HTTP workflow', () => {
       await db.client.documentVersion.count({ where: { userId: user.id } }),
     ).toBe(1);
   });
+  it('persists optional description while keeping creation receipts and legacy fingerprints stable', async () => {
+    const user = await owner();
+    const bytes = pdfFixture(randomUUID());
+    const key = randomUUID();
+    const initial = await begin(user, key)
+      .field('title', 'Test document')
+      .field('description', '  Annual report  ')
+      .attach('file', bytes, 'original.pdf')
+      .expect(201);
+    const id = initial.body.data.id as string;
+    expect(initial.body.data).not.toHaveProperty('description');
+    expect(
+      (await db.client.document.findUniqueOrThrow({ where: { id } }))
+        .description,
+    ).toBe('Annual report');
+    expect(
+      (
+        await request(server)
+          .get(`/api/v1/documents/${id}`)
+          .set('Cookie', user.cookie)
+          .expect(200)
+      ).body.data.description,
+    ).toBe('Annual report');
+    const replay = await begin(user, key)
+      .field('title', 'Test document')
+      .field('description', 'Annual report')
+      .attach('file', bytes, 'original.pdf')
+      .expect(201);
+    expect(replay.body.data).toEqual(initial.body.data);
+    await begin(user, key)
+      .field('title', 'Test document')
+      .field('description', 'Different report')
+      .attach('file', bytes, 'original.pdf')
+      .expect(409);
+    expect(await db.client.document.count({ where: { userId: user.id } })).toBe(
+      1,
+    );
+    const legacyBytes = pdfFixture(randomUUID());
+    const legacyKey = randomUUID();
+    const legacy = await upload(user, legacyBytes, legacyKey).expect(201);
+    const legacyReceipt = await db.client.documentUpload.findUniqueOrThrow({
+      where: {
+        userId_scope_key: { userId: user.id, scope: 'create', key: legacyKey },
+      },
+    });
+    expect(legacyReceipt.response).not.toHaveProperty('description');
+    expect(legacyReceipt.fingerprint).toBe(
+      createHash('sha256')
+        .update(
+          JSON.stringify({
+            title: 'Test document',
+            documentType: 'OTHER',
+            issuer: null,
+            referenceNumber: null,
+            documentDate: null,
+            expirationDate: null,
+            categoryId: null,
+            tagIds: [],
+            filename: 'original.pdf',
+            mime: 'application/pdf',
+            size: legacyBytes.length,
+            checksum: createHash('sha256').update(legacyBytes).digest('hex'),
+          }),
+        )
+        .digest('hex'),
+    );
+    expect(
+      (await upload(user, legacyBytes, legacyKey).expect(201)).body.data,
+    ).toEqual(legacy.body.data);
+    expect(
+      (
+        await begin(user, legacyKey)
+          .field('title', 'Test document')
+          .field('description', '   ')
+          .attach('file', legacyBytes, 'original.pdf')
+          .expect(201)
+      ).body.data,
+    ).toEqual(legacy.body.data);
+    expect(
+      (
+        await db.client.document.findUniqueOrThrow({
+          where: { id: legacy.body.data.id as string },
+        })
+      ).description,
+    ).toBeNull();
+    expect(await db.client.document.count({ where: { userId: user.id } })).toBe(
+      2,
+    );
+  });
+  it('rejects invalid upload descriptions', async () => {
+    const user = await owner();
+    for (const description of ['x'.repeat(2001), 'bad\u0000value'])
+      await begin(user)
+        .field('title', 'Test document')
+        .field('description', description)
+        .attach('file', pdfFixture(randomUUID()), 'original.pdf')
+        .expect(400);
+    expect(await db.client.document.count({ where: { userId: user.id } })).toBe(
+      0,
+    );
+  });
   it('compensates failed persistence and does not create rows when storage fails', async () => {
     const user = await owner();
     const remove = jest.spyOn(storage, 'delete');

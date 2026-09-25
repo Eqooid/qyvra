@@ -91,3 +91,28 @@ produce safe JSON; failures after binary headers terminate the connection.
 conventions; [feature guides](README.md#features) explain user workflows and tests.
 The [specification](specification.md) retains the **Planned** worker/search/AI/identity
 architecture. No workers, broker, cache, search indexes or AI providers run in v1.0.0.
+
+## v1.1.0 document query boundary
+
+Phase 2 extends the current Documents module and frontend document feature. It
+does not change the runtime topology above. DTOs validate an explicit list of
+query and metadata fields; controllers pass authenticated owner context and
+validated input to application services. The document service builds bounded,
+owner-scoped Prisma queries and chooses the highest immutable version for current
+file metadata. A small query helper within the module is appropriate if sort
+cursor and predicate logic becomes hard to read; a generic repository/search
+framework is not required. PostgreSQL remains authoritative for category, tags,
+description, lifecycle and file metadata. File bytes remain behind `STORAGE`.
+
+`apps/web/lib/api` owns the request/response schemas and query serialization.
+`features/documents/query.ts` owns URL parsing; list and detail components use
+those values and existing TanStack Query keys. Changing a filter or sort clears
+the cursor. Reuse existing shadcn/Base UI primitives, organization selectors,
+cache invalidation and responsive/theme patterns. React components must not
+recreate API filtering or authorization rules.
+
+The future search and AI phases may build derived projections from PostgreSQL
+metadata and private files. They must preserve authenticated ownership filters
+and can expose separate ranked search contracts when implemented. The v1.1.0
+catalog keeps its explicit metadata filters and cursor contract; it requires no
+Elasticsearch, Qdrant, embedding provider, broker, Redis or AI adapter.

@@ -17,6 +17,7 @@ const metadata = {
   id: true,
   categoryId: true,
   title: true,
+  description: true,
   documentType: true,
   status: true,
   issuer: true,
@@ -28,6 +29,18 @@ const metadata = {
   createdAt: true,
   updatedAt: true,
   deletedAt: true,
+  versions: {
+    orderBy: { versionNumber: 'desc' },
+    take: 1,
+    select: {
+      id: true,
+      versionNumber: true,
+      originalFilename: true,
+      mimeType: true,
+      fileSize: true,
+      createdAt: true,
+    },
+  },
 } as const;
 type Row = Prisma.DocumentGetPayload<{ select: typeof metadata }>;
 const categoryFields = {
@@ -46,6 +59,8 @@ const tagFields = {
 } as const;
 const dateValue = (value: string | null | undefined) =>
   value ? new Date(`${value}T00:00:00.000Z`) : value;
+const literal = (value: string) =>
+  `%${value.replace(/[\\%_]/g, (character) => `\\${character}`)}%`;
 
 /**
  * @author Cristono Wijaya
@@ -79,72 +94,155 @@ export class DocumentsService {
         (query.dateFrom && query.dateTo && query.dateFrom > query.dateTo) ||
         (query.expirationFrom &&
           query.expirationTo &&
-          query.expirationFrom > query.expirationTo)
+          query.expirationFrom > query.expirationTo) ||
+        (query.createdFrom &&
+          query.createdTo &&
+          query.createdFrom > query.createdTo) ||
+        (query.updatedFrom &&
+          query.updatedTo &&
+          query.updatedFrom > query.updatedTo) ||
+        (query.tagId && query.tagIds)
       )
         throw new InvalidDocumentMetadata();
-      const direction = query.sort === '-createdAt' ? 'desc' : 'asc';
-      const comparison = direction === 'desc' ? 'lt' : 'gt';
+      const descending = query.sort.startsWith('-');
+      const order = descending ? Prisma.sql`DESC` : Prisma.sql`ASC`;
+      const sortKey =
+        query.sort === '-createdAt' || query.sort === 'createdAt'
+          ? Prisma.sql`d.created_at`
+          : query.sort === '-updatedAt'
+            ? Prisma.sql`d.updated_at`
+            : query.sort === 'title' || query.sort === '-title'
+              ? Prisma.sql`d.title COLLATE "C"`
+              : Prisma.sql`current_file.file_size`;
       const cursor = query.cursor
         ? parseDocumentCursor(query.cursor, query.sort)
         : undefined;
-      const search = query.q?.replace(
-        /[\\%_]/g,
-        (character) => `\\${character}`,
-      );
-      const where: Prisma.DocumentWhereInput = {
-        userId,
-        deletedAt: null,
-        status: query.status,
-        documentType: query.documentType,
-        categoryId: query.categoryId,
-        isArchived: query.archived,
-        ...(query.tagId
-          ? { tags: { some: { userId, tagId: query.tagId } } }
-          : {}),
-        documentDate: {
-          gte: dateValue(query.dateFrom) ?? undefined,
-          lte: dateValue(query.dateTo) ?? undefined,
-        },
-        expirationDate: {
-          gte: dateValue(query.expirationFrom) ?? undefined,
-          lte: dateValue(query.expirationTo) ?? undefined,
-        },
-        AND: [
-          ...(search === undefined
-            ? []
-            : [
-                {
-                  OR: ['title', 'issuer', 'referenceNumber'].map((field) => ({
-                    [field]: { contains: search, mode: 'insensitive' },
-                  })),
-                },
-              ]),
-          ...(cursor
-            ? [
-                {
-                  OR: [
-                    { createdAt: { [comparison]: new Date(cursor.createdAt) } },
-                    {
-                      createdAt: new Date(cursor.createdAt),
-                      id: { [comparison]: cursor.id },
-                    },
-                  ],
-                },
-              ]
-            : []),
-        ],
-      };
-      const rows = await this.database.client.document.findMany({
-        where,
-        orderBy: [{ createdAt: direction }, { id: direction }],
-        take: query.limit + 1,
-        select: metadata,
+      const conditions: Prisma.Sql[] = [
+        Prisma.sql`d.user_id = ${userId}::uuid`,
+        Prisma.sql`d.deleted_at IS NULL`,
+      ];
+      if (query.status) conditions.push(Prisma.sql`d.status = ${query.status}`);
+      if (query.documentType)
+        conditions.push(Prisma.sql`d.document_type = ${query.documentType}`);
+      if (query.categoryId)
+        conditions.push(Prisma.sql`d.category_id = ${query.categoryId}::uuid`);
+      if (query.archived !== undefined)
+        conditions.push(Prisma.sql`d.is_archived = ${query.archived}`);
+      if (query.q) {
+        const pattern = literal(query.q);
+        conditions.push(
+          Prisma.sql`(d.title ILIKE ${pattern} ESCAPE E'\\\\' OR d.issuer ILIKE ${pattern} ESCAPE E'\\\\' OR d.reference_number ILIKE ${pattern} ESCAPE E'\\\\')`,
+        );
+      }
+      if (query.tagId)
+        conditions.push(
+          Prisma.sql`EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id AND dt.user_id = ${userId}::uuid AND dt.tag_id = ${query.tagId}::uuid)`,
+        );
+      for (const tagId of query.tagIds ?? [])
+        conditions.push(
+          Prisma.sql`EXISTS (SELECT 1 FROM document_tags dt WHERE dt.document_id = d.id AND dt.user_id = ${userId}::uuid AND dt.tag_id = ${tagId}::uuid)`,
+        );
+      if (query.dateFrom)
+        conditions.push(Prisma.sql`d.document_date >= ${query.dateFrom}::date`);
+      if (query.dateTo)
+        conditions.push(Prisma.sql`d.document_date <= ${query.dateTo}::date`);
+      if (query.expirationFrom)
+        conditions.push(
+          Prisma.sql`d.expiration_date >= ${query.expirationFrom}::date`,
+        );
+      if (query.expirationTo)
+        conditions.push(
+          Prisma.sql`d.expiration_date <= ${query.expirationTo}::date`,
+        );
+      if (query.createdFrom)
+        conditions.push(
+          Prisma.sql`d.created_at >= (${query.createdFrom}::date::timestamp AT TIME ZONE 'UTC')`,
+        );
+      if (query.createdTo)
+        conditions.push(
+          Prisma.sql`d.created_at < ((${query.createdTo}::date + INTERVAL '1 day') AT TIME ZONE 'UTC')`,
+        );
+      if (query.updatedFrom)
+        conditions.push(
+          Prisma.sql`d.updated_at >= (${query.updatedFrom}::date::timestamp AT TIME ZONE 'UTC')`,
+        );
+      if (query.updatedTo)
+        conditions.push(
+          Prisma.sql`d.updated_at < ((${query.updatedTo}::date + INTERVAL '1 day') AT TIME ZONE 'UTC')`,
+        );
+      if (query.filename)
+        conditions.push(
+          Prisma.sql`current_file.original_filename ILIKE ${literal(query.filename)} ESCAPE E'\\\\'`,
+        );
+      if (query.mimeType)
+        conditions.push(Prisma.sql`current_file.mime_type = ${query.mimeType}`);
+      if (cursor) {
+        if (cursor.sort === '-fileSize' && cursor.value === null) {
+          conditions.push(
+            Prisma.sql`(current_file.file_size IS NULL AND d.id < ${cursor.id}::uuid)`,
+          );
+        } else if (cursor.sort === '-fileSize') {
+          conditions.push(
+            Prisma.sql`(current_file.file_size < ${cursor.value} OR (current_file.file_size = ${cursor.value} AND d.id < ${cursor.id}::uuid) OR current_file.file_size IS NULL)`,
+          );
+        } else {
+          const value =
+            'createdAt' in cursor
+              ? new Date(cursor.createdAt)
+              : cursor.sort === '-updatedAt'
+                ? new Date(cursor.value as string)
+                : cursor.value;
+          const sortValue =
+            cursor.sort === 'title' || cursor.sort === '-title'
+              ? Prisma.sql`${value} COLLATE "C"`
+              : Prisma.sql`${value}`;
+          conditions.push(
+            descending
+              ? Prisma.sql`(${sortKey} < ${sortValue} OR (${sortKey} = ${sortValue} AND d.id < ${cursor.id}::uuid))`
+              : Prisma.sql`(${sortKey} > ${sortValue} OR (${sortKey} = ${sortValue} AND d.id > ${cursor.id}::uuid))`,
+          );
+        }
+      }
+      const currentFileJoin =
+        query.filename || query.mimeType || query.sort === '-fileSize'
+          ? Prisma.sql`LEFT JOIN LATERAL (SELECT v.original_filename, v.mime_type, v.file_size FROM document_versions v WHERE v.document_id = d.id AND v.user_id = ${userId}::uuid ORDER BY v.version_number DESC LIMIT 1) current_file ON TRUE`
+          : Prisma.empty;
+      const keys = await this.database.client.$queryRaw<
+        {
+          id: string;
+          createdAt: Date;
+          sortValue: Date | string | number | null;
+        }[]
+      >(Prisma.sql`
+        SELECT d.id, d.created_at AS "createdAt", ${sortKey} AS "sortValue"
+        FROM documents d
+        ${currentFileJoin}
+        WHERE ${Prisma.join(conditions, ' AND ')}
+        ORDER BY ${sortKey} ${order}${query.sort === '-fileSize' ? Prisma.sql` NULLS LAST` : Prisma.empty}, d.id ${order}
+        LIMIT ${query.limit + 1}
+      `);
+      const more = keys.length > query.limit;
+      const pageKeys = keys.slice(0, query.limit);
+      const rows = pageKeys.length
+        ? await this.database.client.document.findMany({
+            where: {
+              userId,
+              deletedAt: null,
+              id: { in: pageKeys.map((row) => row.id) },
+            },
+            select: metadata,
+          })
+        : [];
+      const byId = new Map(rows.map((row) => [row.id, row]));
+      const page = pageKeys.flatMap((key) => {
+        const row = byId.get(key.id);
+        return row ? [row] : [];
       });
-      const more = rows.length > query.limit;
-      const page = rows.slice(0, query.limit);
+      const last = page[page.length - 1];
+      const lastKey = last && pageKeys.find((key) => key.id === last.id);
       return new PaginatedData(
         await this.hydrate(this.database.client, userId, page),
-        more ? documentCursor(page[page.length - 1], query.sort) : null,
+        more && lastKey ? documentCursor(lastKey, query.sort) : null,
         more,
       );
     });
@@ -222,6 +320,7 @@ export class DocumentsService {
           where: { id, userId, deletedAt: null },
           data: {
             title: dto.title,
+            description: dto.description,
             documentType: dto.documentType,
             issuer: dto.issuer,
             referenceNumber: dto.referenceNumber,
@@ -352,13 +451,18 @@ export class DocumentsService {
         byDocument.set(join.documentId, assigned);
       }
     }
-    return rows.map(({ categoryId, documentDate, expirationDate, ...row }) => ({
-      ...row,
-      documentDate: documentDate?.toISOString().slice(0, 10) ?? null,
-      expirationDate: expirationDate?.toISOString().slice(0, 10) ?? null,
-      category: categoryId ? (categoryMap.get(categoryId) ?? null) : null,
-      tags: byDocument.get(row.id) ?? [],
-    }));
+    return rows.map(
+      ({ categoryId, documentDate, expirationDate, versions, ...row }) => ({
+        ...row,
+        documentDate: documentDate?.toISOString().slice(0, 10) ?? null,
+        expirationDate: expirationDate?.toISOString().slice(0, 10) ?? null,
+        category: categoryId ? (categoryMap.get(categoryId) ?? null) : null,
+        tags: byDocument.get(row.id) ?? [],
+        currentVersion: versions[0]
+          ? { ...versions[0], createdAt: versions[0].createdAt.toISOString() }
+          : null,
+      }),
+    );
   }
 
   /**

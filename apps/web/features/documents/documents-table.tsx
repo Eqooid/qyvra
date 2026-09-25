@@ -29,6 +29,7 @@ import {
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu"
 import type { DocumentItem } from "@/lib/api/documents"
+import { formatBytes, mimeLabel } from "./upload-validation"
 
 // The API owns filtering, ordering and cursor pagination; render its page unchanged.
 const features = tableFeatures({ columnVisibilityFeature })
@@ -40,12 +41,14 @@ export function DocumentsTable({
   data = empty,
   uploadedId,
   toolbar,
+  action,
   children,
   hideRows = false,
 }: {
   data?: DocumentItem[]
   uploadedId?: string
   toolbar?: ReactNode
+  action?: ReactNode
   children?: ReactNode
   hideRows?: boolean
 }) {
@@ -56,7 +59,7 @@ export function DocumentsTable({
           header: "Document",
           enableHiding: false,
           cell: ({ row }) => (
-            <div className="flex w-56 items-start gap-3 whitespace-normal">
+            <div className="flex w-64 items-start gap-3 whitespace-normal">
               <FileText
                 aria-hidden="true"
                 className="mt-0.5 size-5 shrink-0 text-muted-foreground"
@@ -76,6 +79,33 @@ export function DocumentsTable({
                 <p className="text-xs text-muted-foreground capitalize">
                   {label(row.original.documentType)}
                 </p>
+                {row.original.currentVersion && (
+                  <div className="space-y-1 text-xs text-muted-foreground">
+                    <p
+                      className="line-clamp-1 break-all"
+                      title={row.original.currentVersion.originalFilename}
+                    >
+                      {row.original.currentVersion.originalFilename}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Badge variant="outline">
+                        v{row.original.currentVersion.versionNumber}
+                      </Badge>
+                      <span>
+                        {mimeLabel(row.original.currentVersion.mimeType)}
+                      </span>
+                      <span aria-hidden="true">·</span>
+                      <span>
+                        {formatBytes(row.original.currentVersion.fileSize)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                {row.original.description && (
+                  <p className="line-clamp-2 text-xs break-words text-muted-foreground">
+                    {row.original.description}
+                  </p>
+                )}
               </div>
             </div>
           ),
@@ -166,29 +196,34 @@ export function DocumentsTable({
   })
   return (
     <Card className="min-w-0 overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b p-3">
+      <div className="grid min-w-0 gap-3 border-b p-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
         {toolbar}
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={<Button variant="outline" size="default" />}
-          >
-            <Columns3 aria-hidden /> Columns
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {table
-              .getAllLeafColumns()
-              .filter((item) => item.getCanHide())
-              .map((item) => (
-                <DropdownMenuCheckboxItem
-                  key={item.id}
-                  checked={item.getIsVisible()}
-                  onCheckedChange={(checked) => item.toggleVisibility(checked)}
-                >
-                  {String(item.columnDef.header)}
-                </DropdownMenuCheckboxItem>
-              ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex flex-wrap items-center justify-end gap-2 justify-self-end">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={<Button variant="outline" size="default" />}
+            >
+              <Columns3 aria-hidden /> Columns
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {table
+                .getAllLeafColumns()
+                .filter((item) => item.getCanHide())
+                .map((item) => (
+                  <DropdownMenuCheckboxItem
+                    key={item.id}
+                    checked={item.getIsVisible()}
+                    onCheckedChange={(checked) =>
+                      item.toggleVisibility(checked)
+                    }
+                  >
+                    {String(item.columnDef.header)}
+                  </DropdownMenuCheckboxItem>
+                ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {action}
+        </div>
       </div>
       <p className="sr-only" id="document-table-help">
         Scroll horizontally to view all document columns on smaller screens.

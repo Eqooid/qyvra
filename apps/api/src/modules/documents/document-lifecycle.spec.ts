@@ -83,7 +83,7 @@ describe('document lifecycle and pagination rules', () => {
     expect(() => parseDocumentCursor(cursor, 'createdAt')).toThrow();
     for (const value of [
       'invalid',
-      'a'.repeat(513),
+      'a'.repeat(4097),
       Buffer.from(
         JSON.stringify({
           id: row.id,
@@ -96,5 +96,45 @@ describe('document lifecycle and pagination rules', () => {
       ),
     ])
       expect(() => parseDocumentCursor(value, '-createdAt')).toThrow();
+  });
+  it('roundtrips typed sort cursors and rejects incompatible or malformed values', () => {
+    const row = { id: '69e064cd-fb20-4e2d-b97f-00a53e251265', createdAt: now };
+    for (const [sort, value] of [
+      ['-updatedAt', now],
+      ['title', 'Same title'],
+      ['-title', 'Same title'],
+      ['-fileSize', 123],
+      ['-fileSize', null],
+    ] as const) {
+      const encoded = documentCursor({ ...row, sortValue: value }, sort);
+      expect(parseDocumentCursor(encoded, sort)).toEqual({
+        id: row.id,
+        sort,
+        value: value instanceof Date ? value.toISOString() : value,
+      });
+      expect(() => parseDocumentCursor(encoded, '-createdAt')).toThrow();
+    }
+    const forged = (value: unknown) =>
+      Buffer.from(JSON.stringify(value)).toString('base64url');
+    for (const [sort, value] of [
+      ['-updatedAt', 'invalid'],
+      ['title', 12],
+      ['-title', ''],
+      ['-fileSize', -1],
+      ['-fileSize', '200'],
+    ] as const)
+      expect(() =>
+        parseDocumentCursor(forged({ id: row.id, sort, value }), sort),
+      ).toThrow();
+    expect(() =>
+      parseDocumentCursor(forged({ id: row.id, sort: 'title' }), 'title'),
+    ).toThrow();
+    expect(() =>
+      parseDocumentCursor(
+        forged({ id: row.id, sort: 'bad', value: 'X' }),
+        'title',
+      ),
+    ).toThrow();
+    expect(() => parseDocumentCursor('!!!', 'title')).toThrow();
   });
 });

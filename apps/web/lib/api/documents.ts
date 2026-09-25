@@ -11,9 +11,19 @@ export const categorySchema = tagSchema.extend({
   color: z.string().nullable(),
   icon: z.string().nullable(),
 })
-const documentSchema = z.object({
+export const currentVersionSummarySchema = z.object({
+  id: z.string().uuid(),
+  versionNumber: z.number().int(),
+  originalFilename: z.string(),
+  mimeType: z.string(),
+  fileSize: z.number().int(),
+  createdAt: z.string(),
+})
+export type CurrentVersionSummary = z.infer<typeof currentVersionSummarySchema>
+export const documentSchema = z.object({
   id: z.string().uuid(),
   title: z.string(),
+  description: z.string().nullable(),
   documentType: z.string(),
   status: z.string(),
   issuer: z.string().nullable(),
@@ -25,6 +35,7 @@ const documentSchema = z.object({
   updatedAt: z.string(),
   category: categorySchema.nullable(),
   tags: z.array(tagSchema),
+  currentVersion: currentVersionSummarySchema.nullable(),
 })
 const page = <T>(schema: z.ZodType<T>) =>
   z.object({
@@ -36,13 +47,14 @@ const page = <T>(schema: z.ZodType<T>) =>
     }),
   })
 export type DocumentItem = z.infer<typeof documentSchema>
-const detailSchema = documentSchema.extend({
+export const detailSchema = documentSchema.extend({
   verifiedSummary: z.string().nullable(),
   deletedAt: z.string().nullable(),
 })
 export type DocumentDetail = z.infer<typeof detailSchema>
 export type DocumentPatch = Partial<{
   title: string
+  description: string | null
   documentType: string
   issuer: string | null
   referenceNumber: string | null
@@ -66,6 +78,7 @@ export const updateDocument = (
   const safe: DocumentPatch = {}
   for (const key of [
     "title",
+    "description",
     "documentType",
     "issuer",
     "referenceNumber",
@@ -113,14 +126,40 @@ export const statuses = [
   "ARCHIVED",
   "DELETING",
 ] as const
+export const documentSortSchema = z.enum([
+  "-createdAt",
+  "createdAt",
+  "-updatedAt",
+  "title",
+  "-title",
+  "-fileSize",
+])
+export type DocumentSort = z.infer<typeof documentSortSchema>
+export const documentMimeTypeSchema = z.enum([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+])
+export type DocumentMimeType = z.infer<typeof documentMimeTypeSchema>
 export type DocumentQuery = {
   q?: string
+  filename?: string
+  mimeType?: DocumentMimeType
   documentType?: string
   status?: (typeof statuses)[number]
   categoryId?: string
   tagId?: string
+  tagIds?: string[]
   archived?: "true" | "false"
-  sort?: "-createdAt" | "createdAt"
+  dateFrom?: string
+  dateTo?: string
+  expirationFrom?: string
+  expirationTo?: string
+  createdFrom?: string
+  createdTo?: string
+  updatedFrom?: string
+  updatedTo?: string
+  sort?: DocumentSort
   limit?: number
   cursor?: string
 }
@@ -128,22 +167,44 @@ export function queryString(params: DocumentQuery) {
   const query = new URLSearchParams()
   for (const key of [
     "q",
+    "filename",
+    "mimeType",
     "documentType",
     "status",
     "categoryId",
     "tagId",
+    "tagIds",
     "archived",
+    "dateFrom",
+    "dateTo",
+    "expirationFrom",
+    "expirationTo",
+    "createdFrom",
+    "createdTo",
+    "updatedFrom",
+    "updatedTo",
     "sort",
     "limit",
     "cursor",
   ] as const) {
     const value = params[key]
-    if (value !== undefined && value !== "") query.set(key, String(value))
+    if (
+      value !== undefined &&
+      value !== null &&
+      value !== "" &&
+      (!Array.isArray(value) || value.length)
+    )
+      query.set(key, Array.isArray(value) ? value.join(",") : String(value))
   }
   return query.toString()
 }
-export const listDocuments = (api: AuthApi, query: DocumentQuery) =>
-  api.get(`/documents?${queryString(query)}`, page(documentSchema))
+export const listDocuments = (api: AuthApi, query: DocumentQuery = {}) => {
+  const serialized = queryString(query)
+  return api.get(
+    `/documents${serialized ? `?${serialized}` : ""}`,
+    page(documentSchema)
+  )
+}
 export function listCategories(api: AuthApi, cursor?: string) {
   const query = new URLSearchParams({ limit: "100", sort: "id" })
   if (cursor) query.set("cursor", cursor)

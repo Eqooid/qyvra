@@ -96,3 +96,110 @@ sent. File paths, storage keys and checksums are not exposed by document/version
 Processing, historical-version download, extracted text, search indexes and chat
 endpoints are **Not Implemented**. The [specification](specification.md) contains a
 **Planned** target catalog, not an alternative reference for available endpoints.
+
+## v1.1.0 document contract
+
+This section describes the implemented Phase 2 contract. Generated OpenAPI describes
+available behavior. All routes below already exist; v1.1.0 adds no new route,
+page-number pagination or search endpoint. Every operation requires the existing session cookie. Ownership always
+comes from that session; a client-supplied `userId` is invalid. The existing
+`{data, meta}` success and safe error envelopes remain unchanged.
+
+The `description` and `currentVersion` additions to document list, detail, and
+PATCH responses and the filename, MIME, all-of tags, and created/updated date
+filters and allow-listed sorts are implemented. `currentVersion` is
+either null or exactly the safe six-field summary
+defined below; upload creation receipts and version-history responses are unchanged.
+
+| Method and route | Existing behavior | v1.1.0 change and status |
+| --- | --- | --- |
+| `GET /api/v1/documents` | Owned, non-deleted metadata page with filters, created-time sort and cursor. | Description, safe current-version summary, filename/MIME/all-of-tag/created/updated filters, and extended sorts implemented. |
+| `GET /api/v1/documents/:documentId` | Owned, non-deleted metadata detail. | Description and safe current-version summary implemented. |
+| `PATCH /api/v1/documents/:documentId` | Owned metadata/association update. | Optional description and current-version summary in response implemented. |
+| `POST /api/v1/documents` | Owned multipart creation with required file/title and idempotency key. | Optional description implemented; the existing creation receipt shape, including immutable version metadata, is retained. |
+
+Existing category/tag CRUD, version routes, lifecycle routes and current download
+are unchanged. The only document path parameter above is `:documentId`, an owned
+UUID. Missing, foreign and soft-deleted documents remain indistinguishable 404s.
+Read operations have no body; detail accepts no query parameters. PATCH remains a
+nonempty JSON partial body. POST remains bounded multipart with exactly one file,
+the existing metadata fields and a UUID `Idempotency-Key`. Mutations retain the
+CSRF header/Origin policy. `description` is optional plain text: trim surrounding
+whitespace, allow at most 2,000 characters after trimming, reject control
+characters, and store an empty value as null. PATCH omission preserves the current
+value and explicit null clears it. Upload omission or empty input stores null.
+`verifiedSummary` remains read-only and separate from the owner's description.
+
+Document list/detail/PATCH results add `description: string | null` and
+`currentVersion: {id, versionNumber, originalFilename, mimeType, fileSize,
+createdAt} | null`. `createdAt` in that object is the current version's upload
+timestamp; document `createdAt` is catalog creation time. The current version is
+the owned version with the highest `versionNumber`, as in download/history. Null
+supports metadata-only legacy/test records. Storage keys, checksums, `userId`
+and file bytes remain private. Existing response fields and the version-history
+contract are retained. Old completed upload receipts remain valid and may omit
+new fields because they are creation-time receipts, not document snapshots.
+
+### Document list query
+
+All parameters are optional on `GET /api/v1/documents`. They are explicit DTO
+fields, never arbitrary Prisma column names. Multiple different filters combine
+with AND; `q` searches the existing title/issuer/reference fields with OR inside
+that filter. Filename matches only the current version, not any historical file.
+Literal substring matching is case-insensitive and escapes SQL wildcard characters.
+
+| Parameter | Values and behavior | Status |
+| --- | --- | --- |
+| `limit` | Integer 1–100; default 25. | Existing, unchanged |
+| `cursor` | Opaque next cursor from the preceding page, at most 4,096 encoded characters; keep filters and sort fixed. | Implemented for all sorts; old createdAt cursors retained |
+| `sort` | `-createdAt` (default), `createdAt`, `-updatedAt`, `title`, `-title`, `-fileSize`. Leading `-` means descending; no separate direction parameter. | Implemented |
+| `q` | Nonblank literal substring, maximum 200 characters, across title, issuer and reference number. | Existing, unchanged; includes title search |
+| `categoryId` | One UUID; matching category owned by the caller. Foreign/unknown IDs yield no matches. | Existing, unchanged |
+| `tagId` | One UUID; match the owned tag. | Existing, unchanged |
+| `tagIds` | Comma-separated list of 1–10 distinct UUIDs; document must have **all** selected owned tags. Cannot accompany `tagId`. | Implemented |
+| `documentType`, `status`, `archived` | Existing validated type/status values and `true`/`false`; omitted archive filter includes active and archived. | Existing, unchanged |
+| `dateFrom`, `dateTo` | Inclusive `YYYY-MM-DD` bounds on **documentDate**, not creation time. | Existing, unchanged |
+| `expirationFrom`, `expirationTo` | Inclusive bounds on `expirationDate`. | Existing, unchanged |
+| `createdFrom`, `createdTo` | Inclusive calendar-day bounds on document `createdAt` in UTC. | Implemented |
+| `updatedFrom`, `updatedTo` | Inclusive calendar-day bounds on document `updatedAt` in UTC. | Implemented |
+| `filename` | Nonblank literal case-insensitive substring, maximum 200 characters, of current `originalFilename`. | Implemented |
+| `mimeType` | Exact `application/pdf`, `image/jpeg` or `image/png` on current version. | Implemented |
+
+Date-only values must be real calendar dates. Each supplied `From` must be on or
+before its paired `To`; missing bounds are open. Timestamp ranges mean UTC
+midnight at `From` through, but excluding, midnight after `To`. Documents with
+null relevant dates do not match a supplied range. Repeated, malformed, unknown
+or incompatible query parameters return 400, including `tagId` plus `tagIds`
+and duplicate IDs within `tagIds` (case-insensitive).
+Unknown or foreign category/tag IDs do not reveal their existence through errors.
+`deletedAt` is always null in list results; no deleted-document listing is added.
+Archive and all other filters combine with AND.
+
+All sorts are server-side with a UUID tie-breaker in the same direction. `-fileSize`
+orders the current version's file size descending and puts null current versions
+last. `title` and `-title` use case-sensitive PostgreSQL `C` collation for stable
+bytewise ordering; this differs intentionally from case-insensitive substring
+filtering. Invalid sorts or a separate `direction` parameter return 400. Existing
+`createdAt` cursors continue to decode for the two original sorts. New cursors
+encode the selected sort key and UUID within the 4,096-character limit,
+including a 300-character title. Cursors use canonical base64url encoding and
+are validated against the selected sort; malformed or incompatible cursors return 400.
+Cursors are navigation hints, not ownership grants or multi-request snapshots;
+changing filters or sort restarts at the first page. Response pagination stays
+`meta: {requestId, nextCursor, hasMore}` with `nextCursor: null` on the final page.
+No offset/page number or exact total count is promised.
+
+### Validation and expected responses
+
+| Operation | Success | Expected failures |
+| --- | --- | --- |
+| List | 200 with `data: Document[]` and cursor metadata. | 400 invalid/unsupported query or cursor; 401 unauthenticated; 500 unexpected persistence failure. |
+| Detail | 200 with `data: Document`. | 400 invalid UUID/unexpected query; 401 unauthenticated; 404 missing, foreign or deleted; 500 unexpected persistence failure. |
+| PATCH | 200 with updated `data: Document`. | 400 malformed/empty body, invalid description or dates; 401 unauthenticated; 403 CSRF/Origin; 404 unavailable document/association; 409 lifecycle conflict; 413 body too large; 500 unexpected persistence failure. |
+| Initial upload | 201 with the existing creation receipt. | Existing 400/401/403/404/408/409/413/415/429/503 upload behavior, including invalid description as 400. |
+
+Adding description to upload must preserve the legacy fingerprint when description
+is omitted or normalizes to null. A nonempty description participates in the
+fingerprint. Replaying an old completed key returns its original 201 receipt
+without rewriting it. New upload field-count and byte limits must accommodate
+the bounded field while preserving all file validation and idempotency rules.

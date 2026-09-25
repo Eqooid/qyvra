@@ -62,8 +62,8 @@ export async function receiveUpload(
       fileHwm: 65536,
       limits: {
         files: 1,
-        fields: 8,
-        parts: 10,
+        fields: 9,
+        parts: 11,
         fieldSize: 8192,
         fileSize: policy.maxBytes + 1,
       },
@@ -121,6 +121,7 @@ export async function receiveUpload(
       Object.prototype.hasOwnProperty.call(fields, name) ||
       ![
         'title',
+        'description',
         'documentType',
         'issuer',
         'referenceNumber',

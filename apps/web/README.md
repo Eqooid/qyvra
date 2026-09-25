@@ -1,8 +1,8 @@
 # Brainless web
 
-**v1.0.0 / Phase 1 complete.** Start with [onboarding](../../docs/development/getting-started.md),
+**v1.0.0 / Phase 1 released; v1.1.0 / Phase 2 release-ready.** Start with [onboarding](../../docs/development/getting-started.md),
 [feature guides](../../docs/README.md#features), [test commands](../../docs/development/testing.md)
-and [release evidence](../../docs/releases/v1.0.0.md). The UI refinement and theme
+and [release evidence](../../docs/releases/v1.1.0.md). The UI refinement and theme
 verification sections below retain earlier checkpoints, not current test counts.
 
 For the current frontend component foundation, route audit, retained compositions
@@ -75,16 +75,36 @@ See [implementation and verification](../../docs/web-versioning-implementation.m
 
 `/documents` uses the existing protected shell and cookie/refresh client. It reads
 documents, categories and tags from the configured API; no new environment settings
-are required. The list displays responsive cards with public metadata and text
-status badges. Search is debounced by 350 ms; other controls apply immediately.
+are required. The list displays a responsive table with public metadata and text
+status badges. Metadata search is debounced by 350 ms. Advanced filters open in
+a dialog; edits remain a draft until **Apply filters** is selected. Closing or
+cancelling discards draft changes, while **Clear** resets only the draft until
+it is applied. Sort controls remain in the compact document toolbar.
 Document types accept custom uppercase identifiers as supported by the API.
 
-Search, type, status, category, tag, archive state, sort, limit and cursor live in
-URL search parameters. Filters reset the cursor; Next page uses the server's opaque
-cursor, First page resets it, and browser Back/Forward restores earlier views.
+Search, current filename/MIME type, document type, status, category, all-of tags,
+archive state, created/updated date ranges, sort, limit and cursor live in URL
+search parameters. Filename and metadata search inputs are debounced. Filters and
+sort changes reset the cursor. Next page uses the server's opaque cursor; Previous
+uses a short in-memory cursor trail for pages visited in the current query. First
+page resets navigation, and browser Back/Forward restores URL-backed views.
 Unknown parameters are ignored and unsupported values fall back to defaults.
 An opaque cursor rejected by the server shows an error with a First page action.
 No cursor contents or ownership rules are interpreted in the frontend.
+
+The document API client now parses nullable `description` and the nullable, safe
+`currentVersion` summary in list/detail/PATCH responses. Upload may send an optional
+description, while its idempotent creation receipt remains unchanged. The typed
+list query serializer supports current filename/MIME, all-of tag IDs (one
+comma-separated parameter), UTC calendar-day ranges, and the backend's six
+allow-listed `sort` values. A leading minus in `sort` means descending; there is
+no separate direction parameter. Cursor values are passed through unchanged,
+and the serialized query, including filters, sort and cursor, forms the catalog's
+TanStack Query cache key. The filter accordion exposes the new controls with
+removable active-filter badges. Sort direction is selectable where the backend
+supports both directions; updated date and current file size are descending only.
+Date inputs send calendar dates without timezone conversion and reject reversed
+ranges before navigation.
 
 Category/tag lookups request 100 rows at a time with explicit Load more controls;
 they do not fetch an entire unbounded collection. Lookup failures disable that
@@ -135,12 +155,17 @@ It never claims extraction or AI processing completed. See
 
 ### Document detail and actions
 
-`/documents/{id}` displays safe metadata, category/tags, archive/status, timestamps
-and a verified summary when present. It reuses the protected document layout.
+`/documents/{id}` displays safe metadata, the full owner description, the current
+version's filename/type/size/version/upload time, category/tags, archive/status,
+timestamps and a verified summary when present. Metadata-only records show a safe
+empty current-version state. The list shows a clamped description preview and
+compact current-file details directly from its document response, without per-row
+version-history requests. It reuses the protected document layout.
 Active documents can be edited in a dedicated section using the existing form
-validation; unchanged fields are omitted, cleared optional fields become null and
-cleared tags become []. Archived documents offer restore/download/delete instead
-of editing. PROCESSING/DELETING lifecycle actions are disabled. Deleting also
+validation; unchanged fields are omitted, a cleared description and other optional
+fields become null, and cleared tags become []. Archived documents offer
+restore/download/delete instead of editing. PROCESSING/DELETING lifecycle actions
+are disabled. Deleting also
 disables edit/download. Confirmation dialogs use the existing Base UI stack, focus
 Cancel first, trap keyboard focus and restore it on cancellation.
 
@@ -155,8 +180,8 @@ incorrect CORS can prevent the probe; configure the existing public API/cookie/o
 settings rather than buffering the file in JavaScript. The UI only announces download
 initiation, not completion.
 
-The detail API exposes no current-version metadata or has-file flag. Consequently
-no file metadata section is fabricated. A download 409 disables the action with an
+The current-version card uses the safe detail summary; version history remains a
+separate page. A download 409 disables the action with an
 explanation until Refresh details is used. Metadata conflicts are shown without
 discarding the form; the backend has no ETag/If-Match concurrency contract. Unsaved
 changes warn on cancel, link navigation and browser unload where supported, but

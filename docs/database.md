@@ -1,9 +1,9 @@
-# Brainless database and storage model - v1.0.0
+# Brainless database and storage model - v1.1.0 release candidate
 
 [Documentation index](README.md) | [Architecture](architecture.md)
 
 The [Prisma schema](../packages/database/prisma/schema.prisma) and
-[ten SQL migrations](../packages/database/prisma/migrations) are authoritative.
+[eleven SQL migrations](../packages/database/prisma/migrations) are authoritative.
 SQL-only checks, expression indexes and triggers are not fully represented by Prisma.
 Implemented models: User, UserIdentity, LocalCredential, AuthSession,
 ConsumedRefreshToken, Category, Tag, Document, DocumentTag, DocumentVersion and
@@ -30,6 +30,71 @@ This diagram shows relationships, not a column catalog. Upload receipts intentio
 do not have a cascading document foreign key. Sections below retain migration-specific
 rationale and constraints; statements about what a migration introduces are scoped
 to that migration, not the whole release.
+
+## v1.1.0 description migration and query design
+
+The additive `20260924010000_document_description` migration and Prisma nullable
+field are checked in. Deployment applies the migration before the updated API starts.
+Existing ERD relationships are unchanged; this release adds no new entity or
+association.
+
+| Area | v1.0.0 schema | Implemented v1.1.0 change |
+| --- | --- | --- |
+| `documents` | Required metadata with no `description` column. | Add nullable `description VARCHAR(2000)` and its CHECK constraint; retain existing rows and all other constraints. |
+| `document_versions` | Owned immutable rows with filename, MIME, size, version number and creation timestamp. | No column or ownership change. Highest `version_number` supplies the current-file summary and file filters/sort. |
+| `categories`, `tags`, `document_tags` | Owner-composite foreign keys, owned category and many-to-many tag joins. | No relationship or uniqueness change. All-of tag filtering uses the existing join. |
+| `document_uploads` | Completed idempotency receipts and fingerprints, independent of live detail. | No table change. Old receipt/fingerprint behavior is retained when description is absent. |
+
+Description is trusted owner-entered plain text, distinct from `verified_summary`
+and future AI suggestions. The API trims it, rejects controls and allows at most
+2,000 characters; empty becomes null. The new migration adds a matching
+database CHECK for nonempty, trimmed text without controls when non-null; VARCHAR
+enforces the length bound. Existing rows become null without a rewrite or default.
+PATCH
+omission preserves description and null clears it. A metadata update keeps the
+existing owned row lock and atomic association replacement. No arbitrary JSON
+metadata column, custom-field schema or duplicated current-file columns are added.
+
+The existing `(id,user_id)` document/category/tag keys and composite foreign keys
+continue to enforce ownership. Version rows retain the composite document/owner
+foreign key and immutable-original trigger. A deleted document remains in storage
+with its category, tag joins and versions; ordinary list/detail queries retain
+`deleted_at IS NULL`. Archived rows stay available unless the caller filters them
+out. Category deletion remains restricted while any document, even a soft-deleted
+one, references it; deleting a tag removes joins only. `documents.created_at`
+means catalog creation. `documents.updated_at` means document-row changes and is
+not a full activity timestamp. `document_versions.created_at` means that version's
+upload time; the highest version number selects the current file.
+
+### Index review and migration
+
+Existing `(user_id, created_at, id)` supports default/newest/oldest pages;
+`(user_id, status, document_date)`, `(user_id, category_id)` and
+`(user_id, tag_id, document_id)` on joins support common existing predicates.
+The unique `(document_id, version_number)` index permits descending latest-version
+lookup. Keep all existing SQL-only expression indexes, foreign keys and triggers.
+
+The description migration requires no index. The bounded owner-scoped query uses
+existing indexes for created-date pages, tag membership and latest-version lookup.
+The release adds no speculative index. A production-sized workload may justify
+future indexes such as
+`(user_id, updated_at, id)` for recently updated pages and
+`(user_id, title COLLATE "C", id)` for title pages. Evaluate representative owner-scoped
+`EXPLAIN (ANALYZE, BUFFERS)` plans with isolated, populated active/archived test data before
+adding either; the current local database has no document rows, so it cannot establish
+a meaningful workload plan. Use the API's exact predicates and page sizes. Created-date filters
+can initially use the existing created index. Test category/status/archive
+combinations before considering a compound or partial index; avoid duplicating
+existing indexes without evidence. Filename substring matching is not accelerated
+by a normal B-tree index, and latest-version file-size sorting crosses a relation;
+measure both before considering a specialized index or projection. No copied
+file-size field or search-index dependency is authorized by this plan. The
+description column/check are in one forward-only migration; if measurement later
+justifies indexes, add them in another forward-only migration. Upgrade tests
+must prove existing data, foreign keys, archive/soft-delete state and upload
+receipts survive. There is no automatic down migration: returning to a schema
+without `description` would discard newly entered values and requires a deliberate
+backup/restore or reviewed data migration.
 
 ## Implemented PostgreSQL foundation
 
