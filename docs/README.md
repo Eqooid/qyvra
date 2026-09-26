@@ -4,6 +4,11 @@
 These guides describe the checked-in implementation; the [specification](specification.md)
 is a broader product plan. Later functionality is **Planned**, not shipped.
 
+New to the codebase? Read the [complete v1.0.0 developer guide](developer/README.md)
+for architecture, source navigation, authentication/document walkthroughs, the API
+route map, configuration, testing, debugging and extension guidance. It records the
+exact inspected commit and known differences between source descriptions and behavior.
+
 ## Architecture
 
 - [Overview, backend, frontend and storage boundaries](architecture.md)

@@ -87,6 +87,7 @@ double and do not replace database integration tests.
 
 ## Documentation
 
+- [Complete v1.0.0 developer guide](docs/developer/README.md): architecture, code walkthroughs, API map, onboarding and extension guidance
 - [Documentation index](docs/README.md) and [contributing](CONTRIBUTING.md)
 - [API conventions](docs/api.md), [local Swagger UI](http://localhost:8080/api/v1/docs/)
   and [generated OpenAPI JSON](http://localhost:8080/api/v1/docs-json)
