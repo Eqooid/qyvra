@@ -7,7 +7,7 @@ applicable. Releases follow [Semantic Versioning](docs/development/conventions.m
 
 No changes recorded yet.
 
-## [1.1.0] - 2026-09-25 (release candidate; tag pending)
+## [1.1.0] - 2026-09-25
 
 ### Added
 

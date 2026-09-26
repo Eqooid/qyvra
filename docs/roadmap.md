@@ -24,8 +24,10 @@ See the snapshot for precise limitations; do not redo completed Phase 1 slices.
 
 **Objective:** Make owned documents easier to describe, browse and find by their
 metadata and current file, while keeping the existing catalog and version workflows.
-Phase 2 implementation and acceptance are complete. v1.0.0 remains the latest
-tagged release until a maintainer publishes v1.1.0. The
+Phase 2 implementation and acceptance are complete. The local `v1.1.0` release
+tag is verified in the [developer version comparison](developer/versions/v1.1.0.md#version-and-comparison-provenance).
+The audit-state table below preserves the original planning assessment; it does
+not describe missing functionality in the shipped implementation. The
 [API](api.md#v110-document-contract), [database](database.md#v110-description-migration-and-query-design)
 and [architecture](architecture.md#v110-document-query-boundary) sections
 describe the implemented contract.
