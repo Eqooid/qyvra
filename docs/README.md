@@ -1,9 +1,16 @@
 # Brainless documentation
 
-**Phase 1 / v1.0.0 is released; Phase 2 / v1.1.0 is release-ready, pending a tag.**
+**Phase 1 / v1.0.0 is released; Phase 2 / v1.1.0 has a locally verified release tag.**
 Start with [getting started](development/getting-started.md). These guides describe
 the checked-in implementation; the [specification](specification.md) is a broader
 product plan. See the [v1.1.0 snapshot](releases/v1.1.0.md) for release scope.
+
+New to the codebase? Read the [developer documentation](developer/README.md)
+for architecture, source navigation, authentication/document walkthroughs, the API
+route map, configuration, testing, debugging and extension guidance. It records the
+exact inspected commits and known differences between source descriptions and behavior.
+The [v1.1.0 delta guide](developer/versions/v1.1.0.md) extends the preserved
+v1.0.0 baseline with current document behavior and upgrade notes.
 
 ## Architecture
 
@@ -42,7 +49,7 @@ product plan. See the [v1.1.0 snapshot](releases/v1.1.0.md) for release scope.
 
 - [Changelog](../CHANGELOG.md)
 - [v1.0.0: Phase 1 snapshot](releases/v1.0.0.md)
-- [v1.1.0: Phase 2 release candidate](releases/v1.1.0.md)
+- [v1.1.0: Phase 2 snapshot](releases/v1.1.0.md)
 - [Roadmap and deferred scope](roadmap.md)
 - [Documentation audit and retained evidence](documentation-audit.md)
 
