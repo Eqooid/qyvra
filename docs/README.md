@@ -5,6 +5,11 @@ Start with [getting started](development/getting-started.md). These guides descr
 the checked-in implementation; the [specification](specification.md) is a broader
 product plan. See the [v1.1.0 snapshot](releases/v1.1.0.md) for release scope.
 
+New to the codebase? Read the [complete v1.0.0 developer guide](developer/README.md)
+for architecture, source navigation, authentication/document walkthroughs, the API
+route map, configuration, testing, debugging and extension guidance. It records the
+exact inspected commit and known differences between source descriptions and behavior.
+
 ## Architecture
 
 - [Overview, backend, frontend and storage boundaries](architecture.md)
