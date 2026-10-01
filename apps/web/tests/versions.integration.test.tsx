@@ -29,6 +29,14 @@ function setup(
       response = override?.(url)
     if (response) return response
     if (url.endsWith("/auth/me")) return json({ data: profile })
+    if (url.endsWith("/processing"))
+      return json({
+        data: {
+          documentId: id,
+          documentVersionId: url.split("/").at(-2),
+          jobs: [],
+        },
+      })
     if (url.includes("/versions?")) return json(envelope([version, oldVersion]))
     if (url.includes("/versions/")) return json({ data: version })
     return json({ data: document })
@@ -324,6 +332,10 @@ it("handles unavailable individual metadata without leaking raw errors", async (
   await userEvent.click(
     await screen.findByRole("button", { name: "Inspect version 2" })
   )
-  expect(await screen.findByRole("alert")).toHaveTextContent("unavailable")
-  expect(screen.getByRole("alert")).not.toHaveTextContent("private storage key")
+  const metadataError = await screen.findByText(
+    "This document or version is unavailable."
+  )
+  expect(metadataError.closest('[role="alert"]')).not.toHaveTextContent(
+    "private storage key"
+  )
 })

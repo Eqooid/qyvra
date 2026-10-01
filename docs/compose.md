@@ -6,7 +6,10 @@
 
 ## Status and boundaries
 
-The same Compose/Nginx topology serves Phase 1 and the v1.1.0 release candidate.
+The Compose/Nginx entry point serves the existing document workflows and the
+v1.2.0 processing foundation. The additional worker and outbox processes share the
+API image; PostgreSQL and private files remain authoritative, RabbitMQ carries
+durable delivery, and Redis provides optional disposable progress.
 Image builds, migrations, service health, real browser workflows, upload/download
 and persistence across application-container recreation passed in Phase 1; the
 v1.1.0 six-test browser workflow also passed through an isolated Nginx Compose
@@ -15,6 +18,8 @@ project. See [Phase 1 evidence](phase-1-browser-verification.md) and the
 engine must be running; a missing `dockerDesktopLinuxEngine` pipe means the engine
 is unavailable, not that application migration or upload validation failed.
 The dated infrastructure-task results below are retained as history.
+Current Phase 3 evidence is in the [T13 verification](phase-3-verification.md)
+and [T14 acceptance/upgrade guidance](phase-3-acceptance.md).
 
 ## First start
 
@@ -54,8 +59,20 @@ docker compose ps --all
 docker compose logs -f
 ```
 
-`migrate` should exit with code 0; postgres/api/web/nginx should be healthy. Migration
-failure prevents API startup. Service-specific diagnosis:
+`migrate` should exit with code 0; postgres/rabbitmq/api/worker/web/nginx should be
+healthy, and outbox should remain running. Redis health is observable but optional
+for API/worker correctness. Migration failure prevents application startup.
+Service-specific diagnosis:
+
+Redis now runs as an internal, non-persistent service for disposable processing
+progress. API and worker have an optional `REDIS_URL` (Compose defaults to
+`redis://redis:6379`) but do not require Redis health to start or process jobs.
+`docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d redis`
+also exposes Redis on host loopback for local API/worker testing. To run the API
+or worker on the host, set `REDIS_URL=redis://127.0.0.1:6379`; omit it to disable
+progress without affecting durable processing. The status API returns
+`progress: null` when Redis is unavailable. `docker compose logs redis` and
+`docker compose exec redis redis-cli ping` diagnose the optional service.
 
 ```sh
 docker compose logs -f migrate api
@@ -71,9 +88,25 @@ No browser code contains Docker service names or secrets.
 ## Services and images
 
 - `postgres`: PostgreSQL 17, original `postgres_data` volume, no canonical host port.
+- `rabbitmq`: RabbitMQ 4.1 with management plugin on the private Compose network,
+  durable `rabbitmq_data` volume and `rabbitmq-diagnostics -q ping` health check.
+  It is not a dependency of HTTP startup. The canonical Compose file does
+  not publish AMQP or management ports.
 - `migrate`: one-shot Prisma `migrate deploy`, after PostgreSQL is healthy.
 - `api`: compiled NestJS on internal 3001, Node 24, qpdf, Argon2/sharp and production
   dependencies; user `node` (UID 1000). Starts only after migrations succeed.
+- `outbox`: the same API image runs `outbox-main.js` as a separate process after
+  migrations and broker health. It derives encoded database/AMQP URLs from
+  private Compose credentials, polls due outbox rows, and retries broker outages.
+  T09 also polls PostgreSQL for expired processing leases and due retries, creating
+  new outbox intents without direct broker publication.
+  It exposes no HTTP port and does not affect API readiness.
+- `worker`: the same API image runs `worker-main.js` as a separate non-HTTP
+  process after migrations and broker health. It consumes the processing queue
+  with manual acknowledgements and bounded prefetch. A private readiness file
+  requires consumer connectivity and a periodic PostgreSQL probe; it is not
+  processing state. The production integrity handler reads the shared private
+  storage volume through a read-only mount.
 - `web`: Next.js standalone production server on internal 3000, Node 24, user `node`.
 - `nginx`: the only published service, loopback 8080 -> container 80. Depends on healthy
   API/web and probes both through its own routing.
@@ -83,6 +116,37 @@ ports are not published. Nginx resolves replacement containers via Docker DNS.
 `/api/` forwards unchanged to NestJS (including `/api/v1` and query strings); every
 other route forwards to Next.js, so refreshing nested pages works through the proxy.
 No file directory is served statically. Downloads still require API authentication.
+
+For host-run messaging integration tests, use both Compose files so AMQP port
+5672 and management port 15672 bind to loopback only. Set `RABBITMQ_USER` and
+`RABBITMQ_PASSWORD` in the private root `.env`; production deployments should use
+a dedicated broker secret. Existing local `.env` files fall back to their
+`POSTGRES_PASSWORD` for RabbitMQ initialization, which preserves first startup;
+changing credentials after the broker volume is initialized requires normal
+RabbitMQ user management. Set `TEST_RABBITMQ_URL` only in the test process and run
+`npm --prefix apps/api run test:integration -- --runTestsByPath test/messaging.integration-spec.ts`.
+For a host-run relay, build the API package, provide its normal validated
+`DATABASE_URL` and `LOCAL_STORAGE_ROOT` plus `RABBITMQ_URL`, then run
+`npm --prefix apps/api run start:outbox`. This process has no HTTP listener.
+For a host-run worker, provide the same validated database/storage settings and
+`RABBITMQ_URL`, build the API package, then run
+`npm --prefix apps/api run start:worker`. Run the API, outbox and worker as
+independent processes; `docker compose up --build -d` starts all three in the
+complete stack. Stop or omit the `worker` service to run the API without it.
+`docker compose logs -f worker` shows consumer connection and rejected-message
+events. For focused worker integration tests, use a disposable migrated
+`TEST_DATABASE_URL`, an isolated `TEST_RABBITMQ_URL`, and
+`npm --prefix apps/api run test:integration -- --runTestsByPath test/worker.integration-spec.ts`.
+The production worker verifies `VERIFY_STORED_FILE` deliveries against the
+immutable version size and SHA-256. Messages dead-lettered before T08 deployment
+still require explicit operator reconciliation.
+The worker checks read access to its private storage root before starting its
+consumer; a missing volume or incorrect permissions fails startup.
+The API does not dispatch outbox records, so broker availability does not
+affect document HTTP workflows. The separate dispatcher records transport failures
+in PostgreSQL and retries after backoff. Inspect `docker compose logs -f outbox`
+and due `processing_outbox` rows when messages are delayed. T07 upload/version
+transactions create the job and outbox intent; the relay publishes committed intent.
 
 The packages are independent npm projects with four existing package-lock.json
 files, not a root npm workspace. `npm ci` uses those lockfiles; API `file:` links keep
@@ -192,7 +256,8 @@ Do not mount Windows qpdf paths into the Linux container configuration.
 ## Persistence and manual backups
 
 Keep the original `postgres_data` and `storage_data` volume keys and project name.
-The API mounts storage_data at /data/brainless; no other service mounts it. New
+The API mounts storage_data at /data/brainless for writes; the worker mounts the
+same volume read-only for verification. New
 volumes inherit directory ownership from the image (UID 1000, private permissions).
 Existing volumes are not recursively changed: if readiness reports inaccessible
 storage, inspect ownership before intentionally correcting it. Never chmod 777.

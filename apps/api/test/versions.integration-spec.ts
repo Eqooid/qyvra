@@ -6,6 +6,7 @@ import {
   StorageError,
   originalDocumentKey,
 } from '@brainless/storage';
+import { ProcessingRepository } from '@brainless/database';
 import { randomUUID, createHash } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { mkdtemp, rm, readdir } from 'node:fs/promises';
@@ -150,6 +151,23 @@ describe('Immutable versions PostgreSQL HTTP workflow', () => {
     });
     expect(doc.title).toBe(original.doc.title);
     expect(doc.status).toBe('UPLOADED');
+    const newVersionId = result.body.data.version.id as string;
+    const jobs = await db.client.processingJob.findMany({
+      where: { documentId: doc.id },
+      include: { outbox: true },
+    });
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]).toMatchObject({
+      userId: user.id,
+      documentVersionId: newVersionId,
+      jobType: 'VERIFY_STORED_FILE',
+      status: 'PENDING',
+    });
+    expect(jobs[0].outbox).toHaveLength(1);
+    expect(jobs[0].outbox[0].payload).toMatchObject({
+      jobId: jobs[0].id,
+      documentVersionId: newVersionId,
+    });
     const downloaded = await request(server)
       .get(`/api/v1/documents/${doc.id}/download`)
       .set('Cookie', user.cookie)
@@ -280,6 +298,9 @@ describe('Immutable versions PostgreSQL HTTP workflow', () => {
     expect(
       await db.client.documentVersion.count({ where: { documentId: doc.id } }),
     ).toBe(3);
+    expect(
+      await db.client.processingJob.count({ where: { documentId: doc.id } }),
+    ).toBe(2);
   });
   it('scopes the same client key independently to initial creation and each document', async () => {
     const user = await owner(),
@@ -398,6 +419,27 @@ describe('Immutable versions PostgreSQL HTTP workflow', () => {
       await db.client.documentVersion.count({ where: { documentId: doc.id } }),
     ).toBe(1);
     expect(logs.join('\n')).not.toContain('private infrastructure detail');
+  });
+  it('rolls back a replacement version and preserves the previous version when scheduling fails', async () => {
+    const user = await owner();
+    const { doc, version } = await seed(user);
+    const remove = jest.spyOn(storage, 'delete');
+    jest
+      .spyOn(ProcessingRepository.prototype, 'createInTransaction')
+      .mockRejectedValueOnce(new Error('forced scheduling failure'));
+    await upload(user, doc.id).expect(503);
+    expect(remove).toHaveBeenCalled();
+    expect(
+      await db.client.documentVersion.count({ where: { documentId: doc.id } }),
+    ).toBe(1);
+    expect(
+      await db.client.processingJob.count({ where: { documentId: doc.id } }),
+    ).toBe(0);
+    expect(
+      (await db.client.document.findUniqueOrThrow({ where: { id: doc.id } }))
+        .status,
+    ).toBe('READY');
+    expect(await storage.exists(version.storageKey)).toBe(true);
   });
   it('rechecks lifecycle under the commit lock and cleans the file if archived while receiving', async () => {
     const user = await owner(),

@@ -24,6 +24,21 @@ export const settings = registerAs('settings', () =>
  */
 @Injectable()
 export class ConfigurationService {
+  get progress() {
+    return this.settings.progress;
+  }
+  get worker() {
+    return this.settings.worker;
+  }
+  get outbox() {
+    return this.settings.outbox;
+  }
+  get processingRecovery() {
+    return this.settings.processingRecovery;
+  }
+  get messaging() {
+    return this.settings.messaging;
+  }
   /** @description Bounded upload and inspection policy; executable selection is trusted configuration only. */
   get upload() {
     return this.settings.upload;

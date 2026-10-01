@@ -41,7 +41,7 @@ export class UploadController {
   @ApiOperation({
     summary: 'Upload one PDF, JPEG or PNG and create version 1',
     description:
-      'Title required. UPLOADED/PENDING only; no processing. Maximum bytes/pages/pixels use validated UPLOAD_* configuration (defaults 50 MiB/500/40 million). Same-owner checksums conflict, including deleted documents. Safe idempotency replay retains the original data for 24 hours.',
+      'Title required. Creates UPLOADED/PENDING and durably schedules stored-file integrity verification; no processing runs in the request. Maximum bytes/pages/pixels use validated UPLOAD_* configuration (defaults 50 MiB/500/40 million). Same-owner checksums conflict, including deleted documents. Safe idempotency replay retains the original data for 24 hours.',
   })
   @ApiConsumes('multipart/form-data')
   @ApiHeader({

@@ -8,6 +8,109 @@ const base = {
 };
 
 describe('environment configuration', () => {
+  it('validates optional disposable Redis progress settings without echoing credentials', () => {
+    expect(validateEnvironment(base).progress).toEqual({
+      url: undefined,
+      ttlSeconds: 180,
+      connectTimeoutMs: 500,
+      commandTimeoutMs: 500,
+    });
+    expect(
+      validateEnvironment({ ...base, REDIS_URL: 'redis://localhost:6379/2' })
+        .progress.url,
+    ).toBe('redis://localhost:6379/2');
+    for (const value of [
+      'http://localhost',
+      'redis://localhost/?secret=1',
+      'redis://localhost/#secret',
+    ])
+      expect(() => validateEnvironment({ ...base, REDIS_URL: value })).toThrow(
+        'REDIS_URL',
+      );
+    for (const key of [
+      'PROCESSING_PROGRESS_TTL_SECONDS',
+      'REDIS_CONNECT_TIMEOUT_MS',
+      'REDIS_COMMAND_TIMEOUT_MS',
+    ])
+      expect(() => validateEnvironment({ ...base, [key]: '0' })).toThrow(key);
+  });
+  it('validates bounded worker prefetch, lease, reconnect, and shutdown settings', () => {
+    expect(validateEnvironment({ ...base }).worker).toEqual({
+      prefetch: 2,
+      jobLeaseMs: 120000,
+      reconnectDelayMs: 1000,
+      shutdownTimeoutMs: 30000,
+    });
+    for (const key of [
+      'WORKER_PREFETCH',
+      'WORKER_JOB_LEASE_MS',
+      'WORKER_RECONNECT_DELAY_MS',
+      'WORKER_SHUTDOWN_TIMEOUT_MS',
+    ])
+      expect(() => validateEnvironment({ ...base, [key]: '0' })).toThrow(key);
+    expect(() =>
+      validateEnvironment({ ...base, WORKER_PREFETCH: '17' }),
+    ).toThrow('WORKER_PREFETCH');
+  });
+  it('validates bounded outbox polling, batch, and lease settings', () => {
+    expect(validateEnvironment({ ...base }).outbox).toEqual({
+      pollIntervalMs: 1000,
+      batchSize: 10,
+      leaseMs: 120000,
+    });
+    for (const key of [
+      'OUTBOX_POLL_INTERVAL_MS',
+      'OUTBOX_BATCH_SIZE',
+      'OUTBOX_LEASE_MS',
+    ]) {
+      expect(() => validateEnvironment({ ...base, [key]: '0' })).toThrow(key);
+      expect(() => validateEnvironment({ ...base, [key]: '-1' })).toThrow(key);
+    }
+    expect(() =>
+      validateEnvironment({ ...base, OUTBOX_BATCH_SIZE: '101' }),
+    ).toThrow('OUTBOX_BATCH_SIZE');
+    expect(() =>
+      validateEnvironment({ ...base, OUTBOX_LEASE_MS: '15000' }),
+    ).toThrow('OUTBOX_LEASE_MS');
+  });
+  it('validates bounded processing recovery polling and batches', () => {
+    expect(validateEnvironment({ ...base }).processingRecovery).toEqual({
+      pollIntervalMs: 5000,
+      batchSize: 10,
+    });
+    for (const key of [
+      'PROCESSING_RECOVERY_POLL_INTERVAL_MS',
+      'PROCESSING_RECOVERY_BATCH_SIZE',
+    ])
+      expect(() => validateEnvironment({ ...base, [key]: '0' })).toThrow(key);
+    expect(() =>
+      validateEnvironment({ ...base, PROCESSING_RECOVERY_BATCH_SIZE: '101' }),
+    ).toThrow('PROCESSING_RECOVERY_BATCH_SIZE');
+  });
+  it('validates optional RabbitMQ URL and bounded transport timeouts', () => {
+    const configuration = validateEnvironment({
+      ...base,
+      RABBITMQ_URL: 'amqp://user:password@localhost:5672/',
+      RABBITMQ_CONNECT_TIMEOUT_MS: '250',
+      RABBITMQ_CONFIRM_TIMEOUT_MS: '500',
+    });
+    expect(configuration.messaging).toEqual({
+      url: 'amqp://user:password@localhost:5672/',
+      connectTimeoutMs: 250,
+      confirmTimeoutMs: 500,
+    });
+    for (const value of [
+      'http://example.com',
+      'amqp://localhost',
+      'amqp://user:password@localhost/?secret=1',
+    ])
+      expect(() =>
+        validateEnvironment({ ...base, RABBITMQ_URL: value }),
+      ).toThrow('RABBITMQ_URL');
+    expect(() =>
+      validateEnvironment({ ...base, RABBITMQ_CONFIRM_TIMEOUT_MS: '0' }),
+    ).toThrow('RABBITMQ_CONFIRM_TIMEOUT_MS');
+  });
   it('requires a dedicated storage root and rejects unsupported providers without echoing paths', () => {
     expect(() =>
       validateEnvironment({ ...base, LOCAL_STORAGE_ROOT: undefined }),

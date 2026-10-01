@@ -9,6 +9,7 @@ import { Request } from 'express';
 import { randomUUID } from 'node:crypto';
 import { ConfigurationService } from '../../configuration/configuration.module';
 import { StructuredLogger } from '../../common/structured-logger';
+import { RequestContext } from '../../common/request-context';
 import { UploadInspector } from '../../infrastructure/storage/upload-inspector';
 import { UploadRepository } from './upload.repository';
 import { receiveUpload } from './upload-multipart';
@@ -23,6 +24,7 @@ export class UploadService {
     private readonly inspector: UploadInspector,
     private readonly configuration: ConfigurationService,
     private readonly logger: StructuredLogger,
+    private readonly requestContext: RequestContext,
   ) {}
   async create(
     userId: string,
@@ -81,6 +83,7 @@ export class UploadService {
         file,
         pageCount,
         scope,
+        this.requestContext.correlationId ?? randomUUID(),
       );
       committed = !result.replay;
       if (result.replay) await cleanup();

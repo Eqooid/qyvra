@@ -116,7 +116,7 @@ export class VersionsController {
   @ApiOperation({
     summary: 'Append an immutable file version',
     description:
-      'Exactly one file, no text fields. Reuses UPLOAD_* byte/page/pixel/time limits and PDF/JPEG/PNG validation. Archived, DELETING and PROCESSING uploads conflict; deleted is 404. Resets logical status to UPLOADED and new extractionStatus to PENDING. Same-owner checksums conflict across all documents. isLatest in this creation receipt refers to completion time; replay returns that original receipt.',
+      'Exactly one file, no text fields. Reuses UPLOAD_* byte/page/pixel/time limits and PDF/JPEG/PNG validation. Archived, DELETING and PROCESSING uploads conflict; deleted is 404. Resets logical status to UPLOADED and new extractionStatus to PENDING, and durably schedules stored-file integrity verification. No processing runs in the request. Same-owner checksums conflict across all documents. isLatest in this creation receipt refers to completion time; replay returns that original receipt.',
   })
   @ApiConsumes('multipart/form-data')
   @ApiHeader({

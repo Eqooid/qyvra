@@ -4,24 +4,33 @@
 > the broader product requirements and proposed architecture; it is not a list of
 > shipped capabilities. All later-phase infrastructure, endpoint/page catalogs,
 > processing examples and non-functional targets remain **Planned** unless confirmed
-> in the [v1.0.0 release snapshot](releases/v1.0.0.md).
+> in the [v1.0.0](releases/v1.0.0.md) or [v1.1.0](releases/v1.1.0.md) release snapshots,
+> or in the current [v1.2.0 processing guide](phase-3-processing.md).
 >
 > Phase 1 is complete. For current behavior use the [documentation index](README.md),
 > [architecture](architecture.md), [database](database.md), [API/OpenAPI guide](api.md)
-> and [roadmap](roadmap.md). In particular, uploads return UPLOADED/PENDING, not a
-> queued processing job; local Compose uses HTTP, not TLS; the implemented CSRF policy
+> and [roadmap](roadmap.md). Uploads retain their existing UPLOADED/PENDING
+> document response while scheduling a separate processing job. Local Compose
+> uses HTTP, not TLS; the implemented CSRF policy
 > uses an Origin check and custom header, not a token endpoint. ORM selection is
 > resolved as Prisma 7. Historical MVP/MVP+ labels are planning labels, not release status.
-> Phase 2 is the implemented [v1.1.0 organization/metadata release candidate](roadmap.md#phase-2--v110-release-ready).
+> Phase 2 is the implemented [v1.1.0 organization/metadata release](roadmap.md#phase-2--v110-release-ready).
 > Processing/reminders follow in Phase 3, AI/semantic retrieval in Phase 4 and
 > advanced keyword search in Phase 5. This target catalog remains planned until
 > the owning API/database guides and generated OpenAPI record implementation.
+> The [v1.2.0 Phase 3 foundation](phase-3-processing.md) is narrower than the
+> older Phase 3 examples in this specification: it implements durable jobs, delivery,
+> recovery, progress, owned status, and stored-file integrity verification.
+> Extraction/OCR, reminders, purge, and AI/search integrations remain future work.
+> T02–T12 have implemented durable jobs, transport, a separate consumer,
+> upload-triggered scheduling, stored-file integrity verification,
+> PostgreSQL-backed retry/recovery, owned status, disposable progress and UI.
 
 API-first reference architecture for NestJS, PostgreSQL, RabbitMQ, Redis, Elasticsearch, Qdrant, Nginx, Docker, and provider-neutral AI
 
 | **Document**     | **Value**                                     |
 | ---------------- | --------------------------------------------- |
-| Status           | Planned target specification     |
+| Status           | Planned target specification                  |
 | Version          | 1.0                                           |
 | Prepared         | 5 September 2026                              |
 | Primary audience | Owner/developer and future contributors       |
@@ -979,15 +988,15 @@ Maintain a small version-controlled evaluation dataset containing representative
 
 # 15. Delivery roadmap
 
-| **Phase** | **Deliverable**  | **Enabled stack**          | **Exit condition**                                |
-| --------- | ---------------- | -------------------------- | ------------------------------------------------- |
-| 0         | Foundation       | NestJS, PostgreSQL, Docker | Migrations, modules, CI tests, health             |
-| 1         | Usable tracker   | \+ Nginx, object storage   | Auth, CRUD, upload/download, categories/tags      |
-| 2         | Organization and metadata | Existing stack | Description, current-file metadata, filters and sorting |
-| 3         | Processing       | \+ RabbitMQ, Redis where justified | Extraction, progress, retries, reminders |
-| 4         | Local/hosted AI  | \+ Ollama/OpenAI, Qdrant   | Reviewable extraction, semantic search, cited Q&A |
-| 5         | Advanced search  | \+ Elasticsearch           | Keyword, highlights, autocomplete, hybrid ranking |
-| 6         | Identity upgrade | \+ Keycloak                | OIDC migration without changing domain ownership  |
+| **Phase** | **Deliverable**           | **Enabled stack**                  | **Exit condition**                                      |
+| --------- | ------------------------- | ---------------------------------- | ------------------------------------------------------- |
+| 0         | Foundation                | NestJS, PostgreSQL, Docker         | Migrations, modules, CI tests, health                   |
+| 1         | Usable tracker            | \+ Nginx, object storage           | Auth, CRUD, upload/download, categories/tags            |
+| 2         | Organization and metadata | Existing stack                     | Description, current-file metadata, filters and sorting |
+| 3         | Processing                | \+ RabbitMQ, Redis where justified | Extraction, progress, retries, reminders                |
+| 4         | Local/hosted AI           | \+ Ollama/OpenAI, Qdrant           | Reviewable extraction, semantic search, cited Q&A       |
+| 5         | Advanced search           | \+ Elasticsearch                   | Keyword, highlights, autocomplete, hybrid ranking       |
+| 6         | Identity upgrade          | \+ Keycloak                        | OIDC migration without changing domain ownership        |
 
 ## 15.1 Suggested first development backlog
 

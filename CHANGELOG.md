@@ -5,7 +5,41 @@ applicable. Releases follow [Semantic Versioning](docs/development/conventions.m
 
 ## [Unreleased]
 
-No changes recorded yet.
+The following v1.2.0 release-candidate work is implemented and accepted as
+release ready; no v1.2.0 tag has been created. See the
+[T14 acceptance record](docs/phase-3-acceptance.md) for evidence and limitations.
+
+### Added
+
+- Version-scoped PostgreSQL processing jobs and a transactional outbox, created
+  atomically with each new document version.
+- Confirmed RabbitMQ publication, a separate outbox/recovery process, and an
+  independently runnable worker with durable, bounded retry and dead-letter
+  handling.
+- Streamed stored-file size/SHA-256 integrity verification against immutable
+  upload metadata.
+- An owned processing-status API, optional disposable Redis progress, and
+  polling status/progress views on document detail and version history.
+
+### Changed
+
+- Archive and soft delete cancel unfinished processing in their document
+  transaction. Restore schedules a new generation for cancelled work on the
+  current version.
+- Local Compose includes RabbitMQ, Redis, outbox and worker services while
+  preserving the Nginx entry point and PostgreSQL/private-file authority.
+
+### Fixed
+
+- API lint now accepts the checkout's native line endings while preserving
+  the existing TypeScript formatting rules.
+- Targeted API dependency overrides patch Lodash, Multer, js-yaml, qs and
+  body-parser advisories without a NestJS major-version upgrade. Remaining
+  dependency findings and their applicability are recorded in the T14 acceptance review.
+
+See the [Phase 3 architecture](docs/phase-3-processing.md) and
+[verification matrix](docs/phase-3-verification.md). Extraction, OCR,
+Elasticsearch, Qdrant, embeddings, RAG and AI features are not part of v1.2.0.
 
 ## [1.1.0] - 2026-09-25
 

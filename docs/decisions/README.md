@@ -15,6 +15,8 @@ If rationale is unknown, document observed behavior in architecture instead.
 
 - [ADR-001: Create-only local file publication](ADR-001-create-only-file-publication.md)
   - Accepted; retrospective record of an explicitly documented storage tradeoff.
+- [ADR-002: Durable processing jobs, transactional outbox, and separate worker](ADR-002-durable-processing-outbox-worker.md)
+  - Accepted for v1.2.0; T02/T03 implement persistence and rules while delivery and execution remain planned.
 
 ## Template
 

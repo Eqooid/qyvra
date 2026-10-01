@@ -41,6 +41,7 @@ import {
 } from "@/lib/api/versions"
 import { formatBytes } from "./upload-validation"
 import { VersionMetadata, versionTime } from "./version-metadata"
+import { ProcessingStatusSection } from "./processing-status"
 import { VersionUpload } from "./version-upload"
 
 export function VersionHistory({
@@ -110,6 +111,9 @@ export function VersionHistory({
       refresh(),
       cache.invalidateQueries({ queryKey: ["document", owner, documentId] }),
       cache.invalidateQueries({ queryKey: ["documents", owner] }),
+      cache.invalidateQueries({
+        queryKey: ["processing-status", owner, documentId],
+      }),
     ])
     requestAnimationFrame(() => heading.current?.focus())
   }
@@ -336,12 +340,18 @@ export function VersionHistory({
                           id={`metadata-${version.id}`}
                           role="region"
                           aria-label={`Version ${version.versionNumber} metadata`}
+                          className="space-y-3"
                         >
                           <VersionMetadata
                             documentId={documentId}
                             versionId={version.id}
                             owner={owner}
                             expired={expired}
+                          />
+                          <ProcessingStatusSection
+                            owner={owner}
+                            documentId={documentId}
+                            versionId={version.id}
                           />
                         </div>
                       </TableCell>

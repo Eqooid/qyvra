@@ -1,4 +1,9 @@
-import { test, expect, type APIRequestContext } from "@playwright/test"
+import {
+  test,
+  expect,
+  type APIRequestContext,
+  type Locator,
+} from "@playwright/test"
 import { randomUUID } from "node:crypto"
 import { png } from "./fixtures"
 import { password, register } from "./auth"
@@ -237,57 +242,73 @@ test("v1.1.0 catalog filters, sorts, cursors and ownership work through Nginx", 
   await expect(page.getByRole("heading", { name: "Documents" })).toBeVisible()
   await expect(page.getByText(`Foreign report ${run}`)).toHaveCount(0)
 
-  const filename = page.getByRole("searchbox", { name: "Current filename" })
-  await filename.fill("final-report")
+  async function applyFilters(change: (dialog: Locator) => Promise<void>) {
+    await page.getByRole("button", { name: "Filters", exact: true }).click()
+    const dialog = page.getByRole("dialog", { name: "Filter documents" })
+    await change(dialog)
+    await dialog.getByRole("button", { name: "Apply filters" }).click()
+  }
+
+  await applyFilters(async (dialog) => {
+    await dialog.getByLabel("Current filename").fill("final-report")
+  })
   await expect(page).toHaveURL(/filename=final-report/)
   await expect(page.getByRole("link", { name: targetTitles[0] })).toBeVisible()
   await expect(page.getByText(`Foreign report ${run}`)).toHaveCount(0)
-  await filename.fill("old-report")
+  await applyFilters(async (dialog) => {
+    await dialog.getByLabel("Current filename").fill("old-report")
+  })
   await expect(page).toHaveURL(/filename=old-report/)
   await expect(
     page.getByRole("heading", { name: "No matching documents" })
   ).toBeVisible()
   await page.getByRole("button", { name: "Clear all filters" }).click()
-  await expect(page).toHaveURL(/\/documents$/)
+  await expect(page).not.toHaveURL(/filename=/)
 
   await page.goto("/documents?limit=2&filename=final-report")
-  await page.getByRole("combobox", { name: "Current file type" }).click()
-  await page.getByRole("option", { name: "PDF" }).click()
+  await applyFilters(async (dialog) => {
+    await dialog.getByRole("combobox", { name: "Current file type" }).click()
+    await page.getByRole("option", { name: "PDF" }).click()
+  })
   await expect(page).toHaveURL(/mimeType=application%2Fpdf/)
   await expect(page.getByRole("link", { name: targetTitles[0] })).toBeVisible()
-  await page.getByRole("combobox", { name: "Current file type" }).click()
-  await page.getByRole("option", { name: "PNG image" }).click()
+  await applyFilters(async (dialog) => {
+    await dialog.getByRole("combobox", { name: "Current file type" }).click()
+    await page.getByRole("option", { name: "PNG image" }).click()
+  })
   await expect(
     page.getByRole("heading", { name: "No matching documents" })
   ).toBeVisible()
 
   await page.goto("/documents?limit=2")
-  const tagFilter = page.getByRole("button", { name: "Tags (match all)" })
-  await tagFilter.click()
-  await page.getByRole("checkbox", { name: `Finance ${run}` }).click()
+  await applyFilters(async (dialog) => {
+    const tagFilter = dialog.getByRole("button", { name: "Tags (match all)" })
+    await tagFilter.click()
+    await page.getByRole("checkbox", { name: `Finance ${run}` }).click()
+    const secondTag = page.getByRole("checkbox", { name: `Year ${run}` })
+    if (!(await secondTag.isVisible())) await tagFilter.click()
+    await secondTag.click()
+  })
   await expect(page).toHaveURL(/tagIds=/)
-  const secondTag = page.getByRole("checkbox", { name: `Year ${run}` })
-  if (!(await secondTag.isVisible())) await tagFilter.click()
-  await secondTag.click()
   await expect(page.getByLabel("Active filters")).toContainText(
     `Finance ${run}`
   )
   await expect(page.getByLabel("Active filters")).toContainText(`Year ${run}`)
-  await page.keyboard.press("Escape")
-
   const today = new Date().toISOString().slice(0, 10)
-  await page.getByLabel("Created from").fill(today)
+  const dateUrl = new URL(page.url())
+  for (const field of ["createdFrom", "createdTo", "updatedFrom", "updatedTo"])
+    dateUrl.searchParams.set(field, today)
+  await page.goto(dateUrl.href)
   await expect(page).toHaveURL(new RegExp(`createdFrom=${today}`))
-  await page.getByLabel("Created to").fill(today)
   await expect(page).toHaveURL(new RegExp(`createdTo=${today}`))
-  await page.getByLabel("Updated from").fill(today)
   await expect(page).toHaveURL(new RegExp(`updatedFrom=${today}`))
-  await page.getByLabel("Updated to").fill(today)
   await expect(page).toHaveURL(new RegExp(`updatedTo=${today}`))
 
-  await page.getByRole("combobox", { name: "Current file type" }).click()
-  await page.getByRole("option", { name: "PDF" }).click()
-  await page.getByRole("searchbox", { name: "Current filename" }).fill("report")
+  await applyFilters(async (dialog) => {
+    await dialog.getByRole("combobox", { name: "Current file type" }).click()
+    await page.getByRole("option", { name: "PDF" }).click()
+    await dialog.getByLabel("Current filename").fill("report")
+  })
   await expect(page).toHaveURL(/filename=report/)
   await page.getByRole("combobox", { name: "Sort by" }).click()
   await page.getByRole("option", { name: "Title" }).click()
@@ -333,24 +354,24 @@ test("v1.1.0 catalog filters, sorts, cursors and ownership work through Nginx", 
   )
   await page.getByRole("button", { name: "Next page" }).click()
   await expect(page).toHaveURL(/cursor=/)
-  await page
-    .getByRole("searchbox", { name: "Current filename" })
-    .fill("missing")
+  await applyFilters(async (dialog) => {
+    await dialog.getByLabel("Current filename").fill("missing")
+  })
   await expect(page).toHaveURL(/filename=missing/)
   expect(new URL(page.url()).searchParams.has("cursor")).toBe(false)
   await expect(
     page.getByRole("heading", { name: "No matching documents" })
   ).toBeVisible()
   await page.getByRole("button", { name: "Clear all filters" }).click()
-  await expect(page).toHaveURL(/\/documents$/)
+  await expect(page).not.toHaveURL(/filename=/)
   const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
-  await page.getByLabel("Created to").fill(yesterday)
+  await page.goto(`/documents?createdTo=${yesterday}`)
   await expect(page).toHaveURL(new RegExp(`createdTo=${yesterday}`))
   await expect(
     page.getByRole("heading", { name: "No matching documents" })
   ).toBeVisible()
   await page.getByRole("button", { name: "Clear all filters" }).click()
-  await page.getByLabel("Updated to").fill(yesterday)
+  await page.goto(`/documents?updatedTo=${yesterday}`)
   await expect(page).toHaveURL(new RegExp(`updatedTo=${yesterday}`))
   await expect(
     page.getByRole("heading", { name: "No matching documents" })

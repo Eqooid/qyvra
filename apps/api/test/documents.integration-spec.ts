@@ -1,6 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { Prisma } from '@brainless/database';
+import { Prisma, ProcessingRepository } from '@brainless/database';
 import { createHash, randomUUID } from 'node:crypto';
 import { Server } from 'node:http';
 import * as request from 'supertest';
@@ -915,6 +915,68 @@ describe('Document metadata with PostgreSQL', () => {
       for (const action of ['archive', 'restore', 'delete'] as const)
         await act(user, blocked.id, action).expect(409);
     }
+  });
+
+  it('cancels unfinished processing atomically on archive/delete and reschedules the current version on restore', async () => {
+    const user = await owner();
+    const document = await fixtureDocument(user);
+    const version = await fixtureVersion(user, document.id, 1, new Date());
+    const processing = new ProcessingRepository(db.client);
+    const first = await processing.create({
+      userId: user.id,
+      documentId: document.id,
+      documentVersionId: version.id,
+      correlationId: randomUUID(),
+      maxAttempts: 3,
+    });
+
+    await act(user, document.id, 'archive').expect(200);
+    expect((await processing.findById(first.job.id))?.status).toBe('CANCELLED');
+    await act(user, document.id, 'archive').expect(200);
+    expect(
+      await processing.findByVersion(user.id, document.id, version.id),
+    ).toHaveLength(1);
+
+    await act(user, document.id, 'restore').expect(200);
+    const afterRestore = await processing.findByVersion(
+      user.id,
+      document.id,
+      version.id,
+    );
+    expect(afterRestore).toHaveLength(2);
+    expect(afterRestore[0]).toMatchObject({
+      generation: 2,
+      status: 'PENDING',
+    });
+    expect(
+      await db.client.processingOutbox.count({
+        where: { processingJobId: afterRestore[0].id },
+      }),
+    ).toBe(1);
+
+    const active = await processing.claim(
+      afterRestore[0].id,
+      new Date(),
+      60000,
+    );
+    expect(active.status).toBe('PROCESSING');
+    await act(user, document.id, 'delete').expect(200);
+    const cancelled = await processing.findById(active.id);
+    expect(cancelled).toMatchObject({
+      status: 'CANCELLED',
+      attempts: 1,
+      leaseToken: null,
+    });
+    await act(user, document.id, 'restore').expect(200);
+    const finalJobs = await processing.findByVersion(
+      user.id,
+      document.id,
+      version.id,
+    );
+    expect(finalJobs).toHaveLength(3);
+    expect(finalJobs[0]).toMatchObject({ generation: 3, status: 'PENDING' });
+    expect(finalJobs[1].status).toBe('CANCELLED');
+    expect(finalJobs[2].status).toBe('CANCELLED');
   });
   it('makes missing and foreign documents indistinguishable for every operation', async () => {
     const user = await owner();

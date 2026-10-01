@@ -15,6 +15,10 @@ import { ConfigurationModule } from '../../configuration/configuration.module';
 import { OwnedMutationGuard } from '../../common/owned-mutation.guard';
 import { DocumentsController } from './documents.controller';
 import { DocumentsService } from './documents.service';
+import { ProcessingStatusController } from './processing-status.controller';
+import { ProcessingStatusService } from './processing-status.service';
+import { ProcessingStatusRepository } from './processing-status.repository';
+import { ProgressModule } from '../../infrastructure/progress/progress.module';
 
 /**
  * @author Cristono Wijaya
@@ -28,12 +32,14 @@ import { DocumentsService } from './documents.service';
     ConfigurationModule,
     StorageModule,
     ObservabilityModule,
+    ProgressModule,
   ],
   controllers: [
     DocumentsController,
     UploadController,
     DownloadController,
     VersionsController,
+    ProcessingStatusController,
   ],
   providers: [
     DocumentsService,
@@ -43,6 +49,8 @@ import { DocumentsService } from './documents.service';
     UploadInspector,
     DownloadService,
     VersionsService,
+    ProcessingStatusService,
+    ProcessingStatusRepository,
   ],
 })
 export class DocumentsModule {}

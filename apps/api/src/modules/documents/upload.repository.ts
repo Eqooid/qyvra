@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@brainless/database';
+import { Prisma, ProcessingRepository } from '@brainless/database';
 import { createHash, randomUUID } from 'node:crypto';
 import { PrismaService } from '../../database/prisma.service';
 import { ConfigurationService } from '../../configuration/configuration.module';
@@ -36,10 +36,13 @@ const uploadDocumentSelect = {
 /** @description Durable upload-only idempotency, scoped by authenticated owner and UUID key. */
 @Injectable()
 export class UploadRepository {
+  private readonly processing: ProcessingRepository;
   constructor(
     private readonly database: PrismaService,
     private readonly configuration: ConfigurationService,
-  ) {}
+  ) {
+    this.processing = new ProcessingRepository(database.client);
+  }
   /** @description Rechecked under the document row lock at commit, so lifecycle changes during streaming cannot be bypassed. */
   async assertVersionTarget(
     userId: string,
@@ -140,7 +143,8 @@ export class UploadRepository {
     versionId: string,
     file: UploadedFile,
     pageCount: number | null,
-    scope = 'create',
+    scope: string,
+    correlationId: string,
   ): Promise<{ response: UploadResponse; replay: boolean }> {
     const dto = file.dto;
     const metadata = {
@@ -296,6 +300,13 @@ export class UploadRepository {
             extractionStatus: true,
             createdAt: true,
           },
+        });
+        await this.processing.createInTransaction(tx, {
+          userId,
+          documentId,
+          documentVersionId: version.id,
+          correlationId,
+          maxAttempts: 3,
         });
         if (scope === 'create' && tags.length)
           await tx.documentTag.createMany({

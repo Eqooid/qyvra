@@ -5,6 +5,34 @@
  * @interface ApiConfiguration
  */
 export interface ApiConfiguration {
+  /** Optional, disposable processing progress; PostgreSQL remains authoritative. */
+  readonly progress: {
+    readonly url?: string;
+    readonly ttlSeconds: number;
+    readonly connectTimeoutMs: number;
+    readonly commandTimeoutMs: number;
+  };
+  /** Optional until the outbox dispatcher is wired into the HTTP process. */
+  readonly messaging: {
+    readonly url?: string;
+    readonly connectTimeoutMs: number;
+    readonly confirmTimeoutMs: number;
+  };
+  readonly outbox: {
+    readonly pollIntervalMs: number;
+    readonly batchSize: number;
+    readonly leaseMs: number;
+  };
+  readonly processingRecovery: {
+    readonly pollIntervalMs: number;
+    readonly batchSize: number;
+  };
+  readonly worker: {
+    readonly prefetch: number;
+    readonly jobLeaseMs: number;
+    readonly reconnectDelayMs: number;
+    readonly shutdownTimeoutMs: number;
+  };
   readonly upload: {
     readonly maxBytes: number;
     readonly maxPages: number;

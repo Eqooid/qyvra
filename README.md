@@ -5,12 +5,25 @@ organizing their metadata, and keeping immutable file versions.
 
 **Latest locally verified release tag: v1.1.0. Phase 1 remains complete.** Registration,
 account settings, categories/tags, document upload/download, metadata editing,
-archive/restore, soft deletion and version history are implemented. Processing,
-OCR, AI, full-text/semantic search and reminders are **Planned**, not available.
+archive/restore, soft deletion and version history are implemented. OCR, AI,
+full-text/semantic search and reminders are **Planned**, not available.
 [Phase 2 / v1.1.0](docs/roadmap.md#phase-2--v110-release-ready) adds document
 descriptions, current-file summaries, metadata filters, deterministic sorting and
 cursor navigation. See the [incremental developer guide](docs/developer/versions/v1.1.0.md)
 for the verified version comparison and upgrade requirements.
+The [v1.2.0 Phase 3 foundation](docs/phase-3-processing.md) is implemented and
+accepted as a release-ready candidate (not yet tagged):
+PostgreSQL job/outbox persistence, job rules, RabbitMQ transport, an independently
+runnable outbox dispatcher, a separate worker consumer, and upload-triggered
+job/outbox scheduling and production stored-file integrity verification are
+implemented. T09 adds PostgreSQL-backed processing retry and expired-lease
+recovery in the separate outbox process. T10 adds the owned processing-status
+API. T11 adds optional Redis progress; T12 displays owned processing status and
+progress on document detail and inspected version history. The
+[T13 verification matrix](docs/phase-3-verification.md) records full-stack
+evidence and limits. The [T14 acceptance record](docs/phase-3-acceptance.md)
+records final checks, fixes, dependency findings and upgrade/rollback guidance;
+v1.2.0 has not been tagged as a release.
 
 ## Architecture and stack
 

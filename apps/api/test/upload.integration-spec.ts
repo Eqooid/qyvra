@@ -1,6 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { Prisma } from '@brainless/database';
+import { Prisma, ProcessingRepository } from '@brainless/database';
 import {
   Storage,
   STORAGE,
@@ -116,6 +116,7 @@ describe('Streaming upload PostgreSQL HTTP workflow', () => {
   it('persists PDF and version 1 with correct states, checksum, safe associations and server keys', async () => {
     const user = await owner();
     const bytes = pdfFixture(randomUUID());
+    const correlationId = randomUUID();
     const category = await db.client.category.create({
       data: { userId: user.id, name: 'Owned' },
     });
@@ -123,6 +124,7 @@ describe('Streaming upload PostgreSQL HTTP workflow', () => {
       data: { userId: user.id, name: 'Owned' },
     });
     const result = await begin(user)
+      .set('X-Correlation-Id', correlationId)
       .field('title', '  Warranty  ')
       .field('categoryId', category.id)
       .field('tagIds', JSON.stringify([tag.id, tag.id.toUpperCase()]))
@@ -155,6 +157,36 @@ describe('Streaming upload PostgreSQL HTTP workflow', () => {
       `documents/${user.id}/${version.documentId}/${version.id}/original.pdf`,
     );
     expect(await storage.exists(version.storageKey)).toBe(true);
+    const job = await db.client.processingJob.findFirstOrThrow({
+      where: { documentVersionId: version.id },
+      include: { outbox: true },
+    });
+    expect(job).toMatchObject({
+      userId: user.id,
+      documentId: version.documentId,
+      documentVersionId: version.id,
+      jobType: 'VERIFY_STORED_FILE',
+      status: 'PENDING',
+      attempts: 0,
+      maxAttempts: 3,
+      correlationId,
+    });
+    expect(job.outbox).toHaveLength(1);
+    expect(job.outbox[0]).toMatchObject({
+      status: 'PENDING',
+      processingJobId: job.id,
+      correlationId,
+      dispatchSequence: 1,
+      payload: {
+        schemaVersion: 1,
+        messageId: job.outbox[0].id,
+        jobId: job.id,
+        documentId: version.documentId,
+        documentVersionId: version.id,
+        jobType: 'VERIFY_STORED_FILE',
+        correlationId,
+      },
+    });
     expect(JSON.stringify(result.body)).not.toMatch(
       /storageKey|checksum|userId|processing|objects|brainless-upload-test/,
     );
@@ -329,6 +361,14 @@ describe('Streaming upload PostgreSQL HTTP workflow', () => {
     expect(
       await db.client.documentVersion.count({ where: { userId: user.id } }),
     ).toBe(1);
+    expect(
+      await db.client.processingJob.count({ where: { userId: user.id } }),
+    ).toBe(1);
+    expect(
+      await db.client.processingOutbox.count({
+        where: { job: { userId: user.id } },
+      }),
+    ).toBe(1);
   });
   it('persists optional description while keeping creation receipts and legacy fingerprints stable', async () => {
     const user = await owner();
@@ -452,6 +492,41 @@ describe('Streaming upload PostgreSQL HTTP workflow', () => {
     );
     const rows = await readdir(join(directory, 'objects'), { recursive: true });
     expect(rows.some((row) => row.includes('.pending-'))).toBe(false);
+  });
+  it('rolls back version, job, outbox and receipt when scheduling fails after both processing rows are written', async () => {
+    const user = await owner();
+    const remove = jest.spyOn(storage, 'delete');
+    const create = ProcessingRepository.prototype.createInTransaction;
+    jest
+      .spyOn(ProcessingRepository.prototype, 'createInTransaction')
+      .mockImplementationOnce(async (tx, input, replay) => {
+        await create.call(
+          new ProcessingRepository(db.client),
+          tx,
+          input,
+          replay,
+        );
+        throw new Error('forced scheduling failure');
+      });
+    await upload(user).expect(503);
+    expect(remove).toHaveBeenCalled();
+    expect(await db.client.document.count({ where: { userId: user.id } })).toBe(
+      0,
+    );
+    expect(
+      await db.client.documentVersion.count({ where: { userId: user.id } }),
+    ).toBe(0);
+    expect(
+      await db.client.processingJob.count({ where: { userId: user.id } }),
+    ).toBe(0);
+    expect(
+      await db.client.processingOutbox.count({
+        where: { job: { userId: user.id } },
+      }),
+    ).toBe(0);
+    expect(
+      await db.client.documentUpload.count({ where: { userId: user.id } }),
+    ).toBe(0);
   });
   it('replaces expired receiving reservations safely', async () => {
     const user = await owner(),

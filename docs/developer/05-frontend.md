@@ -51,6 +51,18 @@ There is no ETag conflict prevention. The UI hides metadata editing for archived
 
 ## Forms, loading, and errors
 
+**v1.2.0 T12 processing view:**
+[processing.ts](../../apps/web/lib/api/processing.ts) validates the owned
+version-status response, including nullable disposable progress. The
+[processing status component](../../apps/web/features/documents/processing-status.tsx)
+shows current-version status on document detail and a selected historical
+version's status in its inspection panel. Query keys include owner, document, and
+version IDs. Active jobs poll every five seconds through TanStack Query; completed,
+failed, cancelled, and unscheduled versions do not. The document list makes no
+per-row status requests. A failed status fetch leaves document details usable and
+offers a retry; a processing failure displays only a sanitized category. The
+frontend never accesses Redis or RabbitMQ directly.
+
 [AuthForm](../../apps/web/features/auth/auth-form.tsx) shares login/registration rendering, clears the password after submission, and translates generic API failures. Registration succeeds without logging the user in. [AccountSettings](../../apps/web/features/account/account-settings.tsx) handles profile, password and logout-all separately; password change checks the session first and does not blindly refresh/retry a wrong-current-password 401.
 
 Document forms use [upload-validation.ts](../../apps/web/features/documents/upload-validation.ts), including the public file-size UX limit. Browser validation improves feedback; the API independently validates bytes, metadata and ownership. Initial/version upload components retain unchanged attempts for explicit retry. Cancellation or navigation can race a completed server transaction.

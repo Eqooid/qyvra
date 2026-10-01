@@ -60,7 +60,8 @@ test('upgrades an existing Phase 1 database without losing document data', async
       path.join(temporaryPrisma, 'schema.prisma'),
     );
     for (const entry of fs.readdirSync(migrations, { withFileTypes: true })) {
-      if (entry.name === migrationName) continue;
+      // Keep this historical v1.0-to-v1.1 upgrade baseline free of later migrations.
+      if (entry.isDirectory() && entry.name >= migrationName) continue;
       const source = path.join(migrations, entry.name);
       const target = path.join(temporaryMigrations, entry.name);
       if (entry.isDirectory()) fs.cpSync(source, target, { recursive: true });

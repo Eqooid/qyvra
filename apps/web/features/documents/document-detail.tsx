@@ -26,6 +26,7 @@ import {
 import { DocumentEdit } from "./document-edit"
 import { formatBytes, mimeLabel } from "./upload-validation"
 import { versionTime } from "./version-metadata"
+import { ProcessingStatusSection } from "./processing-status"
 
 export function DocumentDetailPage({ documentId }: { documentId: string }) {
   const api = useAuthApi(),
@@ -354,20 +355,27 @@ export function DocumentDetailPage({ documentId }: { documentId: string }) {
           Current version
         </h2>
         {document.currentVersion ? (
-          <dl className="grid min-w-0 grid-cols-1 gap-4 text-sm sm:grid-cols-2">
-            {[
-              ["Version", `v${document.currentVersion.versionNumber}`],
-              ["Filename", document.currentVersion.originalFilename],
-              ["File type", mimeLabel(document.currentVersion.mimeType)],
-              ["File size", formatBytes(document.currentVersion.fileSize)],
-              ["Uploaded", versionTime(document.currentVersion.createdAt)],
-            ].map(([label, value]) => (
-              <div key={label} className="min-w-0">
-                <dt className="text-muted-foreground">{label}</dt>
-                <dd className="mt-1 break-words">{value}</dd>
-              </div>
-            ))}
-          </dl>
+          <>
+            <dl className="grid min-w-0 grid-cols-1 gap-4 text-sm sm:grid-cols-2">
+              {[
+                ["Version", `v${document.currentVersion.versionNumber}`],
+                ["Filename", document.currentVersion.originalFilename],
+                ["File type", mimeLabel(document.currentVersion.mimeType)],
+                ["File size", formatBytes(document.currentVersion.fileSize)],
+                ["Uploaded", versionTime(document.currentVersion.createdAt)],
+              ].map(([label, value]) => (
+                <div key={label} className="min-w-0">
+                  <dt className="text-muted-foreground">{label}</dt>
+                  <dd className="mt-1 break-words">{value}</dd>
+                </div>
+              ))}
+            </dl>
+            <ProcessingStatusSection
+              owner={owner}
+              documentId={documentId}
+              versionId={document.currentVersion.id}
+            />
+          </>
         ) : (
           <p className="text-sm text-muted-foreground">
             No current version available.

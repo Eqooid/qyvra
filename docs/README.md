@@ -10,7 +10,18 @@ for architecture, source navigation, authentication/document walkthroughs, the A
 route map, configuration, testing, debugging and extension guidance. It records the
 exact inspected commits and known differences between source descriptions and behavior.
 The [v1.1.0 delta guide](developer/versions/v1.1.0.md) extends the preserved
-v1.0.0 baseline with current document behavior and upgrade notes.
+v1.0.0 baseline with document metadata/discovery changes. The
+[v1.2.0 developer guide](developer/versions/v1.2.0.md) adds the processing
+walkthrough, source navigation, independent runtimes and lifecycle changes.
+The [v1.2.0 Phase 3 processing foundation](phase-3-processing.md) has
+implemented persistence, job rules, RabbitMQ transport, outbox dispatcher,
+worker consumer, upload-triggered scheduling, stored-file integrity verification,
+PostgreSQL-backed processing retry/recovery, the owned processing-status API,
+optional disposable Redis progress, and the frontend processing view;
+T13 full-stack verification is recorded in the
+[verification matrix](phase-3-verification.md). The
+[T14 acceptance review](phase-3-acceptance.md) records release readiness and
+remaining limitations; v1.2.0 is not yet a tagged release.
 
 ## Architecture
 
@@ -19,6 +30,9 @@ v1.0.0 baseline with current document behavior and upgrade notes.
 - [Authentication/session flow](features/authentication.md)
 - [Infrastructure, Nginx and persistence](compose.md)
 - [API conventions and generated OpenAPI](api.md)
+- [v1.2.0 processing persistence, outbox delivery, and worker boundary](phase-3-processing.md)
+- [v1.2.0 Phase 3 end-to-end verification matrix (T13)](phase-3-verification.md)
+- [v1.2.0 final acceptance, release readiness and upgrade/rollback guidance (T14)](phase-3-acceptance.md)
 
 ## Features
 

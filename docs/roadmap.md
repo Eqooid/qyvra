@@ -2,7 +2,7 @@
 
 [Documentation index](README.md) | [v1.0.0 snapshot](releases/v1.0.0.md) | [v1.1.0 snapshot](releases/v1.1.0.md)
 
-## Current release
+## Phase 1 — v1.0.0 released
 
 **Phase 1 is complete and released as v1.0.0 on 24 September 2026.** The
 [acceptance review](phase-1-review.md) and [browser verification](phase-1-browser-verification.md)
@@ -32,12 +32,12 @@ not describe missing functionality in the shipped implementation. The
 and [architecture](architecture.md#v110-document-query-boundary) sections
 describe the implemented contract.
 
-| In-scope change (audit state) | Purpose | Backend impact | API impact | Frontend impact | Database impact | Tests and dependency |
-| --- | --- | --- | --- | --- | --- | --- |
-| Editable description (MISSING) | Explain a document in the owner's words. | Validate and persist on upload/PATCH; preserve old upload replay fingerprints. | Add description to metadata reads/PATCH and optional upload input. | Extend upload, edit and detail forms. | Add nullable `documents.description`. | Omission/null/limits, ownership and replay; migrate first. |
-| Current file summary (PARTIAL) | Show which immutable file is current without opening history. | Select highest version number under owner scope. | Add safe `currentVersion` to list/detail/PATCH. | Show filename, MIME, size, version and upload time in catalog/detail. | Reuse `document_versions`. | Version replacement, archived rows and metadata-only fixtures; follows metadata contract. |
-| More useful filters (PARTIAL/MISSING) | Narrow the catalog by current file, tags and dates. | Build bounded predicates against owned documents/current version and existing joins. | Add filename, MIME, all-of tag IDs and created/updated ranges; retain `q`, category and old filters. | URL-backed controls for the new filters; reuse organization selectors/cache. Existing document/expiration date filters remain API-only. | Reuse relations/timestamps; assess indexes. | Combinations, associations, ownership, archived/deleted rows and invalid ranges; follows current-version summary. |
-| Additional sorts (PARTIAL) | Order by recent edits, title or largest current file. | Build deterministic sort/cursor predicates. | Allow-list new sort values and compatible cursors. | Extend sort control and reset cursor when changing filters/order. | Assess updated/title indexes; no copied file-size column. | Ties, null file summaries, cursor validation and old cursors; follows query design. |
+| In-scope change (audit state)         | Purpose                                                       | Backend impact                                                                       | API impact                                                                                           | Frontend impact                                                                                                                         | Database impact                                           | Tests and dependency                                                                                              |
+| ------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Editable description (MISSING)        | Explain a document in the owner's words.                      | Validate and persist on upload/PATCH; preserve old upload replay fingerprints.       | Add description to metadata reads/PATCH and optional upload input.                                   | Extend upload, edit and detail forms.                                                                                                   | Add nullable `documents.description`.                     | Omission/null/limits, ownership and replay; migrate first.                                                        |
+| Current file summary (PARTIAL)        | Show which immutable file is current without opening history. | Select highest version number under owner scope.                                     | Add safe `currentVersion` to list/detail/PATCH.                                                      | Show filename, MIME, size, version and upload time in catalog/detail.                                                                   | Reuse `document_versions`.                                | Version replacement, archived rows and metadata-only fixtures; follows metadata contract.                         |
+| More useful filters (PARTIAL/MISSING) | Narrow the catalog by current file, tags and dates.           | Build bounded predicates against owned documents/current version and existing joins. | Add filename, MIME, all-of tag IDs and created/updated ranges; retain `q`, category and old filters. | URL-backed controls for the new filters; reuse organization selectors/cache. Existing document/expiration date filters remain API-only. | Reuse relations/timestamps; assess indexes.               | Combinations, associations, ownership, archived/deleted rows and invalid ranges; follows current-version summary. |
+| Additional sorts (PARTIAL)            | Order by recent edits, title or largest current file.         | Build deterministic sort/cursor predicates.                                          | Allow-list new sort values and compatible cursors.                                                   | Extend sort control and reset cursor when changing filters/order.                                                                       | Assess updated/title indexes; no copied file-size column. | Ties, null file summaries, cursor validation and old cursors; follows query design.                               |
 
 Existing category/tag CRUD, lifecycle, download, version upload/history and cursor
 pagination are Phase 1 capabilities. They were modified only where a row above
@@ -80,17 +80,105 @@ needed them. No new document endpoint was added.
 - [x] Update guides to implemented behavior, record results, changelog and a separate v1.1.0 release snapshot.
 - [x] Complete final acceptance (25 September 2026): 11 document unit, 70 document HTTP and 100 affected frontend tests passed, along with API/web type checks and lint, Prisma validation and API build. Accept the previously passing Docker web build and six-test Nginx browser run because runtime code did not change afterward. No unresolved release blocker remains.
 
-## Later phases — not part of v1.1.0
+## Phase 3 — v1.2.0 processing foundation (release ready)
 
-| Phase | Direction | Planned additions |
-| --- | --- | --- |
-| 3 | Processing and reminders | Workers, RabbitMQ, Redis where justified, extraction/OCR, progress, retries, reminders, purge/activity work. |
-| 4 | Reviewable AI and semantic retrieval | Independent generation/embedding adapters, Ollama/OpenAI options, Qdrant, cited RAG. |
-| 5 | Advanced keyword and hybrid search | Elasticsearch, highlights, autocomplete and ranking. |
-| 6 | Identity upgrade | Keycloak/OIDC, retaining internal ownership IDs. |
+T01 recorded the [foundation contract](phase-3-processing.md) and
+[ADR-002](decisions/ADR-002-durable-processing-outbox-worker.md). **T02 and T03
+are implemented:** the additive job/outbox migration, owner/version constraints,
+versioned message intent, transaction-safe creation, lifecycle rules, and
+conditional repository operations are in the repository.
+v1.2.0 is not yet tagged; the processing path is runnable through T12 and was
+exercised in T13. [T14 final acceptance](phase-3-acceptance.md) is complete and
+records a release-ready decision, remaining dependency findings and deployment
+verification limits. No v1.2.0 release tag has been created by acceptance.
+
+**Implemented in T02:** PostgreSQL can persist version-specific jobs and
+publication intents atomically using the new transaction helper. Job state is
+separate from `Document.status`. T07 now calls this helper from both upload paths.
+
+**Implemented in T03:** duplicate active creation returns the existing job,
+claims spend one attempt, conditional state and lease-token checks fence competing
+workers, bounded retries remain in PostgreSQL, and due/stale/outbox queries are
+available. T05 and T09 now run the dispatcher and recovery coordinator.
+
+**Implemented in T04:** RabbitMQ transport abstraction, versioned message
+serialization, durable direct-exchange/queue topology with dead-letter resources,
+mandatory persistent publication with confirms, and local Compose broker support.
+At the T04 checkpoint, no outbox dispatcher or worker used it.
+
+**Implemented and integration-verified in T05:** An independently
+runnable outbox dispatcher polls PostgreSQL in bounded batches, claims due rows
+with expiring leases, publishes the stored envelope through T04, and records
+`PUBLISHED` only after confirmation. Failed publication remains `PENDING` with
+bounded backoff. Confirmed-but-unrecorded delivery may be replayed with the same
+message ID.
+
+**Implemented and integration-verified in T06:** A dedicated non-HTTP NestJS
+worker runs independently of the API and outbox dispatcher. Its RabbitMQ consumer
+validates the versioned envelope, checks the durable job identity, delegates
+conditional claims/outcomes to T03, and manually acknowledges only after a
+durable decision. Invalid messages and unhandled job types go to the dead-letter
+queue; interrupted deliveries can be redelivered. T08 registers the production
+file-integrity handler and verifies the full processing path.
+
+**Implemented and integration-verified in T07:** Both initial and subsequent
+version uploads create a `VERIFY_STORED_FILE` job and outbox intent in the same
+PostgreSQL transaction as the version and completed upload receipt. A replay of
+the same upload key creates neither again. The HTTP request does not contact
+RabbitMQ or wait for a worker. A live-broker test now follows a real upload through
+T05/T06 and the T08 production handler. Messages dead-lettered before T08 deployment
+still need explicit reconciliation.
+
+**Implemented in T08:** The worker streams the stored original through the
+shared storage adapter and compares actual size and SHA-256 against immutable
+version metadata. T03 records success, bounded retry, or terminal failure before
+acknowledgement. The worker mounts the private storage volume read-only.
+
+**Implemented in T09:** The outbox runtime also coordinates due processing
+retries and expired job leases using PostgreSQL. It creates one new durable
+outbox intent per retry attempt; T05 alone publishes it. Stable jobs and bounded
+attempts survive process and broker restarts.
+
+**Implemented in T10:** The owned, read-only version processing-status API
+reports PostgreSQL job state, retry timing and safe failures without exposing
+transport or worker internals.
+
+**Implemented in T11:** Redis stores only expiring, attempt-scoped progress;
+the worker writes it best effort and the owned status API reads it optionally.
+PostgreSQL remains authoritative after Redis loss.
+
+**Implemented in T12:** The frontend shows current-version processing on document
+detail and per-version status when inspecting history. Active jobs poll the owned
+API every five seconds; terminal jobs stop polling. The document list avoids
+per-row processing requests. Existing receipts, versioning, archive/restore,
+soft deletion, metadata discovery, and ownership boundaries remain intact.
+
+**Verified in T13:** An [isolated full-stack verification matrix](phase-3-verification.md)
+covers upload-to-worker processing, owned status and UI, outages, retries, lease
+recovery, restart, duplicate delivery, concurrency, malformed messages, migration,
+and existing document workflows. **T14 is complete:** final affected tests,
+Nginx smoke, lifecycle cancellation/restore fixes and canonical documentation
+are recorded in the [acceptance review](phase-3-acceptance.md). T13 remains a
+historical verification record rather than a release declaration.
+
+**Planned / Future, outside this foundation:** text extraction, OCR, chunking,
+reminders, permanent purge, AI providers, embeddings, Qdrant, semantic/RAG/chat,
+agents, Elasticsearch, and hybrid retrieval. This narrows the older Phase 3
+direction below; its broad feature list does not define the v1.2.0 deliverable.
+The processing-status route is implemented at T10; optional Redis progress is implemented at T11.
+
+## Later phases and earlier planning directions
+
+| Phase | Direction                              | Planned additions                                                                                                                  |
+| ----- | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| 3     | Earlier processing/reminders direction | Broader ideas included extraction/OCR, reminders and purge/activity work. The narrower planned v1.2.0 foundation is defined above. |
+| 4     | Reviewable AI and semantic retrieval   | Independent generation/embedding adapters, Ollama/OpenAI options, Qdrant, cited RAG.                                               |
+| 5     | Advanced keyword and hybrid search     | Elasticsearch, highlights, autocomplete and ranking.                                                                               |
+| 6     | Identity upgrade                       | Keycloak/OIDC, retaining internal ownership IDs.                                                                                   |
 
 These are directions from the broader [product specification](specification.md), not
-committed release versions or installed services. Arbitrary custom metadata,
+installed services; only the narrowed v1.2.0 foundation above is the current Phase 3
+plan. Arbitrary custom metadata,
 category hierarchies, bulk operations, Trash/permanent purge, historical-version
 download/promotion, separate historical upload-date filtering, exact catalog counts
 and CI/CD also remain outside v1.1.0. AI agents are a later product direction,

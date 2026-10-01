@@ -1,12 +1,16 @@
 # Brainless developer documentation
 
-**Current: v1.1.0 — document organization and metadata.** Start with the
-[v1.1.0 developer changes](versions/v1.1.0.md) for descriptions, current-version
-summaries, filters, sorting, cursor navigation, code navigation and upgrade notes.
-It builds on the complete v1.0.0 guide below without duplicating unchanged domains.
+**Current implementation: v1.2.0 — asynchronous document processing foundation.**
+Start with the [v1.2.0 developer changes](versions/v1.2.0.md) for jobs/outbox,
+RabbitMQ, independent runtimes, integrity verification, recovery, optional Redis
+progress, owned status and frontend code navigation. It is a release-ready
+candidate, not a tagged release. The [v1.1.0 guide](versions/v1.1.0.md) covers
+descriptions, filtering, sorting and cursor navigation. Both extend the preserved
+v1.0.0 baseline below without duplicating unchanged domains.
 
 Version history:
 
+- [v1.2.0 developer changes](versions/v1.2.0.md): processing walkthrough, source navigation, runtime and compatibility changes.
 - [v1.1.0 developer changes](versions/v1.1.0.md): verified implementation delta and current document behavior.
 - [v1.0.0 baseline chapters](#reading-map): preserved Phase 1 architecture and walkthroughs.
 - [Release snapshots](../README.md#releases): scope and recorded acceptance evidence.
@@ -14,7 +18,7 @@ Version history:
 ## Historical v1.0.0 developer guide
 
 The 16 numbered chapters and the baseline inspection record below describe
-v1.0.0. Use the v1.1.0 delta for changed behavior; source links open files in your
+v1.0.0. Use the version delta guides for changed behavior; source links open files in your
 current checkout, so select the recorded baseline commit to inspect historical code.
 
 This guide explains the completed **Phase 1 private document catalog** from its implementation. Start here if you know TypeScript but have not worked on Brainless. For a runnable first session, follow [development workflow](14-development-workflow.md), then read the architecture and workflow walkthroughs.

@@ -62,6 +62,13 @@ counts are fabricated. See [implementation and verification](../../docs/web-orga
 
 ### Version history
 
+The current-version card on document detail shows file-integrity processing
+status and optional percentage/stage. Inspecting a historical version shows that
+version's own status beside its metadata. Active jobs poll the owned API every
+five seconds and stop after a terminal outcome; missing temporary progress leaves
+the durable status visible. The catalog does not make a status request per row.
+No direct broker or Redis connection is used by the browser.
+
 Open **Version history** from document detail to view
 `/documents/[documentId]/versions`. History is paginated newest first, with safe
 expandable metadata and a current/latest badge. Upload new version confirms a

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@brainless/database';
+import { Prisma, ProcessingRepository } from '@brainless/database';
+import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../../database/prisma.service';
 import { PaginatedData } from '../../common/paginated-data';
 import {
@@ -70,6 +71,7 @@ const literal = (value: string) =>
  */
 @Injectable()
 export class DocumentsService {
+  private readonly processing: ProcessingRepository;
   /**
    * @author Cristono Wijaya
    * @description Injects PrismaService for database access.
@@ -77,7 +79,9 @@ export class DocumentsService {
    * @param database - The PrismaService instance for database operations.
    * @constructor
    */
-  constructor(private readonly database: PrismaService) {}
+  constructor(private readonly database: PrismaService) {
+    this.processing = new ProcessingRepository(database.client);
+  }
 
   /**
    * @author Cristono Wijaya
@@ -361,7 +365,8 @@ export class DocumentsService {
     return this.safe(() =>
       this.database.client.$transaction(async (tx) => {
         const row = await this.locked(tx, userId, id);
-        const data = transitionDocument(row, action, new Date());
+        const now = new Date();
+        const data = transitionDocument(row, action, now);
         const updated = Object.keys(data).length
           ? await tx.document.update({
               where: { id, userId },
@@ -369,6 +374,40 @@ export class DocumentsService {
               select: metadata,
             })
           : row;
+        if (Object.keys(data).length && action !== 'restore')
+          await this.processing.cancelUnfinishedForDocument(
+            tx,
+            userId,
+            id,
+            now,
+          );
+        if (Object.keys(data).length && action === 'restore') {
+          const currentVersionId = updated.versions[0]?.id;
+          if (currentVersionId) {
+            const latest = await tx.processingJob.findFirst({
+              where: {
+                userId,
+                documentId: id,
+                documentVersionId: currentVersionId,
+                jobType: 'VERIFY_STORED_FILE',
+              },
+              orderBy: { generation: 'desc' },
+              select: { status: true, maxAttempts: true },
+            });
+            if (latest?.status === 'CANCELLED')
+              await this.processing.createInTransaction(
+                tx,
+                {
+                  userId,
+                  documentId: id,
+                  documentVersionId: currentVersionId,
+                  correlationId: randomUUID(),
+                  maxAttempts: latest.maxAttempts,
+                },
+                true,
+              );
+          }
+        }
         return (await this.hydrate(tx, userId, [updated]))[0];
       }),
     );

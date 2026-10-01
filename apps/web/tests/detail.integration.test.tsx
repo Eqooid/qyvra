@@ -57,6 +57,14 @@ function mockApi(
       overridden = override?.(url, options)
     if (overridden) return overridden
     if (url.endsWith("/auth/me")) return json({ data: profile })
+    if (url.endsWith("/processing"))
+      return json({
+        data: {
+          documentId: id,
+          documentVersionId: current.currentVersion?.id,
+          jobs: [],
+        },
+      })
     if (url.includes("/categories"))
       return json(
         envelope([

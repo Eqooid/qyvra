@@ -215,6 +215,55 @@ export function validateEnvironment(
       'must not override driver timeouts or pool settings; use DATABASE_* settings.',
     );
   }
+  const rabbitmqUrl =
+    environment.RABBITMQ_URL === undefined
+      ? undefined
+      : text(environment, 'RABBITMQ_URL');
+  const redisUrl =
+    environment.REDIS_URL === undefined
+      ? undefined
+      : text(environment, 'REDIS_URL');
+  if (redisUrl !== undefined) {
+    let parsed: URL;
+    try {
+      parsed = new URL(redisUrl);
+    } catch {
+      invalid('REDIS_URL', 'must be a Redis connection URL.');
+    }
+    if (
+      !['redis:', 'rediss:'].includes(parsed.protocol) ||
+      !parsed.hostname ||
+      parsed.hash ||
+      parsed.search ||
+      !/^(?:|\/|\/[0-9]+)$/.test(parsed.pathname) ||
+      /\s/.test(redisUrl)
+    )
+      invalid(
+        'REDIS_URL',
+        'must specify a Redis host and optional numeric database without query or fragment.',
+      );
+  }
+  if (rabbitmqUrl !== undefined) {
+    let parsed: URL;
+    try {
+      parsed = new URL(rabbitmqUrl);
+    } catch {
+      invalid('RABBITMQ_URL', 'must be an AMQP connection URL.');
+    }
+    if (
+      !['amqp:', 'amqps:'].includes(parsed.protocol) ||
+      !parsed.hostname ||
+      !parsed.username ||
+      !parsed.password ||
+      parsed.hash ||
+      parsed.search ||
+      /\s/.test(rabbitmqUrl)
+    )
+      invalid(
+        'RABBITMQ_URL',
+        'must specify an AMQP(S) host and credentials without query or fragment.',
+      );
+  }
   const passwordMinLength = integer(
     environment,
     'AUTH_PASSWORD_MIN_LENGTH',
@@ -376,7 +425,100 @@ export function validateEnvironment(
       'LOCAL_STORAGE_ROOT',
       'must be outside the repository and must not contain it.',
     );
+  const outboxLeaseMs = integer(
+    environment,
+    'OUTBOX_LEASE_MS',
+    '120000',
+    3600000,
+  );
+  const rabbitmqConfirmTimeoutMs = integer(
+    environment,
+    'RABBITMQ_CONFIRM_TIMEOUT_MS',
+    '10000',
+    60000,
+  );
+  if (outboxLeaseMs <= rabbitmqConfirmTimeoutMs + 5000)
+    invalid(
+      'OUTBOX_LEASE_MS',
+      'must exceed RABBITMQ_CONFIRM_TIMEOUT_MS by 5000 ms.',
+    );
   return Object.freeze({
+    progress: Object.freeze({
+      url: redisUrl,
+      ttlSeconds: integer(
+        environment,
+        'PROCESSING_PROGRESS_TTL_SECONDS',
+        '180',
+        3600,
+      ),
+      connectTimeoutMs: integer(
+        environment,
+        'REDIS_CONNECT_TIMEOUT_MS',
+        '500',
+        30000,
+      ),
+      commandTimeoutMs: integer(
+        environment,
+        'REDIS_COMMAND_TIMEOUT_MS',
+        '500',
+        30000,
+      ),
+    }),
+    worker: Object.freeze({
+      prefetch: integer(environment, 'WORKER_PREFETCH', '2', 16),
+      jobLeaseMs: integer(
+        environment,
+        'WORKER_JOB_LEASE_MS',
+        '120000',
+        3600000,
+      ),
+      reconnectDelayMs: integer(
+        environment,
+        'WORKER_RECONNECT_DELAY_MS',
+        '1000',
+        60000,
+      ),
+      shutdownTimeoutMs: integer(
+        environment,
+        'WORKER_SHUTDOWN_TIMEOUT_MS',
+        '30000',
+        120000,
+      ),
+    }),
+    outbox: Object.freeze({
+      pollIntervalMs: integer(
+        environment,
+        'OUTBOX_POLL_INTERVAL_MS',
+        '1000',
+        60000,
+      ),
+      batchSize: integer(environment, 'OUTBOX_BATCH_SIZE', '10', 100),
+      leaseMs: outboxLeaseMs,
+    }),
+    processingRecovery: Object.freeze({
+      pollIntervalMs: integer(
+        environment,
+        'PROCESSING_RECOVERY_POLL_INTERVAL_MS',
+        '5000',
+        60000,
+      ),
+      batchSize: integer(
+        environment,
+        'PROCESSING_RECOVERY_BATCH_SIZE',
+        '10',
+        100,
+      ),
+    }),
+    messaging: Object.freeze({
+      url: rabbitmqUrl,
+      connectTimeoutMs: integer(
+        environment,
+        'RABBITMQ_CONNECT_TIMEOUT_MS',
+        '5000',
+        30000,
+      ),
+      confirmTimeoutMs: rabbitmqConfirmTimeoutMs,
+    }),
     upload: Object.freeze({
       maxBytes: integer(environment, 'UPLOAD_MAX_BYTES', '52428800', 209715200),
       maxPages: integer(environment, 'UPLOAD_MAX_PAGES', '500', 2000),

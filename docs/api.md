@@ -81,6 +81,26 @@ contract. Date-only metadata uses `YYYY-MM-DD`; timestamps use ISO UTC.
 
 ## File and lifecycle workflows
 
+**Implemented in T10:** `GET /api/v1/documents/:documentId/versions/:versionId/processing`
+returns the newest durable processing-job generation per type for one owned,
+visible version. The session-authenticated, read-only route accepts UUID path
+parameters and no query or body. `data` contains `documentId`,
+`documentVersionId`, and a `jobs` array; `jobs: []` means no processing was
+scheduled for that version. Each job exposes its ID, type, durable status,
+attempt count/limit, timestamps, a `nextRetryAt` only while `RETRYING`, and a
+sanitized failure category only while retrying or terminally failed. Archived
+versions remain readable; missing, foreign, soft-deleted and `DELETING` resources
+return the same `404`. The response is `no-store` and can be polled. It contains
+no queue, outbox, worker, storage path or raw failure details. The generated
+OpenAPI schema records the field-level contract. **Implemented in T11:** each job
+also has nullable `progress` with `attempt`, `percent` (0–99), `stage` and
+`updatedAt`. This is present only while PostgreSQL says `PROCESSING` and Redis
+has current-attempt data; missing or unavailable Redis returns `null`. Durable
+status always wins. Redis keys and connection details remain private. The frontend
+status view is **Implemented in T12** on document detail and inspected versions.
+The frontend reads this route through its authenticated API client; it never
+reads Redis or the broker directly.
+
 [Documents](features/documents.md) describes initial multipart creation, metadata
 validation, duplicate checks, archive/restore and soft deletion. [Versioning](features/document-versioning.md)
 describes append-only uploads and history. Both upload operations require a UUID
@@ -93,8 +113,9 @@ Range headers are ignored. Early read failures return safe JSON; failures after 
 close the connection. Ownership is checked at admission and cannot revoke bytes already
 sent. File paths, storage keys and checksums are not exposed by document/version APIs.
 
-Processing, historical-version download, extracted text, search indexes and chat
-endpoints are **Not Implemented**. The [specification](specification.md) contains a
+Processing mutation/retry endpoints, historical-version download, extracted text,
+search indexes and chat endpoints are **Not Implemented**. The owned read-only
+processing-status route above is implemented. The [specification](specification.md) contains a
 **Planned** target catalog, not an alternative reference for available endpoints.
 
 ## v1.1.0 document contract
@@ -111,12 +132,12 @@ filters and allow-listed sorts are implemented. `currentVersion` is
 either null or exactly the safe six-field summary
 defined below; upload creation receipts and version-history responses are unchanged.
 
-| Method and route | Existing behavior | v1.1.0 change and status |
-| --- | --- | --- |
-| `GET /api/v1/documents` | Owned, non-deleted metadata page with filters, created-time sort and cursor. | Description, safe current-version summary, filename/MIME/all-of-tag/created/updated filters, and extended sorts implemented. |
-| `GET /api/v1/documents/:documentId` | Owned, non-deleted metadata detail. | Description and safe current-version summary implemented. |
-| `PATCH /api/v1/documents/:documentId` | Owned metadata/association update. | Optional description and current-version summary in response implemented. |
-| `POST /api/v1/documents` | Owned multipart creation with required file/title and idempotency key. | Optional description implemented; the existing creation receipt shape, including immutable version metadata, is retained. |
+| Method and route                      | Existing behavior                                                            | v1.1.0 change and status                                                                                                     |
+| ------------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/v1/documents`               | Owned, non-deleted metadata page with filters, created-time sort and cursor. | Description, safe current-version summary, filename/MIME/all-of-tag/created/updated filters, and extended sorts implemented. |
+| `GET /api/v1/documents/:documentId`   | Owned, non-deleted metadata detail.                                          | Description and safe current-version summary implemented.                                                                    |
+| `PATCH /api/v1/documents/:documentId` | Owned metadata/association update.                                           | Optional description and current-version summary in response implemented.                                                    |
+| `POST /api/v1/documents`              | Owned multipart creation with required file/title and idempotency key.       | Optional description implemented; the existing creation receipt shape, including immutable version metadata, is retained.    |
 
 Existing category/tag CRUD, version routes, lifecycle routes and current download
 are unchanged. The only document path parameter above is `:documentId`, an owned
@@ -148,22 +169,22 @@ with AND; `q` searches the existing title/issuer/reference fields with OR inside
 that filter. Filename matches only the current version, not any historical file.
 Literal substring matching is case-insensitive and escapes SQL wildcard characters.
 
-| Parameter | Values and behavior | Status |
-| --- | --- | --- |
-| `limit` | Integer 1–100; default 25. | Existing, unchanged |
-| `cursor` | Opaque next cursor from the preceding page, at most 4,096 encoded characters; keep filters and sort fixed. | Implemented for all sorts; old createdAt cursors retained |
-| `sort` | `-createdAt` (default), `createdAt`, `-updatedAt`, `title`, `-title`, `-fileSize`. Leading `-` means descending; no separate direction parameter. | Implemented |
-| `q` | Nonblank literal substring, maximum 200 characters, across title, issuer and reference number. | Existing, unchanged; includes title search |
-| `categoryId` | One UUID; matching category owned by the caller. Foreign/unknown IDs yield no matches. | Existing, unchanged |
-| `tagId` | One UUID; match the owned tag. | Existing, unchanged |
-| `tagIds` | Comma-separated list of 1–10 distinct UUIDs; document must have **all** selected owned tags. Cannot accompany `tagId`. | Implemented |
-| `documentType`, `status`, `archived` | Existing validated type/status values and `true`/`false`; omitted archive filter includes active and archived. | Existing, unchanged |
-| `dateFrom`, `dateTo` | Inclusive `YYYY-MM-DD` bounds on **documentDate**, not creation time. | Existing, unchanged |
-| `expirationFrom`, `expirationTo` | Inclusive bounds on `expirationDate`. | Existing, unchanged |
-| `createdFrom`, `createdTo` | Inclusive calendar-day bounds on document `createdAt` in UTC. | Implemented |
-| `updatedFrom`, `updatedTo` | Inclusive calendar-day bounds on document `updatedAt` in UTC. | Implemented |
-| `filename` | Nonblank literal case-insensitive substring, maximum 200 characters, of current `originalFilename`. | Implemented |
-| `mimeType` | Exact `application/pdf`, `image/jpeg` or `image/png` on current version. | Implemented |
+| Parameter                            | Values and behavior                                                                                                                               | Status                                                    |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `limit`                              | Integer 1–100; default 25.                                                                                                                        | Existing, unchanged                                       |
+| `cursor`                             | Opaque next cursor from the preceding page, at most 4,096 encoded characters; keep filters and sort fixed.                                        | Implemented for all sorts; old createdAt cursors retained |
+| `sort`                               | `-createdAt` (default), `createdAt`, `-updatedAt`, `title`, `-title`, `-fileSize`. Leading `-` means descending; no separate direction parameter. | Implemented                                               |
+| `q`                                  | Nonblank literal substring, maximum 200 characters, across title, issuer and reference number.                                                    | Existing, unchanged; includes title search                |
+| `categoryId`                         | One UUID; matching category owned by the caller. Foreign/unknown IDs yield no matches.                                                            | Existing, unchanged                                       |
+| `tagId`                              | One UUID; match the owned tag.                                                                                                                    | Existing, unchanged                                       |
+| `tagIds`                             | Comma-separated list of 1–10 distinct UUIDs; document must have **all** selected owned tags. Cannot accompany `tagId`.                            | Implemented                                               |
+| `documentType`, `status`, `archived` | Existing validated type/status values and `true`/`false`; omitted archive filter includes active and archived.                                    | Existing, unchanged                                       |
+| `dateFrom`, `dateTo`                 | Inclusive `YYYY-MM-DD` bounds on **documentDate**, not creation time.                                                                             | Existing, unchanged                                       |
+| `expirationFrom`, `expirationTo`     | Inclusive bounds on `expirationDate`.                                                                                                             | Existing, unchanged                                       |
+| `createdFrom`, `createdTo`           | Inclusive calendar-day bounds on document `createdAt` in UTC.                                                                                     | Implemented                                               |
+| `updatedFrom`, `updatedTo`           | Inclusive calendar-day bounds on document `updatedAt` in UTC.                                                                                     | Implemented                                               |
+| `filename`                           | Nonblank literal case-insensitive substring, maximum 200 characters, of current `originalFilename`.                                               | Implemented                                               |
+| `mimeType`                           | Exact `application/pdf`, `image/jpeg` or `image/png` on current version.                                                                          | Implemented                                               |
 
 Date-only values must be real calendar dates. Each supplied `From` must be on or
 before its paired `To`; missing bounds are open. Timestamp ranges mean UTC
@@ -191,15 +212,34 @@ No offset/page number or exact total count is promised.
 
 ### Validation and expected responses
 
-| Operation | Success | Expected failures |
-| --- | --- | --- |
-| List | 200 with `data: Document[]` and cursor metadata. | 400 invalid/unsupported query or cursor; 401 unauthenticated; 500 unexpected persistence failure. |
-| Detail | 200 with `data: Document`. | 400 invalid UUID/unexpected query; 401 unauthenticated; 404 missing, foreign or deleted; 500 unexpected persistence failure. |
-| PATCH | 200 with updated `data: Document`. | 400 malformed/empty body, invalid description or dates; 401 unauthenticated; 403 CSRF/Origin; 404 unavailable document/association; 409 lifecycle conflict; 413 body too large; 500 unexpected persistence failure. |
-| Initial upload | 201 with the existing creation receipt. | Existing 400/401/403/404/408/409/413/415/429/503 upload behavior, including invalid description as 400. |
+| Operation      | Success                                          | Expected failures                                                                                                                                                                                                   |
+| -------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| List           | 200 with `data: Document[]` and cursor metadata. | 400 invalid/unsupported query or cursor; 401 unauthenticated; 500 unexpected persistence failure.                                                                                                                   |
+| Detail         | 200 with `data: Document`.                       | 400 invalid UUID/unexpected query; 401 unauthenticated; 404 missing, foreign or deleted; 500 unexpected persistence failure.                                                                                        |
+| PATCH          | 200 with updated `data: Document`.               | 400 malformed/empty body, invalid description or dates; 401 unauthenticated; 403 CSRF/Origin; 404 unavailable document/association; 409 lifecycle conflict; 413 body too large; 500 unexpected persistence failure. |
+| Initial upload | 201 with the existing creation receipt.          | Existing 400/401/403/404/408/409/413/415/429/503 upload behavior, including invalid description as 400.                                                                                                             |
 
 Adding description to upload must preserve the legacy fingerprint when description
 is omitted or normalizes to null. A nonempty description participates in the
 fingerprint. Replaying an old completed key returns its original 201 receipt
 without rewriting it. New upload field-count and byte limits must accommodate
 the bounded field while preserving all file validation and idempotency rules.
+
+## v1.2.0 upload scheduling — Implemented in T07
+
+**Implemented in T07:** successful initial and additional-version uploads now
+schedule a `VERIFY_STORED_FILE` job and transactional outbox message for the
+new immutable version. This is an internal side effect: multipart inputs and
+the existing 201 response bodies are unchanged. Upload-key replay returns the
+original receipt without scheduling another job. The request does not contact
+RabbitMQ or run file verification. A scheduling failure rolls back the version
+and receipt, and the existing upload compensation handles the stored object.
+Actual verification is implemented in T08, and the owned status route is
+implemented in T10. Both remain asynchronous to the upload request.
+
+Archive and soft delete cancel unfinished version jobs atomically with the
+document lifecycle change. Restore schedules a new generation only for a cancelled
+integrity job on the current version. Completed jobs and historical versions are
+not automatically reprocessed. The existing lifecycle response contracts are
+unchanged; processing remains separate from `Document.status`. See the
+[processing policy](phase-3-processing.md#archive-restore-and-deletion--implemented-processing-policy).

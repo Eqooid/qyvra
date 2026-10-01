@@ -18,7 +18,8 @@ npm run typecheck
 ```
 
 The schema contains authentication tables, `categories`, `tags`, `documents`,
-`document_tags`, `document_versions` and `document_uploads`. Apply pending migrations
+`document_tags`, `document_versions`, `document_uploads`, `processing_jobs` and
+`processing_outbox`. Apply pending migrations
 using `npm run migrate:deploy`. Migration `20260914010000_categories` adds owned
 categories and a SQL expression unique index on `(user_id, lower(name))`. Prisma
 does not represent that expression index; preserve the migration SQL and its CHECK
@@ -44,3 +45,20 @@ history. Do not use database reset or
 schema push as part of application startup. All runtime timeouts are supplied by
 the API's validated settings. The adapter owns its pool and closes it on
 `PrismaClient.$disconnect()`.
+
+Migration `20260927010000_processing_persistence` adds version-scoped jobs and
+outbox intents with owner-composite foreign keys, status/retry constraints, and a
+SQL-only partial index permitting at most one active job per version/type.
+Migration `20260927020000_processing_index_names` shortens two index names to
+match Prisma without PostgreSQL identifier truncation.
+`createStoredFileVerificationIntent(tx, input)` creates the first job and outbox
+message in an existing Prisma transaction; the caller controls commit or rollback.
+It is not called by uploads yet. RabbitMQ publishing and workers remain planned.
+`ProcessingRepository` adds owned lookups, idempotent creation, conditional job
+transitions and leases, bounded retry calculation, due/stale queries, and outbox
+claim/publication-state operations. It does not run a scheduler or publisher.
+Run `node --test test/processing-rules.test.cjs test/processing-repository.test.cjs`
+for the T03 rules and real-PostgreSQL repository checks.
+Run `node --test test/processing-migration.test.cjs` against an empty disposable
+`TEST_MIGRATION_DATABASE_URL`, then `node --test test/processing-persistence.test.cjs`
+with `TEST_DATABASE_URL` pointing at the migrated test database.

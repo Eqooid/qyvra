@@ -18,7 +18,10 @@ Compose uses root `.env` for interpolation and explicitly forwards only settings
 its YAML, not the entire file. The container launcher constructs DATABASE_URL from
 POSTGRES_* with encoded credentials and host `postgres:5432`; root DATABASE_URL
 cannot override it. Optional host auth/pool settings below require an explicit
-Compose mapping to affect containers. No environment example change is needed.
+Compose mapping to affect containers. The root example includes optional T04
+broker settings; RabbitMQ is not yet wired into the HTTP API.
+The separate outbox and worker processes use broker settings and the same
+PostgreSQL credentials; no broker secret is forwarded to the HTTP service.
 
 Required means required in the listed context. Defaults apply when omitted;
 API blank/placeholder optional values generally fail validation. Blank CORS_ORIGINS
@@ -26,6 +29,49 @@ is the intentional exception. Remove unused optional entries instead of leaving
 placeholders active. Initialization credentials affect only an empty PostgreSQL volume.
 
 ## Reference
+
+### RabbitMQ transport (implemented in T04)
+
+`RABBITMQ_URL` is optional for the current HTTP API and required for any process
+that imports `MessagingModule` and publishes. It must be an `amqp:` or `amqps:`
+URL with host and credentials; encode credential characters in the URL. The
+default connection timeout is 5000 ms (`RABBITMQ_CONNECT_TIMEOUT_MS`, 1–30000);
+the publisher-confirm timeout defaults to 10000 ms
+(`RABBITMQ_CONFIRM_TIMEOUT_MS`, 1–60000). The canonical Compose broker uses
+`RABBITMQ_USER` (local default `brainless`) and `RABBITMQ_PASSWORD` (local
+fallback to `POSTGRES_PASSWORD`); set a dedicated broker secret for deployment.
+The development override binds `RABBITMQ_PORT` (5672) and
+`RABBITMQ_MANAGEMENT_PORT` (15672) to loopback. `TEST_RABBITMQ_URL` selects an
+isolated broker for the messaging integration test. No credentials are logged.
+
+### Outbox dispatcher (implemented in T05)
+
+`OUTBOX_POLL_INTERVAL_MS` defaults to 1000 (1–60000), `OUTBOX_BATCH_SIZE` to 10
+(1–100), and `OUTBOX_LEASE_MS` to 120000 (1–3600000). The lease must exceed the
+RabbitMQ confirm timeout by at least 5000 ms. These settings apply to the
+independent `outbox` Compose service. Use a migrated disposable `TEST_DATABASE_URL`
+and isolated `TEST_RABBITMQ_URL` for full integration tests. The HTTP service
+does not need `RABBITMQ_URL` to serve document requests.
+
+### Processing retry and recovery (implemented in T09)
+
+The same independent `outbox` process polls PostgreSQL for expired worker leases
+and due processing retries. `PROCESSING_RECOVERY_POLL_INTERVAL_MS` defaults to
+5000 (1–60000) and `PROCESSING_RECOVERY_BATCH_SIZE` defaults to 10 (1–100).
+The expired job lease is the stale threshold; `WORKER_JOB_LEASE_MS` controls its
+duration. No in-memory retry timer or RabbitMQ retry counter is authoritative.
+
+### Dedicated worker (implemented in T06)
+
+`WORKER_PREFETCH` defaults to 2 (1–16) and bounds unacknowledged deliveries
+per worker. `WORKER_JOB_LEASE_MS` defaults to 120000 (1–3600000) and is passed to
+the T03 conditional job claim. `WORKER_RECONNECT_DELAY_MS` defaults to 1000
+(1–60000) and delays reconnection after a transport failure or safe requeue.
+`WORKER_SHUTDOWN_TIMEOUT_MS` defaults to 30000 (1–120000) and bounds the drain
+of in-flight deliveries during shutdown. The worker requires the same validated
+`DATABASE_URL` and `LOCAL_STORAGE_ROOT` as the API plus `RABBITMQ_URL`; Compose
+constructs its database and broker URLs from private credentials. The worker
+has no public HTTP port or processing-status endpoint.
 
 | Variable                       | Purpose                                                          | Required                       | Default                                                    | Example                                | Used by                                          |
 | ------------------------------ | ---------------------------------------------------------------- | ------------------------------ | ---------------------------------------------------------- | -------------------------------------- | ------------------------------------------------ |
@@ -39,7 +85,7 @@ placeholders active. Initialization credentials affect only an empty PostgreSQL 
 | `DATABASE_QUERY_TIMEOUT_MS`    | Driver/server query timeout, 1-1000 ms                           | No                             | 500                                                        | `500`                                  | API                                              |
 | `DATABASE_POOL_SIZE`           | Connections per API process, 1-20                                | No                             | 5                                                          | `5`                                    | API                                              |
 | `STORAGE_PROVIDER`             | Adapter selection; only local accepted                           | No                             | local                                                      | `local`                                | API; Compose fixes local                         |
-| `LOCAL_STORAGE_ROOT`           | Absolute private directory outside/not containing repository     | Yes for API                    | None; Compose fixes /data/brainless                        | `<absolute-private-storage-directory>` | API/local storage                                |
+| `LOCAL_STORAGE_ROOT`           | Absolute private directory outside/not containing repository     | Yes for API and worker         | None; Compose fixes /data/brainless                        | `<absolute-private-storage-directory>` | API and worker/local storage                     |
 | `UPLOAD_MAX_BYTES`             | Maximum file bytes, 1-209715200                                  | No                             | 52428800                                                   | `52428800`                             | API; Compose also web build/Nginx                |
 | `UPLOAD_MAX_PAGES`             | PDF pages, 1-2000                                                | No                             | 500                                                        | `500`                                  | API; Compose maps                                |
 | `UPLOAD_MAX_PIXELS`            | Image pixels, 1-100000000                                        | No                             | 40000000                                                   | `40000000`                             | API; Compose maps                                |
@@ -85,6 +131,19 @@ placeholders active. Initialization credentials affect only an empty PostgreSQL 
 | `NGINX_ENVSUBST_FILTER`        | Restricts Nginx template substitutions                           | Compose fixed                  | ^NGINX_MAX_BODY_BYTES                                      | `^NGINX_MAX_BODY_BYTES`                | Official Nginx image entrypoint                  |
 
 ## Cross-setting rules
+
+Disposable processing progress uses optional `REDIS_URL` (a `redis://` or
+`rediss://` URL; credentials must come from deployment secrets),
+`PROCESSING_PROGRESS_TTL_SECONDS` (1–3600, default 180),
+`REDIS_CONNECT_TIMEOUT_MS` (1–30000, default 500), and
+`REDIS_COMMAND_TIMEOUT_MS` (1–30000, default 500). Compose supplies the internal
+Redis URL to API and worker without making it a required health dependency;
+`REDIS_PORT` controls only the loopback port in the development override.
+`TEST_REDIS_URL` enables real Redis progress integration cases against an isolated
+test instance; omit it to skip only those optional progress cases.
+No URL or credential is logged. If Redis is absent, job processing and status
+continue without live progress. Redis persistence is disabled for the Compose
+progress service.
 
 - Origins exclude paths, trailing slashes, credentials and wildcards. Production
   requires HTTPS origins. The same-origin browser login still needs its Origin allowlisted.

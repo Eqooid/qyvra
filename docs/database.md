@@ -1,13 +1,14 @@
-# Brainless database and storage model - v1.1.0 release candidate
+# Brainless database and storage model — v1.2.0 release candidate
 
 [Documentation index](README.md) | [Architecture](architecture.md)
 
 The [Prisma schema](../packages/database/prisma/schema.prisma) and
-[eleven SQL migrations](../packages/database/prisma/migrations) are authoritative.
+[thirteen SQL migrations](../packages/database/prisma/migrations) are authoritative.
 SQL-only checks, expression indexes and triggers are not fully represented by Prisma.
 Implemented models: User, UserIdentity, LocalCredential, AuthSession,
 ConsumedRefreshToken, Category, Tag, Document, DocumentTag, DocumentVersion and
-DocumentUpload. Binaries live only in private storage. Future entities in the
+DocumentUpload, ProcessingJob and ProcessingOutbox. Binaries live only in
+private storage. Other future entities in the
 [specification](specification.md) are **Planned**, not existing tables.
 
 ```mermaid
@@ -24,6 +25,9 @@ erDiagram
     Document ||--o{ DocumentTag : assigns
     Tag ||--o{ DocumentTag : labels
     Document ||--o{ DocumentVersion : versions
+    Document ||--o{ ProcessingJob : processes
+    DocumentVersion ||--o{ ProcessingJob : targets
+    ProcessingJob ||--o{ ProcessingOutbox : dispatches
 ```
 
 This diagram shows relationships, not a column catalog. Upload receipts intentionally
@@ -38,12 +42,12 @@ field are checked in. Deployment applies the migration before the updated API st
 Existing ERD relationships are unchanged; this release adds no new entity or
 association.
 
-| Area | v1.0.0 schema | Implemented v1.1.0 change |
-| --- | --- | --- |
-| `documents` | Required metadata with no `description` column. | Add nullable `description VARCHAR(2000)` and its CHECK constraint; retain existing rows and all other constraints. |
-| `document_versions` | Owned immutable rows with filename, MIME, size, version number and creation timestamp. | No column or ownership change. Highest `version_number` supplies the current-file summary and file filters/sort. |
-| `categories`, `tags`, `document_tags` | Owner-composite foreign keys, owned category and many-to-many tag joins. | No relationship or uniqueness change. All-of tag filtering uses the existing join. |
-| `document_uploads` | Completed idempotency receipts and fingerprints, independent of live detail. | No table change. Old receipt/fingerprint behavior is retained when description is absent. |
+| Area                                  | v1.0.0 schema                                                                          | Implemented v1.1.0 change                                                                                          |
+| ------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `documents`                           | Required metadata with no `description` column.                                        | Add nullable `description VARCHAR(2000)` and its CHECK constraint; retain existing rows and all other constraints. |
+| `document_versions`                   | Owned immutable rows with filename, MIME, size, version number and creation timestamp. | No column or ownership change. Highest `version_number` supplies the current-file summary and file filters/sort.   |
+| `categories`, `tags`, `document_tags` | Owner-composite foreign keys, owned category and many-to-many tag joins.               | No relationship or uniqueness change. All-of tag filtering uses the existing join.                                 |
+| `document_uploads`                    | Completed idempotency receipts and fingerprints, independent of live detail.           | No table change. Old receipt/fingerprint behavior is retained when description is absent.                          |
 
 Description is trusted owner-entered plain text, distinct from `verified_summary`
 and future AI suggestions. The API trims it, rejects controls and allows at most
@@ -117,7 +121,8 @@ Unique document/version and owner/checksum constraints protect version numbering
 concurrent duplicate upload; checksum and document/createdAt/id indexes support lookup.
 A trigger forbids changing original identity, ownership, file metadata, checksum,
 version, page count or creation timestamp. Only extractionStatus can change later;
-no processing mechanism is added now. Binary bytes are never stored in PostgreSQL.
+T07 scheduling leaves it `PENDING`, and actual extraction is not implemented.
+Binary bytes are never stored in PostgreSQL.
 
 DocumentUpload uses `(user_id,scope,key UUID)` as its primary key and an attempt UUID,
 RECEIVING/COMPLETED state, nullable fingerprint/documentId/JSON response receipt,
@@ -328,11 +333,75 @@ authentication constraint tests insert/update rows inside transactions that alwa
 roll back. Apply the migration to an isolated test database before running them.
 Tests never reset, truncate, or drop existing tables.
 
+## v1.2.0 processing persistence — Implemented in T02
+
+Migration `20260927010000_processing_persistence` adds `processing_jobs` and
+`processing_outbox` without changing existing document columns or applied
+migrations. Follow-up migration `20260927020000_processing_index_names` gives
+two long indexes stable names that match Prisma without PostgreSQL truncation.
+The [Phase 3 processing contract](phase-3-processing.md#job-record-and-lifecycle--implemented)
+and [ADR-002](decisions/ADR-002-durable-processing-outbox-worker.md) describe the
+implemented runtime boundaries.
+
+`processing_jobs` links `document_id`/`user_id` to the existing owned document
+and `(document_version_id, document_id, user_id)` to the exact owned immutable
+version. The latter uses a new unique composite version index; no original
+version fields change. Jobs store type, generation, status, attempts,
+`max_attempts`, `available_at`, optional execution lease/heartbeat, start and
+completion timestamps, safe `last_failure_code`, correlation ID, and timestamps.
+SQL checks enforce the seven implemented statuses, attempt bounds, lease and terminal
+timestamp consistency, and safe failure-code shape. The initial helper creates
+only `VERIFY_STORED_FILE`; the type column uses the existing extensible
+uppercase-string convention for future reviewed types. Unique
+`(document_version_id, job_type, generation)` prevents duplicate generations;
+a SQL-only partial unique index additionally prevents two active equivalent
+jobs across different generations. Indexes cover owned version reads, due jobs,
+and expired leases. Hard deletion cascades these records; soft deletion changes
+neither table automatically in T02.
+
+`processing_outbox` links to a job and stores message ID, event type, schema
+version, dispatch sequence, a compact JSON envelope, correlation ID, due time,
+publication attempts/status, optional claim lease, safe failure code, and
+timestamps. Checks require a valid envelope identity, nonnegative publication
+attempts, and consistent `PENDING`/`PUBLISHED` timestamp state. Unique
+`(processing_job_id, event_type, dispatch_sequence)` prevents duplicate
+dispatch intents. Indexes cover due unpublished entries and expired claims.
+
+`createStoredFileVerificationIntent(tx, input)` in the shared database package
+creates both rows within a **caller-supplied Prisma transaction**. Rolling back
+that transaction removes both. **Implemented in T07:** both initial and later
+version uploads call T03 `ProcessingRepository.createInTransaction` from their
+shared commit transaction. Version, job, outbox and completed receipt therefore
+commit or roll back together; an upload-key replay adds no new job. T03 takes
+the document row lock before the processing advisory lock, matching the upload
+transaction's lock order to avoid cross-path deadlock. `document_uploads` remains the
+upload-idempotency receipt table. `documents.status` remains a business lifecycle
+field, and `document_versions.extraction_status` stays `PENDING` after upload.
+RabbitMQ transport and T05 outbox dispatch are implemented, but neither owns
+processing-job retry state; T11 Redis progress is disposable and introduces no
+database fields or retry authority. Outbox publication failures
+retain `PENDING`, increment `publication_attempts` on each claim, and move
+`available_at` by capped backoff. Expired leases can be reclaimed by another
+dispatcher. The schema has no terminal publication-failure status or automatic
+outbox deletion; committed intent remains inspectable until confirmed.
+Existing versions
+need a later resumable backfill policy rather than migration-time job creation.
+
+**Implemented in T03, with no new migration:** the shared processing repository
+serializes equivalent creation, checks owned active version membership, and uses
+conditional updates with lease tokens for claims, outcomes, and outbox publication
+state. Query operations use the T02 due-time and expired-lease indexes. Each
+successful claim increments `attempts`; retry delay and safe failure codes are
+stored in PostgreSQL. Archive and soft-delete handlers call the transaction-scoped
+cancellation operation, clearing unfinished jobs' leases atomically with the document
+change. Restore creates a new job generation and outbox intent only when the current
+version's latest integrity job was cancelled. Completed work and historical versions
+are not automatically reprocessed. No additional migration is required for this rule.
 
 ## Planned storage and entities
 
-Extraction/chunks, jobs, reminders, AI profiles, chat, search indexes and permanent
-purge are **Not Implemented**. The broader catalog remains in the
+Extraction/chunks, reminders, AI profiles, chat, search indexes
+and permanent purge are **Not Implemented**. The broader catalog remains in the
 [planned specification](specification.md). The current status vocabulary anticipates
 processing, but new uploads remain UPLOADED/PENDING. See [feature guides](README.md#features),
 [local migration setup](development/getting-started.md) and [storage contract](../packages/storage/README.md).

@@ -1,12 +1,14 @@
-# Brainless architecture - v1.0.0
+# Brainless architecture — v1.2.0 release candidate
 
 [Documentation index](README.md) | [Release snapshot](releases/v1.0.0.md)
 
 ## Runtime overview
 
-Brainless is a modular monolith: one NestJS API and one Next.js application, with
-PostgreSQL as the system of record and a private filesystem for original binaries.
-The local Compose deployment contains four long-running services and a migration task.
+Brainless is a modular monolith: a NestJS HTTP API, separate outbox and worker
+processes, and a Next.js application. PostgreSQL is the durable system of record;
+private file storage holds originals. RabbitMQ transports processing messages and
+Redis holds optional disposable progress. The local Compose deployment also runs
+Nginx and a one-shot migration task.
 
 ```mermaid
 flowchart TD
@@ -15,6 +17,14 @@ flowchart TD
     Nginx -->|"/api/ unchanged"| API[NestJS :3001]
     API -->|Prisma| DB[(PostgreSQL 17)]
     API -->|Storage interface| Files[(Private storage_data volume)]
+    API -->|version + job + outbox transaction| DB
+    Outbox[Outbox dispatcher and recovery] -->|due intents and retries| DB
+    Outbox -->|confirmed publish| MQ[(RabbitMQ)]
+    MQ -->|manual acknowledgement| Worker[Dedicated worker]
+    Worker -->|job state| DB
+    Worker -->|read-only original| Files
+    Worker -.->|temporary progress| Redis[(Redis)]
+    API -.->|optional progress| Redis
     Migrate[One-shot Prisma migrations] --> DB
     DB --- Data[(postgres_data volume)]
 ```
@@ -116,3 +126,41 @@ metadata and private files. They must preserve authenticated ownership filters
 and can expose separate ranked search contracts when implemented. The v1.1.0
 catalog keeps its explicit metadata filters and cursor contract; it requires no
 Elasticsearch, Qdrant, embedding provider, broker, Redis or AI adapter.
+
+## v1.2.0 processing boundary — implemented foundation
+
+The runtime overview above includes the implemented Phase 3 deployment. The
+[Phase 3 processing contract](phase-3-processing.md) distinguishes implemented
+jobs, outbox delivery, worker transport, integrity execution, PostgreSQL
+recovery, owned status reads, and implemented disposable Redis progress.
+[ADR-002](decisions/ADR-002-durable-processing-outbox-worker.md) records why
+these components share that boundary. **Implemented in T02/T03:** PostgreSQL
+schema, atomic job/outbox creation, and conditional lifecycle/retry/outbox
+repository operations. **Implemented in T04:** a transport-neutral publisher
+interface, RabbitMQ adapter and broker service in Compose. **Implemented in T05:** a separate outbox process relays committed
+intents to RabbitMQ with confirmation; the HTTP API does not publish directly.
+**Implemented in T06:** a separate, non-HTTP worker context consumes the processing
+queue, validates messages, and uses the T03 job boundary. **Implemented in T07:** the shared upload commit
+transaction creates a version-specific verification job and outbox intent for
+initial and later versions. RabbitMQ and worker availability do not gate upload
+success. **Implemented in T08:** a production handler streams the original through
+private storage and checks immutable size and SHA-256, returning an outcome for T03
+to persist. **Implemented in T09:** the outbox runtime also polls PostgreSQL for
+due retries and expired worker leases, creating new durable outbox intents without
+publishing directly. **Implemented in T10:** the owned read-only API follows
+client → processing-status controller → query service/repository → PostgreSQL.
+**Implemented in T11:** the worker reports expiring, attempt-scoped progress
+through an infrastructure-neutral interface; the owned API reads it only after
+PostgreSQL ownership and active-state checks. Redis loss removes optional progress
+only. **Implemented in T12:** document detail and inspected version history
+consume the owned processing API through the shared frontend client and bounded
+TanStack Query polling. The catalog does not issue one status request per row.
+See the [processing contract](phase-3-processing.md)
+for topology and confirm semantics.
+
+Document lifecycle state and background job state have different purposes.
+`Document.status` continues to describe the document and archive state; it must
+not be used to represent a running worker. The first implemented worker operation
+verifies stored-file integrity. Extraction and search indexes are outside this
+foundation. Future ranked retrieval must preserve owner filtering and remain
+separate from the existing catalog cursor contract.
