@@ -54,7 +54,7 @@ Soft deletion/archive do not call storage delete. Every version's bytes remain; 
 
 For host development provision `LOCAL_STORAGE_ROOT` outside the repository, accessible only to trusted application users. Do not place it in web `public`, mount it into Nginx, or choose a directory containing unrelated data.
 
-Compose mounts `storage_data` only into API at `/data/brainless`. The API image provisions that directory for non-root `node` with private permissions; existing volume ownership is not recursively rewritten. Host storage and Compose storage are independent. See [Docker operations](12-docker-nginx.md) for diagnosing permissions and preserving volumes.
+Compose mounts `storage_data` only into API at `/data/qyvra`. The API image provisions that directory for non-root `node` with private permissions; existing volume ownership is not recursively rewritten. Host storage and Compose storage are independent. See [Docker operations](12-docker-nginx.md) for diagnosing permissions and preserving volumes.
 
 Back up PostgreSQL and original files at the same maintenance point with writers stopped. Database-only backups cannot reconstruct binaries; filesystem-only backups cannot reconstruct ownership/metadata. The [Compose runbook](../compose.md#persistence-and-manual-backups) contains manual backup commands. There is no automated backup/restore system in this release.
 

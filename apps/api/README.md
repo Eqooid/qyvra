@@ -1,4 +1,4 @@
-# Brainless API
+# QYVRA API
 
 NestJS REST API for **v1.0.0 / completed Phase 1**. Implemented business modules are
 Auth, Categories, Tags and Documents, with Health, Configuration, Observability,

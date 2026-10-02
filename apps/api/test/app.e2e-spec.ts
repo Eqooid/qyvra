@@ -78,7 +78,7 @@ describe('API foundation (e2e)', () => {
   it('serves information under /api/v1 with a request ID', async () => {
     const response = await request(server).get('/api/v1').expect(200);
     expect(response.body).toEqual({
-      data: { name: 'Brainless API', apiVersion: 'v1' },
+      data: { name: 'QYVRA API', apiVersion: 'v1' },
       meta: { requestId: response.headers['x-request-id'] },
     });
     expect(response.headers['x-request-id']).toMatch(/^[0-9a-f-]{36}$/);

@@ -1,4 +1,4 @@
-# Brainless product and technical specification
+# QYVRA product and technical specification
 
 > **Planned target specification**, prepared 5 September 2026. This document preserves
 > the broader product requirements and proposed architecture; it is not a list of
@@ -36,7 +36,7 @@ API-first reference architecture for NestJS, PostgreSQL, RabbitMQ, Redis, Elasti
 | Primary audience | Owner/developer and future contributors       |
 | Architecture     | Modular monolith API plus asynchronous worker |
 
-| **Recommended starting point:** Build the core Brainless document-management functionality first. Add RabbitMQ processing, AI, Qdrant, and Elasticsearch in deliberate phases rather than starting with every service enabled. |
+| **Recommended starting point:** Build the core QYVRA document-management functionality first. Add RabbitMQ processing, AI, Qdrant, and Elasticsearch in deliberate phases rather than starting with every service enabled. |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 
 The feature and endpoint catalogs describe the target product, not completed work.
@@ -88,7 +88,7 @@ The detailed [API contract](api.md) governs implemented authentication behavior.
 
 ## 1.1 Vision
 
-Brainless is a personal knowledge and document-management application. Its current implementation focuses on securely organizing, processing, searching, and discussing personal documents. It supports conventional metadata management first, then adds AI-assisted extraction, semantic retrieval, summaries, and document-grounded question answering.
+QYVRA is a personal knowledge and document-management application. Its current implementation focuses on securely organizing, processing, searching, and discussing personal documents. It supports conventional metadata management first, then adds AI-assisted extraction, semantic retrieval, summaries, and document-grounded question answering.
 
 ## 1.2 Problem statement
 
@@ -1205,5 +1205,5 @@ documentDate: 2026-08-10</th>
 | Keycloak      | Schema-ready but deferred                                | MFA, federation, SSO, or multi-app auth is needed |
 | Multitenancy  | Single-owner user scoping                                | Household/team sharing becomes a real requirement |
 
-| **Implementation principle:** Finish useful Brainless document-management functionality before optimizing it into a distributed system. Each added service must unlock a concrete capability and have a defined failure mode. |
+| **Implementation principle:** Finish useful QYVRA document-management functionality before optimizing it into a distributed system. Each added service must unlock a concrete capability and have a defined failure mode. |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

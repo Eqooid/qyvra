@@ -1,4 +1,4 @@
-import type { ProcessingMessageV1 } from '@brainless/database';
+import type { ProcessingMessageV1 } from '@qyvra/database';
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const fields = [

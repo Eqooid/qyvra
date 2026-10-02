@@ -52,7 +52,7 @@ version upload, so using it for background work would change existing behavior.
 
 ```mermaid
 flowchart LR
-    UI[Frontend] --> API[Brainless API]
+    UI[Frontend] --> API[QYVRA API]
     API -->|short transaction: version, job, outbox, receipt| PG[(PostgreSQL)]
     API -->|existing upload path| Files[(Private storage)]
     Relay[Outbox publisher] -->|claim due intent| PG
@@ -68,7 +68,7 @@ flowchart LR
 Job and outbox tables and T03 management operations exist. T04–T06 implement the
 publisher, RabbitMQ, and consumer edges; T07 implements upload scheduling; T08
 implements real file verification; T09 implements recovery; T11 adds disposable
-progress. The frontend calls only the Brainless API; it does not connect to the
+progress. The frontend calls only the QYVRA API; it does not connect to the
 broker, worker, or Redis.
 
 ## Transactional scheduling and delivery — upload integration implemented in T07
@@ -513,7 +513,7 @@ Refreshing preserves the last status rather than flashing a loading skeleton.
 A status-fetch error shows a small retry action without hiding document content or
 pretending the job itself failed. Status and progress use text and the existing
 accessible Badge/Progress controls, design tokens, and wrapping layouts. The
-frontend calls only the Brainless-owned processing API and never contacts Redis,
+frontend calls only the QYVRA-owned processing API and never contacts Redis,
 RabbitMQ, workers, or the outbox directly.
 
 ## Intended guarantees and operational limits — implemented foundation

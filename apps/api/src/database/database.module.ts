@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { createPrismaClient } from '@brainless/database';
+import { createPrismaClient } from '@qyvra/database';
 import {
   ConfigurationModule,
   ConfigurationService,

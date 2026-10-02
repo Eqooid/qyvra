@@ -1,4 +1,4 @@
-# Brainless web
+# QYVRA web
 
 **v1.0.0 / Phase 1 released; v1.1.0 / Phase 2 release-ready.** Start with [onboarding](../../docs/development/getting-started.md),
 [feature guides](../../docs/README.md#features), [test commands](../../docs/development/testing.md)

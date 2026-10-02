@@ -1,5 +1,9 @@
 # Account settings and real Phase 1 browser verification
 
+> The Docker namespace and commands below preserve the original Phase 1
+> verification context. Current runs use `qyvra-e2e` and `.tools/qyvra-e2e.env`;
+> follow [current testing](development/testing.md) and [Docker migration](docker-rename.md).
+
 ## Account settings
 
 `/settings` is protected by the existing authenticated layout and is linked from
@@ -81,7 +85,7 @@ Generated reports, test results and environment files are ignored and excluded f
 production images. No test performs a database reset or volume deletion.
 
 **Destructive, optional cleanup:** only after inspecting the project name, this
-removes the isolated test database and uploaded fixtures, never normal Brainless data:
+removes the isolated test database and uploaded fixtures, never normal QYVRA data:
 
 ```sh
 docker compose -p brainless-e2e --env-file .tools/brainless-e2e.env -f docker-compose.yml -f infrastructure/e2e/compose.yml down --volumes

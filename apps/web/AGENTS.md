@@ -1,4 +1,4 @@
-# Brainless Web — Agent Instructions
+# QYVRA Web — Agent Instructions
 
 These instructions extend the repository-root `AGENTS.md` for `apps/web`.
 

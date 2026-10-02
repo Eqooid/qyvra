@@ -1,4 +1,4 @@
-# 16 · Extending Brainless consistently
+# 16 · Extending QYVRA consistently
 
 [Guide index](README.md) · [Where do I change...?](03-repository-structure.md#where-do-i-change) · [Testing](13-testing.md)
 

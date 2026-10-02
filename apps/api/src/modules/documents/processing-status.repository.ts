@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@brainless/database';
+import { Prisma } from '@qyvra/database';
 import { PrismaService } from '../../database/prisma.service';
 
 const statusJob = {

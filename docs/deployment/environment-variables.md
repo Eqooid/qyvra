@@ -1,5 +1,16 @@
 # Environment variables
 
+Docker defaults to project `qyvra`. Before switching an existing installation,
+follow [the Docker namespace migration](../docker-rename.md) to preserve its data.
+
+| Compose migration variable | Default | Purpose |
+| --- | --- | --- |
+| `POSTGRES_VOLUME_NAME` | `<project>_postgres_data` | Explicit existing PostgreSQL volume name. |
+| `STORAGE_VOLUME_NAME` | `<project>_storage_data` | Explicit existing uploaded-file volume name. |
+| `RABBITMQ_VOLUME_NAME` | `<project>_rabbitmq_data` | Explicit existing broker volume name. |
+| `PERSISTENT_VOLUMES_EXTERNAL` | `false` | Set `true` when mapping all three existing volumes; fails if any is absent. |
+| `RABBITMQ_HOSTNAME` | `rabbitmq` | Preserve the old container hostname when reusing persisted broker node data. |
+
 [Documentation index](../README.md) | [Host setup](../development/getting-started.md) | [Compose](../compose.md)
 
 Sources: [root example](../../.env.example), [web example](../../apps/web/.env.example),
@@ -38,7 +49,7 @@ URL with host and credentials; encode credential characters in the URL. The
 default connection timeout is 5000 ms (`RABBITMQ_CONNECT_TIMEOUT_MS`, 1–30000);
 the publisher-confirm timeout defaults to 10000 ms
 (`RABBITMQ_CONFIRM_TIMEOUT_MS`, 1–60000). The canonical Compose broker uses
-`RABBITMQ_USER` (local default `brainless`) and `RABBITMQ_PASSWORD` (local
+`RABBITMQ_USER` (local default `qyvra`) and `RABBITMQ_PASSWORD` (local
 fallback to `POSTGRES_PASSWORD`); set a dedicated broker secret for deployment.
 The development override binds `RABBITMQ_PORT` (5672) and
 `RABBITMQ_MANAGEMENT_PORT` (15672) to loopback. `TEST_RABBITMQ_URL` selects an
@@ -76,7 +87,7 @@ has no public HTTP port or processing-status endpoint.
 | Variable                       | Purpose                                                          | Required                       | Default                                                    | Example                                | Used by                                          |
 | ------------------------------ | ---------------------------------------------------------------- | ------------------------------ | ---------------------------------------------------------- | -------------------------------------- | ------------------------------------------------ |
 | `NODE_ENV`                     | API mode; development/test/production                            | No                             | development                                                | `development`                          | API; Compose maps API mode, web fixed production |
-| `APP_NAME`                     | Public API name, 1-100 characters                                | No                             | Brainless API                                              | `Brainless API`                        | API                                              |
+| `APP_NAME`                     | Public API name, 1-100 characters                                | No                             | QYVRA API                                              | `QYVRA API`                        | API                                              |
 | `HTTP_HOST`                    | IPv4/IPv6 bind address                                           | No                             | 0.0.0.0                                                    | `127.0.0.1`                            | API; Compose fixes 0.0.0.0                       |
 | `PORT`                         | Listening port, 1-65535                                          | No                             | 3001 API; 3000 web                                         | `3001`                                 | API; Compose fixes API 3001/web 3000             |
 | `HTTP_BODY_LIMIT_BYTES`        | JSON body cap, 1-1048576 bytes                                   | No                             | 16384                                                      | `16384`                                | API                                              |
@@ -85,7 +96,7 @@ has no public HTTP port or processing-status endpoint.
 | `DATABASE_QUERY_TIMEOUT_MS`    | Driver/server query timeout, 1-1000 ms                           | No                             | 500                                                        | `500`                                  | API                                              |
 | `DATABASE_POOL_SIZE`           | Connections per API process, 1-20                                | No                             | 5                                                          | `5`                                    | API                                              |
 | `STORAGE_PROVIDER`             | Adapter selection; only local accepted                           | No                             | local                                                      | `local`                                | API; Compose fixes local                         |
-| `LOCAL_STORAGE_ROOT`           | Absolute private directory outside/not containing repository     | Yes for API and worker         | None; Compose fixes /data/brainless                        | `<absolute-private-storage-directory>` | API and worker/local storage                     |
+| `LOCAL_STORAGE_ROOT`           | Absolute private directory outside/not containing repository     | Yes for API and worker         | None; Compose fixes /data/qyvra                        | `<absolute-private-storage-directory>` | API and worker/local storage                     |
 | `UPLOAD_MAX_BYTES`             | Maximum file bytes, 1-209715200                                  | No                             | 52428800                                                   | `52428800`                             | API; Compose also web build/Nginx                |
 | `UPLOAD_MAX_PAGES`             | PDF pages, 1-2000                                                | No                             | 500                                                        | `500`                                  | API; Compose maps                                |
 | `UPLOAD_MAX_PIXELS`            | Image pixels, 1-100000000                                        | No                             | 40000000                                                   | `40000000`                             | API; Compose maps                                |
@@ -114,13 +125,13 @@ has no public HTTP port or processing-status endpoint.
 | `COOKIE_REFRESH_PATH`          | Refresh scope: /, /api, /api/v1 or /api/v1/auth                  | No                             | /api/v1/auth                                               | `/api/v1/auth`                         | API; Compose fixes /api/v1/auth                  |
 | `COOKIE_SECURE`                | Secure cookie policy, literal true/false                         | No; must be true in production | true in production, otherwise false; Compose default false | `false (local HTTP only)`              | API; Compose maps                                |
 | `COOKIE_SAME_SITE`             | lax, strict or none                                              | No                             | lax                                                        | `lax`                                  | API; Compose fixes lax                           |
-| `POSTGRES_USER`                | Database initialization role; preserve existing value            | Yes for Compose                | None (example uses brainless)                              | `brainless`                            | Postgres image; API/migration launcher           |
+| `POSTGRES_USER`                | Database initialization role; preserve existing value            | Yes for Compose                | None (example uses qyvra)                              | `qyvra`                            | Postgres image; API/migration launcher           |
 | `POSTGRES_PASSWORD`            | Database initialization credential; preserve existing value      | Yes for Compose                | None                                                       | `<replace-with-a-local-password>`      | Postgres image; API/migration launcher           |
-| `POSTGRES_DB`                  | Database initialization name; preserve existing value            | Yes for Compose                | None (example uses brainless)                              | `brainless`                            | Postgres image; API/migration launcher           |
+| `POSTGRES_DB`                  | Database initialization name; preserve existing value            | Yes for Compose                | None (example uses qyvra)                              | `qyvra`                            | Postgres image; API/migration launcher           |
 | `POSTGRES_PORT`                | Loopback database port in dev override                           | No                             | 5432                                                       | `5432`                                 | docker-compose.dev.yml only                      |
 | `NGINX_PORT`                   | Loopback published HTTP port                                     | No                             | 8080                                                       | `8080`                                 | Compose                                          |
 | `PUBLIC_APP_URL`               | Exact public browser origin; change with NGINX_PORT              | No                             | http://localhost:8080                                      | `http://localhost:8080`                | Compose API Origin allowlist                     |
-| `COMPOSE_PROJECT_NAME`         | Compose project/volume namespace; keep stable                    | No                             | Compose directory-derived project name                     | `brainless`                            | Docker Compose (or use -p)                       |
+| `COMPOSE_PROJECT_NAME`         | Compose project/volume namespace; keep stable                    | No                             | Top-level Compose name qyvra                     | `qyvra`                            | Docker Compose (or use -p)                       |
 | `NEXT_PUBLIC_API_BASE_URL`     | Public browser API base including /api/v1                        | For direct host API            | /api/v1; Docker build fixes this                           | `http://localhost:3001/api/v1`         | Next.js browser build                            |
 | `NEXT_PUBLIC_UPLOAD_MAX_BYTES` | Public UX size limit; align with API                             | No                             | 52428800; Compose build uses UPLOAD_MAX_BYTES              | `52428800`                             | Next.js browser build                            |
 | `TEST_DATABASE_URL`            | Separately migrated isolated PostgreSQL database                 | For API integration tests      | None                                                       | `<isolated-test-postgresql-url>`       | API test:integration                             |
@@ -156,6 +167,6 @@ progress service.
 - Process-local throttling does not trust forwarding headers. Proxied clients share
   the proxy peer's budget. See [deployment limitations](../compose.md#environment-and-cookies).
 
-The isolated browser runner owns its generated `.tools/brainless-e2e.env` and
+The isolated browser runner owns its generated `.tools/qyvra-e2e.env` and
 [test Compose overrides](../../infrastructure/e2e/compose.yml). Its generated
 credentials are not developer configuration; see [browser setup](../phase-1-browser-verification.md).

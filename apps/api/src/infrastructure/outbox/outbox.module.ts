@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ProcessingRepository } from '@brainless/database';
+import { ProcessingRepository } from '@qyvra/database';
 import {
   ConfigurationModule,
   ConfigurationService,

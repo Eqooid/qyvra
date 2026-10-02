@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@brainless/database';
+import { Prisma } from '@qyvra/database';
 import { PrismaService } from '../../database/prisma.service';
 import { PaginatedData } from '../../common/paginated-data';
 import { VersionListQuery, VersionView } from './versions.dto';

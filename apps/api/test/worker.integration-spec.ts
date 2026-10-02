@@ -9,7 +9,7 @@ import {
   ProcessingRepository,
   type PrismaClient,
   type ProcessingMessageV1,
-} from '@brainless/database';
+} from '@qyvra/database';
 import {
   RabbitMqConsumer,
   type ProcessingDeliveryHandler,
@@ -172,7 +172,7 @@ describeInfrastructure('dedicated worker infrastructure', () => {
     process.env.RABBITMQ_URL = brokerUrl;
     process.env.LOCAL_STORAGE_ROOT = join(
       tmpdir(),
-      'brainless-worker-test-storage',
+      'qyvra-worker-test-storage',
     );
     try {
       const app = await NestFactory.createApplicationContext(WorkerModule, {

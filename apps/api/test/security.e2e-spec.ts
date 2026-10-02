@@ -47,7 +47,7 @@ describe('HTTP security boundaries', () => {
   it('documents implemented routes and shared error envelopes without planned business endpoints', async () => {
     await start();
     const result = await request(server).get('/api/v1/docs-json').expect(200);
-    expect(result.body.info.title).toBe('Brainless API');
+    expect(result.body.info.title).toBe('QYVRA API');
     expect(result.body.paths['/api/v1'].get.responses['200']).toBeDefined();
     expect(
       result.body.paths['/api/v1/auth/login'].post.responses['429'].content[

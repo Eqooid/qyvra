@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { ProcessingRepository } from '@brainless/database';
-import { STORAGE, type Storage } from '@brainless/storage';
+import { ProcessingRepository } from '@qyvra/database';
+import { STORAGE, type Storage } from '@qyvra/storage';
 import {
   ConfigurationModule,
   ConfigurationService,

@@ -4,7 +4,7 @@ import {
   OnApplicationShutdown,
   OnModuleInit,
 } from '@nestjs/common';
-import { PrismaClient } from '@brainless/database';
+import { PrismaClient } from '@qyvra/database';
 
 /**
  * @author Cristono Wijaya

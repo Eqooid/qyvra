@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { createPrismaClient } from '@brainless/database';
+import { createPrismaClient } from '@qyvra/database';
 import { DatabaseModule } from '../src/database/database.module';
 import { PrismaService } from '../src/database/prisma.service';
 import { settings } from '../src/configuration/configuration.module';

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { createPrismaClient, Prisma, PrismaClient } from '@brainless/database';
+import { createPrismaClient, Prisma, PrismaClient } from '@qyvra/database';
 import { validateTestEnvironment } from './configuration.fixture';
 
 describe('nullable document description (migrated PostgreSQL)', () => {

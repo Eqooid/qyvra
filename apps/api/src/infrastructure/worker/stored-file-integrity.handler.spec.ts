@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { Readable } from 'node:stream';
-import type { PrismaClient } from '@brainless/database';
-import { Storage, StorageError } from '@brainless/storage';
+import type { PrismaClient } from '@qyvra/database';
+import { Storage, StorageError } from '@qyvra/storage';
 import { StoredFileIntegrityHandler } from './stored-file-integrity.handler';
 import type { ProcessingProgressStore } from '../progress/processing-progress';
 

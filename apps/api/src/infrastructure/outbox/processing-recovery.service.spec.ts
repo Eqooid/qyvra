@@ -1,7 +1,4 @@
-import {
-  ProcessingError,
-  type ProcessingRepository,
-} from '@brainless/database';
+import { ProcessingError, type ProcessingRepository } from '@qyvra/database';
 import { ProcessingRecovery } from './processing-recovery.service';
 
 const now = new Date('2026-09-29T10:00:00.000Z');

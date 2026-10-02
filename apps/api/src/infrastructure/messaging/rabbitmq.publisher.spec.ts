@@ -2,7 +2,7 @@ import {
   RabbitMqPublisher,
   MessagingTransportError,
 } from './rabbitmq.publisher';
-import type { ProcessingMessageV1 } from '@brainless/database';
+import type { ProcessingMessageV1 } from '@qyvra/database';
 
 const sampleMessage: ProcessingMessageV1 = {
   schemaVersion: 1,

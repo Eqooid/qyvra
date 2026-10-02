@@ -3,7 +3,7 @@ import {
   ProcessingError,
   ProcessingRepository,
   type ProcessingMessageV1,
-} from '@brainless/database';
+} from '@qyvra/database';
 import { ProcessingProgressStore } from '../progress/processing-progress';
 
 export type DeliveryDecision = 'ack' | 'dead-letter' | 'retry';

@@ -10,7 +10,7 @@ import * as Busboy from 'busboy';
 import { Readable, Transform } from 'node:stream';
 import { finished } from 'node:stream/promises';
 import { createHash } from 'node:crypto';
-import { Storage, originalDocumentKey } from '@brainless/storage';
+import { Storage, originalDocumentKey } from '@qyvra/storage';
 import { UpdateDocumentDto } from './documents.dto';
 import { ApiConfiguration } from '../../configuration/settings';
 

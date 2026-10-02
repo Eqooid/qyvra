@@ -1,6 +1,6 @@
 # Shared streaming storage
 
-`@brainless/storage` is an independent npm package, matching `packages/database`.
+`@qyvra/storage` is an independent npm package, matching `packages/database`.
 Use Node 24+. Run `npm ci`, `npm run build`, `npm test`, and
 `npm run test:integration` here. Tests use only isolated `mkdtemp` directories.
 
@@ -73,7 +73,7 @@ directory outside the repository, not an ancestor containing it. Unsupported
 providers, placeholders and invalid roots fail startup. A host-run API uses that
 host directory; it does not share Docker's volume automatically.
 
-The canonical Compose stack mounts `storage_data` at `/data/brainless` in the API
+The canonical Compose stack mounts `storage_data` at `/data/qyvra` in the API
 only. No public static server or web mount exists. Keep the existing Compose project
 name and `postgres_data` volume. Compose builds DATABASE_URL from POSTGRES_*, runs
 migrations automatically, and starts Nginx/web/API with `docker compose up --build`.

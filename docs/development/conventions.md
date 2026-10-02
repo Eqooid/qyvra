@@ -34,7 +34,7 @@ from agent instructions in `AGENTS.md`.
 
 ## Versioning
 
-Brainless uses Semantic Versioning: `MAJOR.MINOR.PATCH`.
+QYVRA uses Semantic Versioning: `MAJOR.MINOR.PATCH`.
 
 | Part  | Use                                                                            |
 | ----- | ------------------------------------------------------------------------------ |

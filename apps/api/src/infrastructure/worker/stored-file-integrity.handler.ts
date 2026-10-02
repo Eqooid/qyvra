@@ -1,7 +1,7 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaClient } from '@brainless/database';
-import { Storage, StorageError, validateStorageKey } from '@brainless/storage';
+import { PrismaClient } from '@qyvra/database';
+import { Storage, StorageError, validateStorageKey } from '@qyvra/storage';
 import type {
   HandlerResult,
   ProcessingJobHandler,

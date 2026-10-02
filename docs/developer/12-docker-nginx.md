@@ -22,7 +22,7 @@ flowchart LR
 | -------- | --------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------- |
 | postgres | postgres:17-alpine; internal 5432       | `pg_isready`, 5s interval                                                          | `postgres_data` at /var/lib/postgresql/data |
 | migrate  | API Dockerfile `migration` target       | Starts after database healthy; exit 0 gates API                                    | SQL migrations on database; no file mount   |
-| api      | Node 24 `runtime` target; internal 3001 | PostgreSQL healthy + migration success; readiness fetch and root read/write access | API-only `storage_data` at /data/brainless  |
+| api      | Node 24 `runtime` target; internal 3001 | PostgreSQL healthy + migration success; readiness fetch and root read/write access | API-only `storage_data` at /data/qyvra  |
 | web      | Node 24 Next standalone; internal 3000  | `/login` health fetch; no database dependency                                      | No private document files                   |
 | nginx    | nginx:1.28-alpine; internal 80          | Waits for API/web health; probes both routed endpoints                             | No private file mount                       |
 
@@ -104,7 +104,7 @@ There is no non-destructive command that also empties the database/files. Do not
 docker compose exec api node --version
 docker compose exec api qpdf --version
 docker compose exec api node -e "fetch('http://127.0.0.1:3001/api/v1/health/ready').then(r=>console.log(r.status))"
-docker compose exec api node -e "require('node:fs').accessSync('/data/brainless',6); console.log('Storage root is readable and writable')"
+docker compose exec api node -e "require('node:fs').accessSync('/data/qyvra',6); console.log('Storage root is readable and writable')"
 ```
 
 For host-run source watchers:

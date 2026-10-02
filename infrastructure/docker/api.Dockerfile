@@ -38,7 +38,7 @@ COPY --from=build /app/packages/database/package.json /app/packages/database/pac
 COPY --from=build /app/packages/storage/dist /app/packages/storage/dist
 COPY --from=build /app/packages/storage/package.json /app/packages/storage/package.json
 COPY infrastructure/docker/database-command.cjs /app/infrastructure/docker/database-command.cjs
-RUN mkdir -p /data/brainless && chown node:node /data/brainless && chmod 700 /data/brainless
+RUN mkdir -p /data/qyvra && chown node:node /data/qyvra && chmod 700 /data/qyvra
 COPY infrastructure/docker/outbox-command.cjs /app/infrastructure/docker/outbox-command.cjs
 COPY infrastructure/docker/worker-command.cjs /app/infrastructure/docker/worker-command.cjs
 USER node

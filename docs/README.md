@@ -1,4 +1,4 @@
-# Brainless documentation
+# QYVRA documentation
 
 **Phase 1 / v1.0.0 is released; Phase 2 / v1.1.0 has a locally verified release tag.**
 Start with [getting started](development/getting-started.md). These guides describe
@@ -52,6 +52,8 @@ remaining limitations; v1.2.0 is not yet a tagged release.
 
 ## Deployment
 
+- [Docker namespace migration to QYVRA and preserved development data](docker-rename.md)
+- [QYVRA rename, retained identifiers and repository follow-up](qyvra-rename.md)
 - [Docker Compose, Nginx, migrations, backups and troubleshooting](compose.md)
 - [Environment variables](deployment/environment-variables.md)
 

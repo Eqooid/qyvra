@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
 import { connect, type ChannelModel, type ConfirmChannel } from 'amqplib';
-import type { ProcessingMessageV1 } from '@brainless/database';
+import type { ProcessingMessageV1 } from '@qyvra/database';
 import type { MessagePublisher } from './message-publisher';
 import { serializeProcessingMessage } from './processing-message';
 import {

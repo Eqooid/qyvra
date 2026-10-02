@@ -81,6 +81,8 @@ test("Phase 1: account, document workflow, isolation and persistence through Ngi
     await test.step("registration, cookie authentication, logout and session persistence", async () => {
       await page.goto("/documents")
       await expect(page).toHaveURL(/\/login$/)
+      await expect(page).toHaveTitle("Log in | QYVRA")
+      await expect(page.getByText("QYVRA", { exact: true })).toBeVisible()
       await register(page, email, secret)
       const cookies = await page.context().cookies()
       expect(
@@ -262,7 +264,7 @@ test("Phase 1: account, document workflow, isolation and persistence through Ngi
       await expect(page.getByText(categoryName, { exact: true })).toBeVisible()
       await download(page, image, "first.png")
       expect(await page.locator("body").innerText()).not.toMatch(
-        /storageKey|\/data\/brainless/
+        /storageKey|\/data\/(?:qyvra|brainless)/
       )
     })
     await test.step("metadata editing and version history retain immutable files", async () => {

@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { LocalFileStorage, STORAGE, Storage } from '@brainless/storage';
+import { LocalFileStorage, STORAGE, Storage } from '@qyvra/storage';
 import {
   ConfigurationModule,
   ConfigurationService,

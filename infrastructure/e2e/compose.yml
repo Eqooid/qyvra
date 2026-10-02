@@ -1,4 +1,4 @@
-# This override is used only with the explicit brainless-e2e project.
+# This override is used only with the explicit qyvra-e2e project.
 services:
   api:
     environment:

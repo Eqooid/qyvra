@@ -1,6 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { Prisma } from '@brainless/database';
+import { Prisma } from '@qyvra/database';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { Server } from 'node:http';
 import * as request from 'supertest';

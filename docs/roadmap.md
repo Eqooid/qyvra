@@ -1,4 +1,4 @@
-# Brainless delivery roadmap
+# QYVRA delivery roadmap
 
 [Documentation index](README.md) | [v1.0.0 snapshot](releases/v1.0.0.md) | [v1.1.0 snapshot](releases/v1.1.0.md)
 

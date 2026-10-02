@@ -1,6 +1,6 @@
 import { isIP } from 'node:net';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
-import { validateLocalStorageRoot } from '@brainless/storage';
+import { validateLocalStorageRoot } from '@qyvra/storage';
 import { ApiConfiguration } from './settings';
 
 /**
@@ -145,7 +145,7 @@ export function validateEnvironment(
   const host = text(environment, 'HTTP_HOST', '0.0.0.0');
   if (isIP(host) === 0)
     invalid('HTTP_HOST', 'must be an IPv4 or IPv6 bind address.');
-  const name = text(environment, 'APP_NAME', 'Brainless API');
+  const name = text(environment, 'APP_NAME', 'QYVRA API');
   if (name.length > 100) invalid('APP_NAME', 'must be at most 100 characters.');
   const credentials = boolean(environment, 'CORS_CREDENTIALS', 'false');
 

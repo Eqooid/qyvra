@@ -3,7 +3,7 @@ import {
   BadRequestException,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { Storage, StorageError } from '@brainless/storage';
+import { Storage, StorageError } from '@qyvra/storage';
 import { mkdtemp, rm, open } from 'node:fs/promises';
 import { createWriteStream } from 'node:fs';
 import { join, dirname, basename, resolve } from 'node:path';
@@ -50,7 +50,7 @@ export class UploadInspector {
   ): Promise<number | null> {
     let directory: string | undefined;
     try {
-      directory = await mkdtemp(join(tmpdir(), 'brainless-inspect-'));
+      directory = await mkdtemp(join(tmpdir(), 'qyvra-inspect-'));
       const file = join(directory, 'input');
       await pipeline(
         await storage.open(key),
@@ -124,7 +124,7 @@ export class UploadInspector {
       if (directory) {
         if (
           dirname(resolve(directory)) !== resolve(tmpdir()) ||
-          !basename(directory).startsWith('brainless-inspect-')
+          !basename(directory).startsWith('qyvra-inspect-')
         )
           throw new ServiceUnavailableException('Inspection cleanup failed');
         try {

@@ -1,5 +1,8 @@
 # Brainless branding rename
 
+> This earlier checkpoint is preserved as historical evidence. The current product
+> is **QYVRA**; see [the QYVRA rename](qyvra-rename.md) for current identifiers.
+
 > Historical branding checkpoint (13 September 2026). Infrastructure and verification
 > gaps below describe that time. For current status and retained compatibility names,
 > see the [v1.0.0 snapshot](releases/v1.0.0.md).

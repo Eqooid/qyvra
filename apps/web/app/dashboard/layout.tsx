@@ -1,5 +1,5 @@
 import { DashboardShell } from "@/components/layout/dashboard-shell"
-export const metadata = { title: "Dashboard | Brainless" }
+export const metadata = { title: "Dashboard | QYVRA" }
 export default function DashboardLayout({
   children,
 }: {

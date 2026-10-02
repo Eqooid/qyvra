@@ -1,5 +1,5 @@
 {
-  "name": "@brainless/api",
+  "name": "@qyvra/api",
   "version": "0.0.1",
   "description": "",
   "author": "",
@@ -41,8 +41,8 @@
     "shared:build": "npm run storage:build && npm run database:build"
   },
   "dependencies": {
-    "@brainless/database": "file:../../packages/database",
-    "@brainless/storage": "file:../../packages/storage",
+    "@qyvra/database": "file:../../packages/database",
+    "@qyvra/storage": "file:../../packages/storage",
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^3.3.0",
     "@nestjs/core": "^10.0.0",

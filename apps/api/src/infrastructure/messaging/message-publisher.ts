@@ -1,4 +1,4 @@
-import type { ProcessingMessageV1 } from '@brainless/database';
+import type { ProcessingMessageV1 } from '@qyvra/database';
 
 /** Transport-neutral contract used by the future outbox dispatcher. */
 export interface MessagePublisher {

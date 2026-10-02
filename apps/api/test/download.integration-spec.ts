@@ -1,10 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import {
-  STORAGE,
-  LocalFileStorage,
-  originalDocumentKey,
-} from '@brainless/storage';
+import { STORAGE, LocalFileStorage, originalDocumentKey } from '@qyvra/storage';
 import { randomUUID, createHash } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -59,7 +55,7 @@ describe('Download PostgreSQL and private storage workflow', () => {
     return { id, bytes, storageKey };
   };
   beforeAll(async () => {
-    directory = await mkdtemp(join(tmpdir(), 'brainless-download-test-'));
+    directory = await mkdtemp(join(tmpdir(), 'qyvra-download-test-'));
     storage = new LocalFileStorage(join(directory, 'objects'));
     const config = validateTestEnvironment({
       NODE_ENV: 'test',
@@ -95,7 +91,7 @@ describe('Download PostgreSQL and private storage workflow', () => {
       await app?.close();
       if (directory) {
         expect(dirname(resolve(directory))).toBe(resolve(tmpdir()));
-        expect(basename(directory).startsWith('brainless-download-test-')).toBe(
+        expect(basename(directory).startsWith('qyvra-download-test-')).toBe(
           true,
         );
         await rm(directory, { recursive: true, force: true });

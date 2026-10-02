@@ -1,10 +1,10 @@
-# Brainless architecture — v1.2.0 release candidate
+# QYVRA architecture — v1.2.0 release candidate
 
 [Documentation index](README.md) | [Release snapshot](releases/v1.0.0.md)
 
 ## Runtime overview
 
-Brainless is a modular monolith: a NestJS HTTP API, separate outbox and worker
+QYVRA is a modular monolith: a NestJS HTTP API, separate outbox and worker
 processes, and a Next.js application. PostgreSQL is the durable system of record;
 private file storage holds originals. RabbitMQ transports processing messages and
 Redis holds optional disposable progress. The local Compose deployment also runs

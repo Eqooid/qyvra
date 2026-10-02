@@ -107,7 +107,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         <CardDescription>
           {registerMode
             ? "A place to keep your important things together."
-            : "Log in to Brainless."}
+            : "Log in to QYVRA."}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -191,8 +191,8 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
               {error}
             </Alert>
           )}
-          <Button type="submit" disabled={isSubmitting} className="w-full mt-3">
-            <LogIn/>
+          <Button type="submit" disabled={isSubmitting} className="mt-3 w-full">
+            <LogIn />
             {isSubmitting
               ? "Please wait…"
               : registerMode

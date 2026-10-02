@@ -127,7 +127,7 @@ test environment files were neither printed nor committed.
 The final API `npm audit --omit=dev` reports **5 moderate, 0 high, 0 critical**,
 and exits nonzero. Findings are NestJS meta-advisories and `file-type`.
 The [NestJS SSE advisory](https://github.com/advisories/GHSA-36xv-jgw5-4q75)
-requires user-influenced SSE event IDs/types; Brainless has no SSE route. Upload
+requires user-influenced SSE event IDs/types; QYVRA has no SSE route. Upload
 validation uses its own streaming inspector, not NestJS `ParseFilePipe`/`file-type`.
 These unused paths remain a dependency maintenance limitation, not proof of
 an exposed v1.2.0 endpoint. Do not enable them without remediation.

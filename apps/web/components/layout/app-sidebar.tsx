@@ -30,13 +30,11 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton
               render={<Link href="/dashboard" />}
-              tooltip={
-                !isMobile && state === "collapsed" ? "Brainless" : undefined
-              }
+              tooltip={!isMobile && state === "collapsed" ? "QYVRA" : undefined}
               onClick={() => setOpenMobile(false)}
             >
               <Files aria-hidden />
-              <span className="font-semibold">Brainless</span>
+              <span className="font-semibold">QYVRA</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

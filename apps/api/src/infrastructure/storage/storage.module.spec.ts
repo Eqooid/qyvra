@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { STORAGE, Storage, LocalFileStorage } from '@brainless/storage';
+import { STORAGE, Storage, LocalFileStorage } from '@qyvra/storage';
 import { StorageModule } from './storage.module';
 import { settings } from '../../configuration/configuration.module';
 import { validateTestEnvironment } from '../../../test/configuration.fixture';
@@ -10,7 +10,7 @@ import { Readable } from 'node:stream';
 
 describe('StorageModule provider binding', () => {
   it('resolves the shared token with isolated streaming operations', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'brainless-storage-di-'));
+    const root = await mkdtemp(join(tmpdir(), 'qyvra-storage-di-'));
     const module = await Test.createTestingModule({ imports: [StorageModule] })
       .overrideProvider(settings.KEY)
       .useValue(
@@ -31,7 +31,7 @@ describe('StorageModule provider binding', () => {
     } finally {
       await module.close();
       expect(dirname(resolve(root))).toBe(resolve(tmpdir()));
-      expect(basename(root).startsWith('brainless-storage-di-')).toBe(true);
+      expect(basename(root).startsWith('qyvra-storage-di-')).toBe(true);
       await rm(root, { recursive: true, force: true });
     }
   });

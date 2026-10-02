@@ -2,7 +2,7 @@
 
 [Guide index](README.md) · [Next: Architecture](02-architecture.md)
 
-Brainless stores private personal documents and the metadata used to find and organize them. A logical document has a title and optional category, tags, issuer, reference number, and dates. Its uploaded originals are immutable versions. Developers should distinguish metadata changes from adding new file bytes: editing a title does not create a file version.
+QYVRA stores private personal documents and the metadata used to find and organize them. A logical document has a title and optional category, tags, issuer, reference number, and dates. Its uploaded originals are immutable versions. Developers should distinguish metadata changes from adding new file bytes: editing a title does not create a file version.
 
 ## What v1.0.0 does
 
@@ -18,7 +18,7 @@ Uploads return document status `UPLOADED` and extraction status `PENDING`. Nothi
 
 ## Runtime responsibilities
 
-| Boundary             | Responsibility in Brainless                                                                                                                    |
+| Boundary             | Responsibility in QYVRA                                                                                                                    |
 | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | Browser / Next.js    | Render routes, collect input, validate for usability, manage query state, and call the API with cookies.                                       |
 | NestJS               | Authenticate each private request, enforce ownership and lifecycle rules, validate files/input, coordinate SQL and storage, return safe views. |

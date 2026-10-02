@@ -1,4 +1,4 @@
-import type { ProcessingMessageV1 } from '@brainless/database';
+import type { ProcessingMessageV1 } from '@qyvra/database';
 import {
   parseProcessingMessage,
   serializeProcessingMessage,

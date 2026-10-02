@@ -17,7 +17,7 @@ export default function AuthLayout({
           className="flex items-center gap-3 rounded-lg text-lg font-semibold tracking-tight focus-visible:outline-2 focus-visible:outline-ring"
         >
           <Files className="text-primary" aria-hidden />
-          Brainless
+          QYVRA
         </Link>
         <ThemeToggle />
       </header>

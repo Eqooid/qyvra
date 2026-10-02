@@ -1,6 +1,8 @@
-# Brainless
+# QYVRA
 
-Brainless is a personal document-management application for storing private files,
+**Query Yielding Vault Recall Assistant** (formerly known as Brainless).
+
+QYVRA is a personal document-management application for storing private files,
 organizing their metadata, and keeping immutable file versions.
 
 **Latest locally verified release tag: v1.1.0. Phase 1 remains complete.** Registration,
@@ -58,7 +60,9 @@ cp .env.example .env
 
 PowerShell: `Copy-Item .env.example .env`. Replace the `POSTGRES_PASSWORD`
 placeholder before startup. Preserve an existing `.env`, database initialization
-values and Compose project name.
+values. Compose defaults to project `qyvra` independently of the checkout directory.
+Existing installations must map their original volumes before changing project
+names; see [Docker rename and data compatibility](docs/docker-rename.md).
 
 ```sh
 docker compose up --build -d
@@ -66,7 +70,7 @@ docker compose ps --all
 docker compose logs -f
 ```
 
-Open [Brainless](http://localhost:8080). Migrations run before API startup.
+Open [QYVRA](http://localhost:8080). Migrations run before API startup.
 Register, then log in. Stop with `docker compose down`; do not add `--volumes`,
 which deletes the database and uploaded files. This is a local HTTP deployment.
 See [Compose operations](docs/compose.md) for persistence, backups and deployment limits.

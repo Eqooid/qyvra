@@ -1,4 +1,6 @@
-# Keep the existing Compose project name: it selects the existing named volumes.
+# Default Docker namespace. Existing volumes can be mapped explicitly below.
+name: qyvra
+
 x-database: &database
   POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER}
   POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
@@ -20,9 +22,11 @@ services:
 
   rabbitmq:
     image: rabbitmq:4.1-management-alpine
+    # Keep the old hostname when reusing RabbitMQ's persisted Erlang node data.
+    hostname: ${RABBITMQ_HOSTNAME:-rabbitmq}
     restart: unless-stopped
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-brainless}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-qyvra}
       # Existing local .env files keep working; set a dedicated secret for deployments.
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}}
     volumes:
@@ -71,7 +75,7 @@ services:
       HTTP_HOST: 0.0.0.0
       PORT: "3001"
       STORAGE_PROVIDER: local
-      LOCAL_STORAGE_ROOT: /data/brainless
+      LOCAL_STORAGE_ROOT: /data/qyvra
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       PROCESSING_PROGRESS_TTL_SECONDS: ${PROCESSING_PROGRESS_TTL_SECONDS:-180}
       CORS_ORIGINS: ${PUBLIC_APP_URL:-http://localhost:8080}
@@ -87,7 +91,7 @@ services:
       UPLOAD_INSPECTION_TIMEOUT_MS: ${UPLOAD_INSPECTION_TIMEOUT_MS:-15000}
       UPLOAD_CONCURRENCY: ${UPLOAD_CONCURRENCY:-2}
     volumes:
-      - storage_data:/data/brainless
+      - storage_data:/data/qyvra
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -99,7 +103,7 @@ services:
           "CMD",
           "node",
           "-e",
-          "require('node:fs').accessSync('/data/brainless', 6); fetch('http://127.0.0.1:3001/api/v1/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+          "require('node:fs').accessSync('/data/qyvra', 6); fetch('http://127.0.0.1:3001/api/v1/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
         ]
       interval: 10s
       timeout: 5s
@@ -117,8 +121,8 @@ services:
     environment:
       <<: *database
       NODE_ENV: ${NODE_ENV:-development}
-      LOCAL_STORAGE_ROOT: /data/brainless
-      RABBITMQ_USER: ${RABBITMQ_USER:-brainless}
+      LOCAL_STORAGE_ROOT: /data/qyvra
+      RABBITMQ_USER: ${RABBITMQ_USER:-qyvra}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}}
       OUTBOX_POLL_INTERVAL_MS: ${OUTBOX_POLL_INTERVAL_MS:-1000}
       OUTBOX_BATCH_SIZE: ${OUTBOX_BATCH_SIZE:-10}
@@ -146,10 +150,10 @@ services:
     environment:
       <<: *database
       NODE_ENV: ${NODE_ENV:-development}
-      LOCAL_STORAGE_ROOT: /data/brainless
+      LOCAL_STORAGE_ROOT: /data/qyvra
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       PROCESSING_PROGRESS_TTL_SECONDS: ${PROCESSING_PROGRESS_TTL_SECONDS:-180}
-      RABBITMQ_USER: ${RABBITMQ_USER:-brainless}
+      RABBITMQ_USER: ${RABBITMQ_USER:-qyvra}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}}
       WORKER_PREFETCH: ${WORKER_PREFETCH:-2}
       WORKER_JOB_LEASE_MS: ${WORKER_JOB_LEASE_MS:-120000}
@@ -157,7 +161,7 @@ services:
       WORKER_SHUTDOWN_TIMEOUT_MS: ${WORKER_SHUTDOWN_TIMEOUT_MS:-30000}
       RABBITMQ_CONNECT_TIMEOUT_MS: ${RABBITMQ_CONNECT_TIMEOUT_MS:-5000}
     volumes:
-      - storage_data:/data/brainless:ro
+      - storage_data:/data/qyvra:ro
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -166,7 +170,7 @@ services:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "node", "-e", "process.exit(require('node:fs').existsSync('/tmp/brainless-worker-ready')?0:1)"]
+      test: ["CMD", "node", "-e", "process.exit(require('node:fs').existsSync('/tmp/qyvra-worker-ready')?0:1)"]
       interval: 10s
       timeout: 3s
       retries: 6
@@ -228,5 +232,11 @@ networks:
     driver: bridge
 volumes:
   postgres_data:
+    name: ${POSTGRES_VOLUME_NAME:-${COMPOSE_PROJECT_NAME}_postgres_data}
+    external: ${PERSISTENT_VOLUMES_EXTERNAL:-false}
   storage_data:
+    name: ${STORAGE_VOLUME_NAME:-${COMPOSE_PROJECT_NAME}_storage_data}
+    external: ${PERSISTENT_VOLUMES_EXTERNAL:-false}
   rabbitmq_data:
+    name: ${RABBITMQ_VOLUME_NAME:-${COMPOSE_PROJECT_NAME}_rabbitmq_data}
+    external: ${PERSISTENT_VOLUMES_EXTERNAL:-false}

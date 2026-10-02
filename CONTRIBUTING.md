@@ -1,4 +1,4 @@
-# Contributing to Brainless
+# Contributing to QYVRA
 
 Start with the [documentation index](docs/README.md), [local setup](docs/development/getting-started.md)
 and [current release](docs/releases/v1.0.0.md). Phase 1 is complete; agree on a

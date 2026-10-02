@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
-import { ProcessingError, ProcessingRepository } from '@brainless/database';
+import { ProcessingError, ProcessingRepository } from '@qyvra/database';
 import type { MessagePublisher } from '../messaging/message-publisher';
 import { parseProcessingMessage } from '../messaging/processing-message';
 import { outboxRetryDelayMs } from './outbox-policy';

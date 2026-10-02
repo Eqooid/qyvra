@@ -1,4 +1,4 @@
-import { createPrismaClient, Prisma, PrismaClient } from '@brainless/database';
+import { createPrismaClient, Prisma, PrismaClient } from '@qyvra/database';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { validateTestEnvironment as validateEnvironment } from './configuration.fixture';
 

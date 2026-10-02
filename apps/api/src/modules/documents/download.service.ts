@@ -5,7 +5,7 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { STORAGE, Storage } from '@brainless/storage';
+import { STORAGE, Storage } from '@qyvra/storage';
 import { Response } from 'express';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';

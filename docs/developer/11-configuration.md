@@ -13,7 +13,7 @@ Sources of truth are [API environment validation](../../apps/api/src/configurati
 | Host Prisma CLI | Reads process DATABASE_URL through `prisma.config.ts`; inject it separately. Client generation needs no live connection.                                |
 | Compose         | Root `.env` is interpolation input. Only explicitly mapped values enter containers; arbitrary API settings added there are not automatically forwarded. |
 | API tests       | Process NODE_ENV=test disables root `.env`; unit/HTTP fixtures provide settings. Real DB suites require TEST_DATABASE_URL.                              |
-| Browser E2E     | Runner owns generated `.tools/brainless-e2e.env` and an isolated project; do not substitute developer credentials.                                      |
+| Browser E2E     | Runner owns generated `.tools/qyvra-e2e.env` and an isolated project; do not substitute developer credentials.                                      |
 | Production      | API production validation requires Secure cookies and HTTPS allowed origins. Checked-in Compose is local HTTP, not a finished public deployment.        |
 
 There is no JWT/session signing secret. Cookie values are independent random opaque tokens stored only as hashes in PostgreSQL.
@@ -23,16 +23,16 @@ There is no JWT/session signing secret. Cookie values are independent random opa
 | Variable                       | Required                    | Purpose/default or bound                                                                                  | Safe example                                          |
 | ------------------------------ | --------------------------- | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
 | `NODE_ENV`                     | No                          | development/test/production; default development                                                          | `development`                                         |
-| `APP_NAME`                     | No                          | Public name, max 100; default Brainless API                                                               | `Brainless API`                                       |
+| `APP_NAME`                     | No                          | Public name, max 100; default QYVRA API                                                               | `QYVRA API`                                       |
 | `HTTP_HOST`                    | No                          | IPv4/IPv6 listener; default 0.0.0.0                                                                       | `127.0.0.1`                                           |
 | `PORT`                         | No                          | API listener 1–65535; default 3001                                                                        | `3001`                                                |
 | `HTTP_BODY_LIMIT_BYTES`        | No                          | JSON limit; default 16384, max 1048576                                                                    | `16384`                                               |
-| `DATABASE_URL`                 | Yes for host API/migrations | PostgreSQL URL with host/database; Compose derives it                                                     | `postgresql://user:password@localhost:5432/brainless` |
+| `DATABASE_URL`                 | Yes for host API/migrations | PostgreSQL URL with host/database; Compose derives it                                                     | `postgresql://user:password@localhost:5432/qyvra` |
 | `DATABASE_CONNECT_TIMEOUT_MS`  | No                          | Acquisition timeout; default 500, max 1000                                                                | `500`                                                 |
 | `DATABASE_QUERY_TIMEOUT_MS`    | No                          | Query/statement timeout; default 500, max 1000                                                            | `500`                                                 |
 | `DATABASE_POOL_SIZE`           | No                          | Per-process pool; default 5, max 20                                                                       | `5`                                                   |
 | `STORAGE_PROVIDER`             | No                          | Only local is accepted                                                                                    | `local`                                               |
-| `LOCAL_STORAGE_ROOT`           | Yes for API                 | Dedicated absolute private directory outside and not containing repository; Compose fixes /data/brainless | `C:/BrainlessData`                                    |
+| `LOCAL_STORAGE_ROOT`           | Yes for API                 | Dedicated absolute private directory outside and not containing repository; Compose fixes /data/qyvra | `C:/BrainlessData`                                    |
 | `UPLOAD_MAX_BYTES`             | No                          | Default 52428800 (50 MiB), max 209715200                                                                  | `52428800`                                            |
 | `UPLOAD_MAX_PAGES`             | No                          | PDF pages; default 500, max 2000                                                                          | `500`                                                 |
 | `UPLOAD_MAX_PIXELS`            | No                          | Image pixels; default 40000000, max 100000000                                                             | `40000000`                                            |
@@ -75,16 +75,16 @@ Origins must exclude paths, trailing slash, credentials and wildcards; productio
 
 | Variable                       | Required                    | Purpose/default                                                | Safe example                                               |
 | ------------------------------ | --------------------------- | -------------------------------------------------------------- | ---------------------------------------------------------- |
-| `POSTGRES_USER`                | Compose                     | Initialization role; preserve for existing volume              | `brainless`                                                |
+| `POSTGRES_USER`                | Compose                     | Initialization role; preserve for existing volume              | `qyvra`                                                |
 | `POSTGRES_PASSWORD`            | Compose                     | Initialization password; no usable default                     | `<replace-with-local-password>`                            |
-| `POSTGRES_DB`                  | Compose                     | Initialization database                                        | `brainless`                                                |
+| `POSTGRES_DB`                  | Compose                     | Initialization database                                        | `qyvra`                                                |
 | `POSTGRES_PORT`                | No                          | Host dev override only; default 5432                           | `5432`                                                     |
 | `NGINX_PORT`                   | No                          | Loopback published port; default 8080                          | `8080`                                                     |
 | `PUBLIC_APP_URL`               | No                          | Exact Compose browser origin; default http://localhost:8080    | `http://localhost:8080`                                    |
-| `COMPOSE_PROJECT_NAME`         | No                          | Compose project/volume namespace; directory-derived if omitted | `brainless`                                                |
+| `COMPOSE_PROJECT_NAME`         | No                          | Compose project/volume namespace; top-level name qyvra if omitted | `qyvra`                                                |
 | `NEXT_PUBLIC_API_BASE_URL`     | For direct host API         | Browser API URL; default /api/v1; Docker build fixes /api/v1   | `http://localhost:3001/api/v1`                             |
 | `NEXT_PUBLIC_UPLOAD_MAX_BYTES` | No                          | Browser UX limit; default 52428800, max 209715200              | `52428800`                                                 |
-| `TEST_DATABASE_URL`            | Real API integration suites | Dedicated disposable, migrated database                        | `postgresql://user:password@localhost:5432/brainless_test` |
+| `TEST_DATABASE_URL`            | Real API integration suites | Dedicated disposable, migrated database                        | `postgresql://user:password@localhost:5432/qyvra_test` |
 | `E2E_SESSION_TTL`              | No                          | Browser override; default 3600; expiry runner uses 8           | `3600`                                                     |
 | `HOSTNAME`                     | Docker fixed                | Standalone web listener, 0.0.0.0                               | `0.0.0.0`                                                  |
 | `NEXT_TELEMETRY_DISABLED`      | Docker fixed                | Web build/runtime opt-out                                      | `1`                                                        |

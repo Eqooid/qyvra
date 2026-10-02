@@ -2,7 +2,7 @@
 
 [Guide index](README.md) · [API reference](10-api-reference.md) · [Configuration](11-configuration.md)
 
-Brainless uses local passwords and opaque PostgreSQL-backed sessions. It does not use JWT access tokens. Authentication establishes the stable internal `users.id`; authorization uses that ID in database predicates and association checks.
+QYVRA uses local passwords and opaque PostgreSQL-backed sessions. It does not use JWT access tokens. Authentication establishes the stable internal `users.id`; authorization uses that ID in database predicates and association checks.
 
 ## Registration
 

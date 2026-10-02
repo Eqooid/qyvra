@@ -5,7 +5,7 @@ import {
   ProcessingRepository,
   type PrismaClient,
   type ProcessingMessageV1,
-} from '@brainless/database';
+} from '@qyvra/database';
 import type { MessagePublisher } from '../src/infrastructure/messaging/message-publisher';
 import { RabbitMqPublisher } from '../src/infrastructure/messaging/rabbitmq.publisher';
 import { PROCESSING_QUEUE } from '../src/infrastructure/messaging/rabbitmq-topology';

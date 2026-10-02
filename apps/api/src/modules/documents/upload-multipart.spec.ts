@@ -1,7 +1,7 @@
 import { Readable } from 'node:stream';
 import { randomUUID, createHash } from 'node:crypto';
 import { Request } from 'express';
-import { Storage } from '@brainless/storage';
+import { Storage } from '@qyvra/storage';
 import { displayFilename, receiveUpload } from './upload-multipart';
 import { validateTestEnvironment } from '../../../test/configuration.fixture';
 

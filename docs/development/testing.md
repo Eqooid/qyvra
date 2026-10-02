@@ -50,6 +50,10 @@ developer or production database.
 
 ## Real browsers through Nginx
 
+The Docker rename creates a new isolated `qyvra-e2e` project with fresh test
+volumes and `.tools/qyvra-e2e.env`. Old test data remains in the old volumes;
+see [migration and cleanup](../docker-rename.md).
+
 Requires running Docker Linux containers, installed web dependencies, and Chromium:
 
 ```sh
@@ -60,18 +64,18 @@ npm --prefix apps/web run test:e2e
 ```
 
 `test:e2e:headed` is the visible-browser alternative. The runner builds/starts the
-isolated `brainless-e2e` Compose project at http://localhost:18080, uses separate
+isolated `qyvra-e2e` Compose project at http://localhost:18080, uses separate
 volumes and generated credentials, then stops it without deleting volumes. Do not
 run tests concurrently against that project. Full commands, artifact rules and
 focused runs are in [browser verification](../phase-1-browser-verification.md).
 This is separate from the API's similarly named `test:e2e` script.
 
 If a retained E2E PostgreSQL volume has credentials from an older generated
-`.tools/brainless-e2e.env`, migration startup fails with `P1000`. Preserve the old
+`.tools/qyvra-e2e.env`, migration startup fails with `P1000`. Preserve the old
 volume and select a fresh isolated Compose project instead. In PowerShell, set
-`$env:E2E_PROJECT_NAME='brainless-e2e-v11'` before running `test:e2e`; use the same
+`$env:E2E_PROJECT_NAME='qyvra-e2e-v11'` before running `test:e2e`; use the same
 setting for `node infrastructure/e2e/run.cjs down`. The default project name remains
-`brainless-e2e`. Keep port 18080 free; do not run both projects simultaneously.
+`qyvra-e2e`. Keep port 18080 free; do not run both projects simultaneously.
 
 ## Formatting, lint, type checking and builds
 

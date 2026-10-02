@@ -176,7 +176,7 @@ describe('environment configuration', () => {
   });
   it('defaults to a non-frontend port and disabled CORS', () => {
     expect(validateEnvironment(base)).toMatchObject({
-      application: { environment: 'development', name: 'Brainless API' },
+      application: { environment: 'development', name: 'QYVRA API' },
       http: { port: 3001, host: '0.0.0.0' },
       cors: { origins: [], credentials: false },
       authentication: {

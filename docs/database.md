@@ -1,4 +1,4 @@
-# Brainless database and storage model — v1.2.0 release candidate
+# QYVRA database and storage model — v1.2.0 release candidate
 
 [Documentation index](README.md) | [Architecture](architecture.md)
 

@@ -1,4 +1,4 @@
-# Brainless local Docker Compose
+# QYVRA local Docker Compose
 
 [Documentation index](README.md) | [Environment reference](deployment/environment-variables.md) |
 [Host onboarding](development/getting-started.md) | [v1.0.0 snapshot](releases/v1.0.0.md) |
@@ -24,8 +24,10 @@ and [T14 acceptance/upgrade guidance](phase-3-acceptance.md).
 ## First start
 
 Install Docker Desktop with Linux containers and Compose v2. Run from the repository
-root, keeping any existing Compose project name (`COMPOSE_PROJECT_NAME` or `-p`).
-Changing that name selects different volumes and can make existing data appear missing.
+root. The default project name is `qyvra`. Existing installations must first map
+their original volumes and broker hostname as described in the
+[Docker rename guide](docker-rename.md); changing only the project name creates
+new empty volumes and makes old data appear missing.
 
 POSIX shell:
 
@@ -40,7 +42,7 @@ Copy-Item .env.example .env
 ```
 
 For a NEW database replace `POSTGRES_PASSWORD` with a local password. Example
-`POSTGRES_USER=brainless` and `POSTGRES_DB=brainless` are non-secret development
+`POSTGRES_USER=qyvra` and `POSTGRES_DB=qyvra` are non-secret development
 names. For an EXISTING database keep all three actual `POSTGRES_*` values; changing
 initialization variables does not change existing database roles or passwords.
 Quote passwords containing `$` literally in .env with single quotes. Do not use
@@ -237,7 +239,7 @@ docker compose exec api qpdf --version
 docker compose exec web node --version
 docker compose exec nginx nginx -t
 docker compose exec api node -e "fetch('http://127.0.0.1:3001/api/v1/health/ready').then(r=>console.log(r.status))"
-docker compose exec api node -e "require('node:fs').accessSync('/data/brainless',6); console.log('Storage root is readable and writable')"
+docker compose exec api node -e "require('node:fs').accessSync('/data/qyvra',6); console.log('Storage root is readable and writable')"
 ```
 
 For the previous host-run API/web hot-reload workflow, publish only PostgreSQL via
@@ -256,7 +258,7 @@ Do not mount Windows qpdf paths into the Linux container configuration.
 ## Persistence and manual backups
 
 Keep the original `postgres_data` and `storage_data` volume keys and project name.
-The API mounts storage_data at /data/brainless for writes; the worker mounts the
+The API mounts storage_data at /data/qyvra for writes; the worker mounts the
 same volume read-only for verification. New
 volumes inherit directory ownership from the image (UID 1000, private permissions).
 Existing volumes are not recursively changed: if readiness reports inaccessible
@@ -274,15 +276,15 @@ at the same maintenance point with writers stopped. For example:
 
 ```sh
 docker compose stop api
-docker compose exec postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc -f /tmp/brainless.dump'
-docker compose cp postgres:/tmp/brainless.dump ./brainless.dump
-docker compose run --rm --no-deps --user root --entrypoint tar -v brainless_backup:/backup api -czf /backup/documents.tgz -C /data/brainless .
-docker compose run --rm --no-deps --entrypoint ls -v brainless_backup:/backup api -lh /backup/documents.tgz
+docker compose exec postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc -f /tmp/qyvra.dump'
+docker compose cp postgres:/tmp/qyvra.dump ./qyvra.dump
+docker compose run --rm --no-deps --user root --entrypoint tar -v qyvra_backup:/backup api -czf /backup/documents.tgz -C /data/qyvra .
+docker compose run --rm --no-deps --entrypoint ls -v qyvra_backup:/backup api -lh /backup/documents.tgz
 docker compose start api
 ```
 
 The SQL dump is a local file; the file archive is in the explicitly named
-`brainless_backup` volume. Inspect/export it with Docker Desktop or a temporary
+`qyvra_backup` volume. Inspect/export it with Docker Desktop or a temporary
 read-only mount. Protect backups as sensitive personal data. This is manual backup
 guidance, not an automated backup system; test a restore separately before relying
 on backups. Shell quoting may require adjustment for legacy Windows PowerShell's

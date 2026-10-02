@@ -1,12 +1,12 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { Prisma, ProcessingRepository } from '@brainless/database';
+import { Prisma, ProcessingRepository } from '@qyvra/database';
 import {
   Storage,
   STORAGE,
   LocalFileStorage,
   StorageError,
-} from '@brainless/storage';
+} from '@qyvra/storage';
 import { randomUUID, createHash } from 'node:crypto';
 import { mkdtemp, rm, readdir, writeFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -51,7 +51,7 @@ describe('Streaming upload PostgreSQL HTTP workflow', () => {
       contentType: 'application/pdf',
     });
   beforeAll(async () => {
-    directory = await mkdtemp(join(tmpdir(), 'brainless-upload-test-'));
+    directory = await mkdtemp(join(tmpdir(), 'qyvra-upload-test-'));
     storage = new LocalFileStorage(join(directory, 'objects'));
     const config = validateTestEnvironment({
       NODE_ENV: 'test',
@@ -92,9 +92,7 @@ describe('Streaming upload PostgreSQL HTTP workflow', () => {
       await app?.close();
       if (directory) {
         expect(dirname(resolve(directory))).toBe(resolve(tmpdir()));
-        expect(basename(directory).startsWith('brainless-upload-test-')).toBe(
-          true,
-        );
+        expect(basename(directory).startsWith('qyvra-upload-test-')).toBe(true);
         await rm(directory, { recursive: true, force: true });
       }
     }
@@ -188,7 +186,7 @@ describe('Streaming upload PostgreSQL HTTP workflow', () => {
       },
     });
     expect(JSON.stringify(result.body)).not.toMatch(
-      /storageKey|checksum|userId|processing|objects|brainless-upload-test/,
+      /storageKey|checksum|userId|processing|objects|qyvra-upload-test/,
     );
     await expect(
       db.client.documentVersion.update({
@@ -623,7 +621,7 @@ describe('Streaming upload PostgreSQL HTTP workflow', () => {
       logs.some((line) => line.includes('upload.commit_outcome_unknown')),
     ).toBe(true);
     expect(JSON.stringify(response.body)).not.toMatch(
-      /private|storageKey|brainless-upload-test/,
+      /private|storageKey|qyvra-upload-test/,
     );
     expect(logs.join('\n')).not.toMatch(/private SQL path|private connection/);
   });

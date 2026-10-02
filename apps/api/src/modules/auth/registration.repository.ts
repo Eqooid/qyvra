@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@brainless/database';
+import { Prisma } from '@qyvra/database';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../../database/prisma.service';
 import { RegistrationConflict } from './registration.errors';

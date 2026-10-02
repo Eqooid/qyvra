@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, ProcessingRepository } from '@brainless/database';
+import { Prisma, ProcessingRepository } from '@qyvra/database';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../../database/prisma.service';
 import { PaginatedData } from '../../common/paginated-data';

@@ -1,4 +1,4 @@
-import { Prisma } from '@brainless/database';
+import { Prisma } from '@qyvra/database';
 import { PrismaService } from '../../database/prisma.service';
 import { TagsService, TagConflict, TagNotFound } from './tags.service';
 import { TagListQuery } from './tags.dto';

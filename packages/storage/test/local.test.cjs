@@ -89,16 +89,14 @@ test('a final file symlink is never followed', async (context) => {
   assert.equal(await fs.readFile(outside, 'utf8'), 'private');
 });
 beforeEach(async () => {
-  sandbox = await fs.mkdtemp(join(tmpdir(), 'brainless-storage-test-'));
+  sandbox = await fs.mkdtemp(join(tmpdir(), 'qyvra-storage-test-'));
   root = join(sandbox, 'objects');
   storage = new LocalFileStorage(root);
 });
 afterEach(async () => {
   // Delete only the exact mkdtemp result. Never derive cleanup from storage input.
   const child = relative(resolve(tmpdir()), resolve(sandbox));
-  assert.ok(
-    child.startsWith('brainless-storage-test-') && !child.includes(sep),
-  );
+  assert.ok(child.startsWith('qyvra-storage-test-') && !child.includes(sep));
   await fs.rm(sandbox, { recursive: true, force: true });
 });
 async function contents(key) {

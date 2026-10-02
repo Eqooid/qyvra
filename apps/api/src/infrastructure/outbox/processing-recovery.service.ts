@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
-import { ProcessingError, ProcessingRepository } from '@brainless/database';
+import { ProcessingError, ProcessingRepository } from '@qyvra/database';
 
 export interface ProcessingRecoverySettings {
   readonly pollIntervalMs: number;

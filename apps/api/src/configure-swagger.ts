@@ -20,10 +20,10 @@ export function configureSwagger(app: INestApplication): void {
   const document = SwaggerModule.createDocument(
     app,
     new DocumentBuilder()
-      .setTitle('Brainless API')
+      .setTitle('QYVRA API')
       .setVersion('1')
       .setDescription(
-        'Brainless personal knowledge and document-management API. Authentication, Categories, Tags, metadata/lifecycle, streaming upload, immutable version history and secure current-version download are available. Uploads durably schedule stored-file integrity jobs, verified by a separate worker; owned version processing status is available through a read-only API. Historical-version download is not implemented. Upload requires multipart/form-data and a UUID Idempotency-Key. Cookie mutations require X-CSRF-Protection: 1 and an allowlisted browser Origin. Register first, then log in to set HttpOnly cookies; serialize refresh calls.',
+        'QYVRA personal knowledge and document-management API. Authentication, Categories, Tags, metadata/lifecycle, streaming upload, immutable version history and secure current-version download are available. Uploads durably schedule stored-file integrity jobs, verified by a separate worker; owned version processing status is available through a read-only API. Historical-version download is not implemented. Upload requires multipart/form-data and a UUID Idempotency-Key. Cookie mutations require X-CSRF-Protection: 1 and an allowlisted browser Origin. Register first, then log in to set HttpOnly cookies; serialize refresh calls.',
       )
       .addCookieAuth(
         app.get(ConfigurationService).cookie.refreshName,

@@ -13,7 +13,7 @@ describe('AppController', () => {
         AppService,
         {
           provide: ConfigurationService,
-          useValue: { application: { name: 'Brainless API' } },
+          useValue: { application: { name: 'QYVRA API' } },
         },
       ],
     }).compile();
@@ -24,7 +24,7 @@ describe('AppController', () => {
   describe('root', () => {
     it('returns application information', () => {
       expect(appController.getInformation()).toEqual({
-        name: 'Brainless API',
+        name: 'QYVRA API',
         apiVersion: 'v1',
       });
     });

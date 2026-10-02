@@ -1,4 +1,4 @@
-# Brainless developer documentation
+# QYVRA developer documentation
 
 **Current implementation: v1.2.0 — asynchronous document processing foundation.**
 Start with the [v1.2.0 developer changes](versions/v1.2.0.md) for jobs/outbox,
@@ -21,7 +21,7 @@ The 16 numbered chapters and the baseline inspection record below describe
 v1.0.0. Use the version delta guides for changed behavior; source links open files in your
 current checkout, so select the recorded baseline commit to inspect historical code.
 
-This guide explains the completed **Phase 1 private document catalog** from its implementation. Start here if you know TypeScript but have not worked on Brainless. For a runnable first session, follow [development workflow](14-development-workflow.md), then read the architecture and workflow walkthroughs.
+This guide explains the completed **Phase 1 private document catalog** from its implementation. Start here if you know TypeScript but have not worked on QYVRA. For a runnable first session, follow [development workflow](14-development-workflow.md), then read the architecture and workflow walkthroughs.
 
 ## Inspected baseline
 
@@ -55,7 +55,7 @@ The working tree was clean before documentation generation. The branch, root REA
 | [13 Testing](13-testing.md)                                               | Unit, HTTP, database, component, storage, and browser suites                    |
 | [14 Development workflow](14-development-workflow.md)                     | Install, configure, migrate, run, debug, and verify                             |
 | [15 Troubleshooting](15-troubleshooting.md)                               | Symptoms traced to actual configuration and behavior                            |
-| [16 Extending Brainless](16-extending-brainless.md)                       | A hypothetical document-field change through every layer                        |
+| [16 Extending QYVRA](16-extending-brainless.md)                       | A hypothetical document-field change through every layer                        |
 
 Each chapter links to repository source. Existing [architecture](../architecture.md), [database](../database.md), [API conventions](../api.md), and [Compose operations](../compose.md) remain useful canonical references. Generated Swagger owns full transport schemas; this guide provides a version-specific navigation map. Historical implementation reports are evidence of earlier checks, not newly executed tests.
 

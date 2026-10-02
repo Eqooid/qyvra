@@ -1,8 +1,5 @@
-import type { ProcessingMessageV1 } from '@brainless/database';
-import {
-  ProcessingError,
-  type ProcessingRepository,
-} from '@brainless/database';
+import type { ProcessingMessageV1 } from '@qyvra/database';
+import { ProcessingError, type ProcessingRepository } from '@qyvra/database';
 import {
   ProcessingMessageHandler,
   type ProcessingJobHandler,

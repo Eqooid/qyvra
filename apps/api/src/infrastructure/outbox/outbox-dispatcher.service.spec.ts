@@ -1,8 +1,5 @@
-import type { ProcessingMessageV1 } from '@brainless/database';
-import {
-  ProcessingError,
-  type ProcessingRepository,
-} from '@brainless/database';
+import type { ProcessingMessageV1 } from '@qyvra/database';
+import { ProcessingError, type ProcessingRepository } from '@qyvra/database';
 import type { MessagePublisher } from '../messaging/message-publisher';
 import { OutboxDispatcher } from './outbox-dispatcher.service';
 import { outboxRetryDelayMs } from './outbox-policy';

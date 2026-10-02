@@ -5,8 +5,8 @@ import {
   STORAGE,
   StorageError,
   originalDocumentKey,
-} from '@brainless/storage';
-import { ProcessingRepository } from '@brainless/database';
+} from '@qyvra/storage';
+import { ProcessingRepository } from '@qyvra/database';
 import { randomUUID, createHash } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { mkdtemp, rm, readdir } from 'node:fs/promises';
@@ -81,7 +81,7 @@ describe('Immutable versions PostgreSQL HTTP workflow', () => {
     return { doc, version, bytes };
   };
   beforeAll(async () => {
-    directory = await mkdtemp(join(tmpdir(), 'brainless-versions-test-'));
+    directory = await mkdtemp(join(tmpdir(), 'qyvra-versions-test-'));
     storage = new LocalFileStorage(join(directory, 'objects'));
     const config = validateTestEnvironment({
       NODE_ENV: 'test',
@@ -119,7 +119,7 @@ describe('Immutable versions PostgreSQL HTTP workflow', () => {
       await app?.close();
       if (directory) {
         expect(dirname(resolve(directory))).toBe(resolve(tmpdir()));
-        expect(basename(directory).startsWith('brainless-versions-test-')).toBe(
+        expect(basename(directory).startsWith('qyvra-versions-test-')).toBe(
           true,
         );
         await rm(directory, { recursive: true, force: true });
@@ -174,7 +174,7 @@ describe('Immutable versions PostgreSQL HTTP workflow', () => {
       .expect(200);
     expect(downloaded.body).toEqual(bytes);
     expect(JSON.stringify(result.body)).not.toMatch(
-      /storageKey|checksum|userId|brainless-versions-test/,
+      /storageKey|checksum|userId|qyvra-versions-test/,
     );
     await expect(
       db.client.documentVersion.update({

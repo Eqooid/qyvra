@@ -1,6 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { STORAGE, StorageError } from '@brainless/storage';
+import { STORAGE, StorageError } from '@qyvra/storage';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { Server } from 'node:http';

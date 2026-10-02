@@ -1,5 +1,5 @@
 {
-  "name": "@brainless/storage",
+  "name": "@qyvra/storage",
   "version": "0.0.1",
   "private": true,
   "main": "dist/index.js",

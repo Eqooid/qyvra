@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { connect } from 'amqplib';
-import type { ProcessingMessageV1 } from '@brainless/database';
+import type { ProcessingMessageV1 } from '@qyvra/database';
 import { RabbitMqPublisher } from '../src/infrastructure/messaging/rabbitmq.publisher';
 import {
   DEAD_EXCHANGE,

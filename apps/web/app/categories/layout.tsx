@@ -1,5 +1,5 @@
 import { DashboardShell } from "@/components/layout/dashboard-shell"
-export const metadata = { title: "Categories | Brainless" }
+export const metadata = { title: "Categories | QYVRA" }
 export default function CategoriesLayout({
   children,
 }: {

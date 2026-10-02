@@ -1,4 +1,4 @@
-# Brainless API — Agent Instructions
+# QYVRA API — Agent Instructions
 
 These instructions apply to `apps/api` and extend the repository-root `AGENTS.md`. If they conflict, follow the more specific rule unless it violates a project-wide security or data-ownership requirement.
 

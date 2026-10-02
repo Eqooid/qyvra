@@ -60,6 +60,7 @@ describe("authentication components with the real API client", () => {
     vi.stubGlobal("fetch", fetcher)
     dashboard()
     expect(await screen.findByText(profile.email)).toBeInTheDocument()
+    expect(screen.getByText("QYVRA", { exact: true })).toBeInTheDocument()
     await act(async () => {
       focusManager.setFocused(false)
       focusManager.setFocused(true)
@@ -79,6 +80,7 @@ describe("authentication components with the real API client", () => {
     )
     vi.stubGlobal("fetch", fetcher)
     form()
+    expect(screen.getByText("Log in to QYVRA.")).toBeInTheDocument()
     const user = await fill()
     await user.click(screen.getByRole("button", { name: "Log in" }))
     expect(screen.getByRole("button", { name: "Please wait…" })).toBeDisabled()

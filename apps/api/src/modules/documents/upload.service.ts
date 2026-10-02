@@ -4,7 +4,7 @@ import {
   Injectable,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { STORAGE, Storage, StorageError } from '@brainless/storage';
+import { STORAGE, Storage, StorageError } from '@qyvra/storage';
 import { Request } from 'express';
 import { randomUUID } from 'node:crypto';
 import { ConfigurationService } from '../../configuration/configuration.module';

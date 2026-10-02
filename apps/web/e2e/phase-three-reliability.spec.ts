@@ -7,14 +7,14 @@ import { password, register } from "./auth"
 
 const root = resolve(process.cwd(), "../..")
 const project = process.env.E2E_PROJECT_NAME
-if (!project?.startsWith("brainless-e2e-t13"))
+if (!project?.startsWith("qyvra-e2e-t13"))
   throw new Error("Reliability tests require the isolated T13 Compose project")
 const composeArgs = [
   "compose",
   "-p",
   project,
   "--env-file",
-  resolve(root, ".tools/brainless-e2e.env"),
+  resolve(root, ".tools/qyvra-e2e.env"),
   "-f",
   resolve(root, "docker-compose.yml"),
   "-f",
@@ -34,9 +34,9 @@ function sql(query: string) {
     "postgres",
     "psql",
     "-U",
-    "brainless_e2e",
+    "qyvra_e2e",
     "-d",
-    "brainless_e2e",
+    "qyvra_e2e",
     "-tAc",
     query
   )
@@ -63,11 +63,11 @@ function changeStoredFile(
     throw new Error("Unexpected isolated storage key")
   const script = {
     corrupt:
-      "require('node:fs').writeFileSync('/data/brainless/'+process.argv[1],Buffer.from('corrupt'))",
-    remove: "require('node:fs').unlinkSync('/data/brainless/'+process.argv[1])",
-    deny: "require('node:fs').chmodSync('/data/brainless/'+process.argv[1],0)",
+      "require('node:fs').writeFileSync('/data/qyvra/'+process.argv[1],Buffer.from('corrupt'))",
+    remove: "require('node:fs').unlinkSync('/data/qyvra/'+process.argv[1])",
+    deny: "require('node:fs').chmodSync('/data/qyvra/'+process.argv[1],0)",
     restore:
-      "require('node:fs').chmodSync('/data/brainless/'+process.argv[1],0o600)",
+      "require('node:fs').chmodSync('/data/qyvra/'+process.argv[1],0o600)",
   }[operation]
   compose("exec", "-T", "api", "node", "-e", script, key)
 }
@@ -227,7 +227,7 @@ test("corrupted private bytes produce a terminal, sanitized integrity failure", 
     await expect(
       page.getByText("The stored file did not pass integrity verification.")
     ).toBeVisible()
-    expect(await page.getByText("/data/brainless").count()).toBe(0)
+    expect(await page.getByText("/data/qyvra").count()).toBe(0)
   } finally {
     compose("start", "worker")
   }

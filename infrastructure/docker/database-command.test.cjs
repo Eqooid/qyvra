@@ -46,10 +46,23 @@ test("rendered Compose retains private services, startup ordering and volumes", 
     "api",
     "migrate",
     "nginx",
+    "outbox",
     "postgres",
+    "rabbitmq",
+    "redis",
     "web",
+    "worker",
   ]);
-  for (const name of ["api", "migrate", "postgres", "web"])
+  for (const name of [
+    "api",
+    "migrate",
+    "outbox",
+    "postgres",
+    "rabbitmq",
+    "redis",
+    "web",
+    "worker",
+  ])
     assert.ok(!services[name].ports?.length);
   assert.equal(services.nginx.ports[0].host_ip, "127.0.0.1");
   assert.equal(
@@ -93,10 +106,72 @@ test("proxy preserves API paths, streaming and hides the storage volume", () => 
   assert.match(nginx, /proxy_pass http:\/\/\$api_upstream\$request_uri;/);
   assert.match(nginx, /proxy_request_buffering off;/);
   assert.match(nginx, /proxy_buffering off;/);
-  assert.doesNotMatch(nginx, /\b(alias|root)\s|\/data\/brainless/);
+  assert.doesNotMatch(nginx, /\b(alias|root)\s|\/data\/(?:qyvra|brainless)/);
   const ignore = readFileSync(resolve(root, ".dockerignore"), "utf8");
   assert.match(ignore, /\*\*\/\.env/);
   assert.match(ignore, /\*\*\/\.next/);
+});
+
+test("Docker namespace and storage mappings preserve existing data", () => {
+  const render = (env = {}, extra = []) =>
+    JSON.parse(
+      execFileSync(
+        "docker",
+        [
+          "compose",
+          "--env-file",
+          ".env.example",
+          ...extra,
+          "config",
+          "--format",
+          "json",
+        ],
+        {
+          cwd: root,
+          env: {
+            ...process.env,
+            COMPOSE_PROJECT_NAME: "",
+            POSTGRES_VOLUME_NAME: "",
+            STORAGE_VOLUME_NAME: "",
+            RABBITMQ_VOLUME_NAME: "",
+            PERSISTENT_VOLUMES_EXTERNAL: "false",
+            ...env,
+          },
+          encoding: "utf8",
+          stdio: ["ignore", "pipe", "pipe"],
+        },
+      ),
+    );
+  const fresh = render();
+  assert.equal(fresh.name, "qyvra");
+  assert.equal(fresh.networks.default.name, "qyvra_default");
+  for (const name of ["postgres", "storage", "rabbitmq"])
+    assert.equal(fresh.volumes[`${name}_data`].name, `qyvra_${name}_data`);
+  assert.equal(
+    fresh.services.api.environment.LOCAL_STORAGE_ROOT,
+    "/data/qyvra",
+  );
+  assert.equal(fresh.services.worker.volumes[0].target, "/data/qyvra");
+  assert.equal(fresh.services.worker.volumes[0].read_only, true);
+  assert.equal(fresh.services.rabbitmq.hostname, "rabbitmq");
+  const legacy = render({
+    POSTGRES_VOLUME_NAME: "brainless_postgres_data",
+    STORAGE_VOLUME_NAME: "brainless_storage_data",
+    RABBITMQ_VOLUME_NAME: "brainless_rabbitmq_data",
+    PERSISTENT_VOLUMES_EXTERNAL: "true",
+    RABBITMQ_HOSTNAME: "old-node",
+  });
+  assert.equal(legacy.name, "qyvra");
+  for (const name of ["postgres", "storage", "rabbitmq"]) {
+    assert.equal(legacy.volumes[`${name}_data`].name, `brainless_${name}_data`);
+    assert.equal(legacy.volumes[`${name}_data`].external, true);
+  }
+  assert.equal(legacy.services.rabbitmq.hostname, "old-node");
+  const isolated = render({}, ["-p", "qyvra-e2e-test"]);
+  assert.equal(
+    isolated.volumes.postgres_data.name,
+    "qyvra-e2e-test_postgres_data",
+  );
 });
 
 test("Nginx limit script handles bounded decimal values and rejects injection", (t) => {

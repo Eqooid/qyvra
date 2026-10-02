@@ -3,7 +3,7 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { Storage } from '@brainless/storage';
+import { Storage } from '@qyvra/storage';
 import { Readable, Writable } from 'node:stream';
 import { Response } from 'express';
 import { randomUUID } from 'node:crypto';

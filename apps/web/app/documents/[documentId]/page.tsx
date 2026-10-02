@@ -1,5 +1,5 @@
 import { DocumentDetailPage } from "@/features/documents/document-detail"
-export const metadata = { title: "Document | Brainless" }
+export const metadata = { title: "Document | QYVRA" }
 export default async function Page({
   params,
 }: {

@@ -4,7 +4,7 @@ import type { Readable } from 'node:stream';
  * @description Shared runtime DI token; consumers use the Storage contract, never a local adapter class.
  * @tags Storage
  */
-export const STORAGE = Symbol('brainless.storage');
+export const STORAGE = Symbol('qyvra.storage');
 
 export interface StoredObject {
   readonly key: string;

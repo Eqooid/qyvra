@@ -19,10 +19,10 @@ const fontMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "Brainless",
-  applicationName: "Brainless",
+  title: "QYVRA",
+  applicationName: "QYVRA",
   description:
-    "Brainless is a personal knowledge and document-management application. Its current implementation focuses on securely organizing, processing, searching, and discussing personal documents.",
+    "QYVRA is a personal knowledge and document-management application. Its current implementation focuses on securely organizing, processing, searching, and discussing personal documents.",
 }
 
 export default function RootLayout({

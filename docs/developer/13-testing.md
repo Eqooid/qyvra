@@ -66,7 +66,7 @@ cd ../..
 npm --prefix apps/web run test:e2e
 ```
 
-`npm --prefix apps/web run test:e2e:headed` is the visible-browser variant. [infrastructure/e2e/run.cjs](../../infrastructure/e2e/run.cjs) starts project `brainless-e2e` on localhost:18080 with separate volumes, generated credentials and a 2 MiB upload limit, executes Playwright, then brings the project down without deleting volumes. Do not run simultaneous suites against that project.
+`npm --prefix apps/web run test:e2e:headed` is the visible-browser variant. [infrastructure/e2e/run.cjs](../../infrastructure/e2e/run.cjs) starts project `qyvra-e2e` on localhost:18080 with separate volumes, generated credentials and a 2 MiB upload limit, executes Playwright, then brings the project down without deleting volumes. Do not run simultaneous suites against that project.
 
 | Browser file                                                    | Actual checks                                                                                                                                                                                     |
 | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

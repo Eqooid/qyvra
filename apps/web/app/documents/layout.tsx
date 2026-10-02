@@ -1,5 +1,5 @@
 import { DashboardShell } from "@/components/layout/dashboard-shell"
-export const metadata = { title: "Documents | Brainless" }
+export const metadata = { title: "Documents | QYVRA" }
 export default function DocumentsLayout({
   children,
 }: {

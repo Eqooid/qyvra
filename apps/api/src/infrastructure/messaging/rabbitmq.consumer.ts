@@ -5,7 +5,7 @@ import {
   type ConfirmChannel,
   type ConsumeMessage,
 } from 'amqplib';
-import type { ProcessingMessageV1 } from '@brainless/database';
+import type { ProcessingMessageV1 } from '@qyvra/database';
 import { parseProcessingMessage } from './processing-message';
 import {
   declareProcessingTopology,

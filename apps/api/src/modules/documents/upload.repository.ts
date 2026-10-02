@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, ProcessingRepository } from '@brainless/database';
+import { Prisma, ProcessingRepository } from '@qyvra/database';
 import { createHash, randomUUID } from 'node:crypto';
 import { PrismaService } from '../../database/prisma.service';
 import { ConfigurationService } from '../../configuration/configuration.module';

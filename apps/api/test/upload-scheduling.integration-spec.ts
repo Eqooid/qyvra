@@ -11,8 +11,8 @@ import {
   STORAGE,
   StorageError,
   type Storage,
-} from '@brainless/storage';
-import { ProcessingRepository } from '@brainless/database';
+} from '@qyvra/storage';
+import { ProcessingRepository } from '@qyvra/database';
 import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { configureApplication } from '../src/configure-application';
@@ -57,7 +57,7 @@ describeBroker('upload scheduling through the Phase 3 infrastructure', () => {
       !/test/i.test(new URL(process.env.TEST_DATABASE_URL).pathname)
     )
       throw new Error('Use a disposable migrated TEST_DATABASE_URL.');
-    directory = await mkdtemp(join(tmpdir(), 'brainless-t07-test-'));
+    directory = await mkdtemp(join(tmpdir(), 'qyvra-t07-test-'));
     const config = validateTestEnvironment({
       NODE_ENV: 'test',
       DATABASE_URL: process.env.TEST_DATABASE_URL,
