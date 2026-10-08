@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
 import { connect, type ChannelModel, type ConfirmChannel } from 'amqplib';
-import type { ProcessingMessageV1 } from '@qyvra/database';
+import type { ProcessingMessage } from '@qyvra/database';
 import type { MessagePublisher } from './message-publisher';
 import { serializeProcessingMessage } from './processing-message';
 import {
@@ -100,7 +100,7 @@ export class RabbitMqPublisher
     this.connection = undefined;
   }
 
-  async publishProcessing(message: ProcessingMessageV1): Promise<void> {
+  async publishProcessing(message: ProcessingMessage): Promise<void> {
     const payload = serializeProcessingMessage(message);
     // One in-flight publication lets mandatory returns match their confirmation unambiguously.
     const publication = this.tail.then(() => this.publishOne(message, payload));
@@ -109,7 +109,7 @@ export class RabbitMqPublisher
   }
 
   private async publishOne(
-    message: ProcessingMessageV1,
+    message: ProcessingMessage,
     payload: Buffer,
   ): Promise<void> {
     const channel = await this.getChannel();

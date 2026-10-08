@@ -2,19 +2,24 @@ import { Injectable, Logger } from '@nestjs/common';
 import {
   ProcessingError,
   ProcessingRepository,
-  type ProcessingMessageV1,
+  type ProcessingMessage,
+  type StageCommit,
 } from '@qyvra/database';
 import { ProcessingProgressStore } from '../progress/processing-progress';
 
 export type DeliveryDecision = 'ack' | 'dead-letter' | 'retry';
 
 export type HandlerResult =
-  | { readonly kind: 'success' }
-  | { readonly kind: 'retryable'; readonly failureCode: string }
+  | { readonly kind: 'success'; readonly commit?: StageCommit }
+  | {
+      readonly kind: 'retryable';
+      readonly failureCode: string;
+      readonly retryAfterMs?: number;
+    }
   | { readonly kind: 'terminal'; readonly failureCode: string };
 
 export interface ProcessingJobHandler {
-  readonly jobType: ProcessingMessageV1['jobType'];
+  readonly jobType: ProcessingMessage['jobType'];
   execute(input: {
     readonly jobId: string;
     readonly documentId: string;
@@ -47,7 +52,7 @@ export class ProcessingMessageHandler {
   }
 
   async handle(
-    message: ProcessingMessageV1,
+    message: ProcessingMessage,
     redelivered: boolean,
   ): Promise<DeliveryDecision> {
     let job: Awaited<ReturnType<ProcessingRepository['findById']>>;
@@ -101,7 +106,7 @@ export class ProcessingMessageHandler {
     if (message.dispatchSequence > job.attempts + 1) return 'dead-letter';
 
     const handler = this.handlers.get(message.jobType);
-    if (!handler) {
+    if (!handler && message.jobType === 'VERIFY_STORED_FILE') {
       this.logger.warn(
         `No production processing handler registered: message=${message.messageId} job=${job.id}.`,
       );
@@ -118,26 +123,38 @@ export class ProcessingMessageHandler {
     if (!token) return 'retry';
     let outcome: HandlerResult;
     try {
-      outcome = await handler.execute({
-        jobId: claimed.id,
-        documentId: claimed.documentId,
-        documentVersionId: claimed.documentVersionId,
-        leaseToken: token,
-        attempt: claimed.attempts,
-      });
+      outcome = handler
+        ? await handler.execute({
+            jobId: claimed.id,
+            documentId: claimed.documentId,
+            documentVersionId: claimed.documentVersionId,
+            leaseToken: token,
+            attempt: claimed.attempts,
+          })
+        : { kind: 'terminal', failureCode: 'HANDLER_NOT_IMPLEMENTED' };
     } catch {
       outcome = { kind: 'retryable', failureCode: 'HANDLER_ERROR' };
     }
     try {
-      if (outcome.kind === 'success')
-        await this.repository.complete(claimed.id, token, this.clock());
-      else
+      if (outcome.kind === 'success') {
+        if (outcome.commit)
+          await this.repository.complete(
+            claimed.id,
+            token,
+            this.clock(),
+            outcome.commit,
+          );
+        else await this.repository.complete(claimed.id, token, this.clock());
+      } else
         await this.repository.fail(
           claimed.id,
           token,
           this.clock(),
           outcome.failureCode,
           outcome.kind === 'retryable',
+          ...(outcome.kind === 'retryable' && outcome.retryAfterMs !== undefined
+            ? [outcome.retryAfterMs]
+            : []),
         );
       try {
         await this.progress?.clear(claimed.id, claimed.attempts);
@@ -153,10 +170,11 @@ export class ProcessingMessageHandler {
   }
 
   private async afterClaimConflict(
-    message: ProcessingMessageV1,
+    message: ProcessingMessage,
     error: unknown,
   ): Promise<DeliveryDecision> {
     if (error instanceof ProcessingError) {
+      if (error.code === 'INELIGIBLE_DOCUMENT') return 'ack';
       if (error.code === 'NOT_FOUND') return 'dead-letter';
       if (error.code === 'INVALID_TRANSITION') {
         let current: Awaited<ReturnType<ProcessingRepository['findById']>>;

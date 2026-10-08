@@ -21,6 +21,47 @@ describe('ProcessingStatusService', () => {
 
   beforeEach(() => jest.resetAllMocks());
 
+  it('keeps a prior run completion out of the current run jobs and pending stages', async () => {
+    const runId = randomUUID();
+    const now = new Date();
+    findOwnedVersion.mockResolvedValue({
+      id: versionId,
+      documentId,
+      aiState: {
+        desiredRun: {
+          id: runId,
+          generation: 2,
+          status: 'BUILDING',
+          jobs: [{ jobType: 'EXTRACT_TEXT', status: 'RETRYING' }],
+        },
+      },
+      processingJobs: [
+        {
+          id: randomUUID(),
+          aiRunId: randomUUID(),
+          jobType: 'GENERATE_CHUNKS',
+          status: 'COMPLETED',
+          attempts: 1,
+          maxAttempts: 3,
+          availableAt: now,
+          startedAt: now,
+          completedAt: now,
+          lastFailureCode: null,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+    });
+    const result = await service.forVersion(userId, documentId, versionId);
+    expect(result.jobs).toEqual([]);
+    expect(result.pipeline?.generation).toBe(2);
+    expect(
+      result.pipeline?.stages.find(
+        (stage) => stage.jobType === 'GENERATE_CHUNKS',
+      )?.status,
+    ).toBe('NOT_SCHEDULED');
+  });
+
   it('uses the owner and version boundary and hides missing resources', async () => {
     findOwnedVersion.mockResolvedValue(null);
     await expect(

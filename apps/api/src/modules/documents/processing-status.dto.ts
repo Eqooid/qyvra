@@ -1,3 +1,4 @@
+import { processingJobTypes } from '@qyvra/database';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ProcessingProgress,
@@ -39,7 +40,7 @@ export class ProcessingJobStatusView {
   @ApiProperty({ format: 'uuid' })
   id!: string;
 
-  @ApiProperty({ enum: ['VERIFY_STORED_FILE'] })
+  @ApiProperty({ enum: processingJobTypes })
   jobType!: string;
 
   @ApiProperty({ enum: publicProcessingStates })
@@ -81,7 +82,36 @@ export class ProcessingJobStatusView {
   progress!: ProcessingProgressView | null;
 }
 
+export class PipelineStageView {
+  @ApiProperty({ enum: processingJobTypes })
+  jobType!: string;
+  @ApiProperty({ enum: [...publicProcessingStates, 'NOT_SCHEDULED'] })
+  status!: string;
+}
+export class ProcessingPipelineView {
+  @ApiProperty({ format: 'uuid' })
+  runId!: string;
+  @ApiProperty({ minimum: 1 })
+  generation!: number;
+  @ApiProperty({
+    enum: ['BUILDING', 'READY', 'FAILED', 'CANCELLED', 'SUPERSEDED'],
+  })
+  status!: string;
+  @ApiProperty({ type: String, nullable: true })
+  currentStage!: string | null;
+  @ApiProperty({ type: [PipelineStageView] })
+  stages!: PipelineStageView[];
+}
+
 export class ProcessingStatusView {
+  @ApiProperty({
+    enum: ['READY', 'PROCESSING', 'FAILED', 'UNAVAILABLE', 'UNSUPPORTED'],
+    description:
+      'Owned current-version readiness for the configured serving embedding profile; READY requires an authoritative active index pointer.',
+  })
+  aiReadiness!: string;
+  @ApiPropertyOptional({ type: ProcessingPipelineView })
+  pipeline?: ProcessingPipelineView;
   @ApiProperty({ format: 'uuid' })
   documentId!: string;
 

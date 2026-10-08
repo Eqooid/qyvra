@@ -91,6 +91,7 @@ export class ProcessingRecovery implements OnApplicationShutdown {
         throw error;
       }
     }
+    await this.repository.reconcilePipelines(now, this.settings.batchSize);
     return { recovered, scheduled };
   }
 

@@ -6,6 +6,47 @@
 
 ## Status and boundaries
 
+Current product candidate: **v1.3.0**; [T13 preparation](phase-4-release-preparation.md)
+and [release snapshot](releases/v1.3.0.md) record the untagged status and exact limits.
+Compose continues to build local project/service images, without release-specific
+registry tags or OCI version labels. No registry push or production deploy is part
+of release preparation. Start/recovery commands below preserve original volumes.
+
+T10 grounded answers are opt-in through the API service's `RAG_*` and `GENERATION_*`
+settings. Generation credentials/model/endpoint are independent of embeddings and
+are not supplied to the worker or browser. Enable only after selecting the SQL
+serving profile and calibrating `SEMANTIC_SEARCH_MIN_SCORE`. No additional service,
+volume or public Qdrant port is introduced. See [T10 configuration and provider
+deployment requirements](phase-4-rag-answers.md#configuration).
+
+T06 implements [embedding generation and checkpoint configuration](phase-4-embedding-generation.md#configuration-and-deployment).
+The worker receives embedding configuration and its optional bearer secret; builds and
+ordinary startup require no provider key. Embeddings default to disabled. Configure an exact
+persisted profile fingerprint and operator-controlled endpoint before explicit processing.
+The bridge permits outbound requests; production egress must allow only approved providers.
+[T07 private Qdrant indexing and cleanup](phase-4-vector-indexing.md),
+[T09 retrieval](phase-4-semantic-search.md) and [T10 RAG](phase-4-rag-answers.md)
+are implemented. Opt-in search/RAG also supplies server-only query embedding and
+generation configuration to the API. Provider secrets never go to outbox or web.
+
+**T04 PDF extraction is implemented** in the existing worker image.
+**T05 chunk generation is implemented** in
+the same image with the pinned local tiktoken WASM/rank files; no additional native
+toolchain or service is required. See [chunk limits](phase-4-chunk-generation.md#configuration-and-limits).
+The PDF compiler stage installs GCC only during build and copies the Linux socket-denying launcher
+into the unprivileged runtime. The worker's default `2g` memory limit bounds aggregate
+RSS; parser heap/time/byte/page limits are configurable through the existing environment
+boundary. See [PDF extraction deployment and verification](phase-4-pdf-extraction.md).
+Original storage remains read-only and extraction introduces no service or public port.
+
+**Phase 4 deployment:** [AI/RAG infrastructure and security](phase-4-ai-rag.md#security-deployment-and-observability--planned)
+adds optional private Qdrant and independently configured provider adapters.
+T07 joins only the worker and Qdrant to the dedicated internal `vector` network.
+API index access remains a future retrieval change; outbox needs neither AI credentials nor index
+access. Original storage stays read-only in workers. Separate AI readiness from
+core document health. PostgreSQL/original backups remain authoritative; Qdrant
+can be rebuilt. No service, image, port, volume or configuration changes occur in T01.
+
 The Compose/Nginx entry point serves the existing document workflows and the
 v1.2.0 processing foundation. The additional worker and outbox processes share the
 API image; PostgreSQL and private files remain authoritative, RabbitMQ carries
@@ -22,6 +63,14 @@ Current Phase 3 evidence is in the [T13 verification](phase-3-verification.md)
 and [T14 acceptance/upgrade guidance](phase-3-acceptance.md).
 
 ## First start
+
+Qdrant's new volume is Compose-managed by default, independently of
+`PERSISTENT_VOLUMES_EXTERNAL`, which protects existing PostgreSQL, storage and
+RabbitMQ volumes. Set `QDRANT_VOLUME_EXTERNAL=true` only when the named Qdrant
+volume already exists and should be externally managed. If Compose reports
+`external volume "qyvra_qdrant_data" not found`, use this updated configuration
+with `QDRANT_VOLUME_EXTERNAL=false`; keep your existing legacy volume mappings
+and `PERSISTENT_VOLUMES_EXTERNAL=true` intact.
 
 Install Docker Desktop with Linux containers and Compose v2. Run from the repository
 root. The default project name is `qyvra`. Existing installations must first map
@@ -351,3 +400,29 @@ new host-development Compose override, API/web/Nginx Dockerfiles, Nginx template
 and limit script, database command launcher and focused tests, Next standalone
 configuration, root/API/web/storage READMEs, architecture/roadmap and this guide.
 No schema migration, real .env, existing volume or business endpoint was changed.
+
+## T08 ingestion integration — Implemented
+
+[T08](phase-4-ingestion.md) passes nonsecret ingestion/profile/chunk settings to API and worker. Provision the SQL profile before enabling ingestion. The runtime image includes scripts/ai-backfill.cjs for bounded dry-run/apply maintenance through the canonical scheduler; use the existing database-command wrapper. Qdrant stays on the private vector network; T09 adds API read access.
+
+## Phase 4 T09 private retrieval deployment
+
+The API joins the existing internal vector network and receives server-only embedding/Qdrant configuration for opt-in query retrieval. Qdrant has no published port or proxy route. Configure an explicit matching SQL serving profile and API fingerprint; `SEMANTIC_SEARCH_PROFILE_FINGERPRINT` is an API-only Compose override during replacement builds. [Configuration, profile selection and limits](phase-4-semantic-search.md#configuration-and-deployment).
+
+## T11 real AI browser verification
+
+`node infrastructure/e2e/ai-run.cjs test` builds an isolated `qyvra-e2e-ai` stack and provisions a test embedding profile before enabling enrollment. It adds a private deterministic HTTP provider fixture only through `infrastructure/e2e/ai-compose.yml`; normal Compose defaults and public ports are unchanged. Actual uploads, workers, SQL, Qdrant and Nginx participate. See [T11 verification and limitations](phase-4-ai-frontend.md#verification-and-remaining-scope).
+
+## T12 recovery and production review
+
+[T12 verification](phase-4-verification.md) records actual outage/rebuild tests and
+[operational recovery](phase-4-verification.md#operational-recovery). Keep original
+database/storage volumes when restoring services. After Qdrant collection loss,
+explicit index-only reprocessing rebuilds from complete durable embeddings;
+SQL readiness alone is not a live remote-health check. The T12 browser fault suite
+requires an isolated `qyvra-e2e-ai-t12` project; never run destructive collection-loss
+tests against development or production services.
+
+See the [production configuration review](phase-4-verification.md#production-configuration-review)
+before exposing this local HTTP stack. The private deterministic provider fixture
+is not a production provider and is absent from normal Compose.

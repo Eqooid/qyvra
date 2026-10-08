@@ -1,4 +1,8 @@
-import type { ProcessingMessageV1 } from '@qyvra/database';
+import {
+  processingJobTypes,
+  type ProcessingJobType,
+  type ProcessingMessage,
+} from '@qyvra/database';
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const fields = [
@@ -15,7 +19,7 @@ const fields = [
 ] as const;
 
 /** Recover the committed contract from PostgreSQL JSON without trusting a type assertion. */
-export function parseProcessingMessage(value: unknown): ProcessingMessageV1 {
+export function parseProcessingMessage(value: unknown): ProcessingMessage {
   if (typeof value !== 'object' || value === null || Array.isArray(value))
     throw new Error('Invalid processing message contract.');
   const record = value as Record<string, unknown>;
@@ -24,9 +28,11 @@ export function parseProcessingMessage(value: unknown): ProcessingMessageV1 {
     fields.some(
       (field) => !Object.prototype.hasOwnProperty.call(record, field),
     ) ||
-    record.schemaVersion !== 1 ||
+    ![1, 2].includes(record.schemaVersion as number) ||
     record.type !== 'processing.execute' ||
-    record.jobType !== 'VERIFY_STORED_FILE' ||
+    (record.schemaVersion === 1
+      ? record.jobType !== 'VERIFY_STORED_FILE'
+      : !processingJobTypes.includes(record.jobType as ProcessingJobType)) ||
     !Number.isSafeInteger(record.dispatchSequence) ||
     (record.dispatchSequence as number) < 1 ||
     ![
@@ -48,12 +54,10 @@ export function parseProcessingMessage(value: unknown): ProcessingMessageV1 {
   const bytes = Buffer.from(JSON.stringify(ordered), 'utf8');
   if (bytes.length > 4096)
     throw new Error('Processing message exceeds size limit.');
-  return ordered as unknown as ProcessingMessageV1;
+  return ordered as unknown as ProcessingMessage;
 }
 
 /** Validate at the infrastructure boundary even if the caller is typed. */
-export function serializeProcessingMessage(
-  message: ProcessingMessageV1,
-): Buffer {
+export function serializeProcessingMessage(message: ProcessingMessage): Buffer {
   return Buffer.from(JSON.stringify(parseProcessingMessage(message)), 'utf8');
 }

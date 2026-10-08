@@ -5,7 +5,7 @@ import {
   type ConfirmChannel,
   type ConsumeMessage,
 } from 'amqplib';
-import type { ProcessingMessageV1 } from '@qyvra/database';
+import type { ProcessingMessage } from '@qyvra/database';
 import { parseProcessingMessage } from './processing-message';
 import {
   declareProcessingTopology,
@@ -15,7 +15,7 @@ import type { DeliveryDecision } from '../worker/processing-message-handler';
 
 export interface ProcessingDeliveryHandler {
   handle(
-    message: ProcessingMessageV1,
+    message: ProcessingMessage,
     redelivered: boolean,
   ): Promise<DeliveryDecision>;
 }
@@ -69,6 +69,7 @@ export class RabbitMqConsumer implements OnApplicationShutdown {
   }
 
   private async connectAndConsume(): Promise<void> {
+    if (this.stopping) return;
     const url = this.settings.url;
     if (!url) throw new Error('RABBITMQ_URL is required for the worker.');
     let connection: ChannelModel | undefined;
@@ -76,6 +77,10 @@ export class RabbitMqConsumer implements OnApplicationShutdown {
       connection = await connect(url, {
         timeout: this.settings.connectTimeoutMs,
       });
+      if (this.stopping) {
+        await connection.close();
+        return;
+      }
       connection.on('error', () =>
         this.logger.warn('Worker RabbitMQ connection error.'),
       );
@@ -117,6 +122,13 @@ export class RabbitMqConsumer implements OnApplicationShutdown {
         },
         { noAck: false },
       );
+      // stop() may run while any AMQP setup await is pending. Never publish a
+      // late connection or revive readiness after shutdown has begun.
+      if (this.stopping) {
+        await channel.close();
+        await connection.close();
+        return;
+      }
       this.connection = connection;
       this.channel = channel;
       this.consumerTag = consumer.consumerTag;
@@ -135,7 +147,7 @@ export class RabbitMqConsumer implements OnApplicationShutdown {
     channel: ConfirmChannel,
     delivery: ConsumeMessage,
   ): Promise<void> {
-    let message: ProcessingMessageV1;
+    let message: ProcessingMessage;
     try {
       if (
         delivery.content.length > 4096 ||

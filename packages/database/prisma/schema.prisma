@@ -197,6 +197,15 @@ model DocumentVersion {
   document         Document        @relation(fields: [documentId, userId], references: [id, userId], onDelete: Cascade, onUpdate: Restrict)
   processingJobs   ProcessingJob[]
 
+  aiRuns          AiProcessingRun[]
+  extractedTexts  ExtractedText[]
+  chunkSets       ChunkSet[]
+  chunks          DocumentChunk[]
+  chunkEmbeddings ChunkEmbedding[]
+  vectorIndexes   VersionVectorIndex[]
+  aiState         VersionAiState?
+  readyIndexes    VersionReadyIndex[]
+
   @@unique([id, documentId, userId])
   @@unique([documentId, versionNumber])
   @@unique([userId, checksumSha256])
@@ -246,11 +255,28 @@ model ProcessingJob {
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
+  aiRunId          String? @map("ai_run_id") @db.Uuid
+  predecessorJobId String? @map("predecessor_job_id") @db.Uuid
+  extractedTextId  String? @map("extracted_text_id") @db.Uuid
+  chunkSetId       String? @map("chunk_set_id") @db.Uuid
+  vectorIndexId    String? @map("vector_index_id") @db.Uuid
+
+  aiRun            AiProcessingRun?    @relation(fields: [aiRunId, documentVersionId, documentId, userId], references: [id, documentVersionId, documentId, userId], onDelete: NoAction, onUpdate: Restrict)
+  predecessor      ProcessingJob?      @relation("JobDependency", fields: [predecessorJobId, documentVersionId, documentId, userId], references: [id, documentVersionId, documentId, userId], onDelete: NoAction, onUpdate: Restrict)
+  successors       ProcessingJob[]     @relation("JobDependency")
+  extraction       ExtractedText?      @relation(fields: [extractedTextId, documentVersionId, documentId, userId], references: [id, documentVersionId, documentId, userId], onDelete: NoAction, onUpdate: Restrict)
+  chunkSet         ChunkSet?           @relation(fields: [chunkSetId, documentVersionId, documentId, userId], references: [id, documentVersionId, documentId, userId], onDelete: NoAction, onUpdate: Restrict)
+  vectorIndex      VersionVectorIndex? @relation(fields: [vectorIndexId, documentVersionId, documentId, userId], references: [id, documentVersionId, documentId, userId], onDelete: NoAction, onUpdate: Restrict)
+  extractionStates VersionAiState[]    @relation("LastExtraction")
+
   document Document           @relation(fields: [documentId, userId], references: [id, userId], onDelete: Cascade, onUpdate: Restrict)
   version  DocumentVersion    @relation(fields: [documentVersionId, documentId, userId], references: [id, documentId, userId], onDelete: Cascade, onUpdate: Restrict)
   outbox   ProcessingOutbox[]
 
   @@unique([documentVersionId, jobType, generation])
+  @@unique([id, documentVersionId, documentId, userId], map: "processing_jobs_owned_identity_key")
+  @@index([aiRunId, jobType], map: "processing_jobs_run_type_idx")
+  @@index([predecessorJobId], map: "processing_jobs_predecessor_idx")
   @@index([userId, documentId, documentVersionId, createdAt], map: "processing_jobs_owner_version_created_idx")
   @@index([status, availableAt, id])
   @@index([status, leaseExpiresAt])
@@ -282,4 +308,259 @@ model ProcessingOutbox {
   @@index([status, availableAt, id])
   @@index([status, claimExpiresAt])
   @@map("processing_outbox")
+}
+
+// AI models are persistence only. Custom checks, immutable artifacts and partial
+// uniqueness are implemented by the Phase 4 SQL migration.
+model EmbeddingProfile {
+  id                   String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fingerprint          String               @unique @db.VarChar(64)
+  profileVersion       Int                  @map("profile_version")
+  provider             String               @db.VarChar(100)
+  model                String               @db.VarChar(200)
+  modelRevision        String               @map("model_revision") @db.VarChar(200)
+  dimensions           Int
+  distance             String               @default("Cosine") @db.VarChar(16)
+  normalizationVersion String               @map("normalization_version") @db.VarChar(100)
+  tokenizer            String               @db.VarChar(100)
+  tokenizerVersion     String               @map("tokenizer_version") @db.VarChar(100)
+  documentInstruction  String               @default("") @map("document_instruction") @db.VarChar(2000)
+  queryInstruction     String               @default("") @map("query_instruction") @db.VarChar(2000)
+  createdAt            DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  runs                 AiProcessingRun[]
+  embeddings           ChunkEmbedding[]
+  indexes              VersionVectorIndex[]
+  readyIndexes         VersionReadyIndex[]
+  serving              AiServingProfile?
+
+  @@unique([id, dimensions])
+  @@map("embedding_profiles")
+}
+
+model AiProcessingRun {
+  id                    String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                String                  @map("user_id") @db.Uuid
+  documentId            String                  @map("document_id") @db.Uuid
+  documentVersionId     String                  @map("document_version_id") @db.Uuid
+  generation            Int
+  status                String                  @default("BUILDING") @db.VarChar(16)
+  extractor             String                  @db.VarChar(100)
+  extractorVersion      String                  @map("extractor_version") @db.VarChar(100)
+  normalizationVersion  String                  @map("normalization_version") @db.VarChar(100)
+  chunkAlgorithm        String                  @map("chunk_algorithm") @db.VarChar(100)
+  chunkAlgorithmVersion String                  @map("chunk_algorithm_version") @db.VarChar(100)
+  tokenizer             String                  @db.VarChar(100)
+  tokenizerVersion      String                  @map("tokenizer_version") @db.VarChar(100)
+  chunkSize             Int                     @map("chunk_size")
+  chunkOverlap          Int                     @map("chunk_overlap")
+  embeddingProfileId    String                  @map("embedding_profile_id") @db.Uuid
+  lastFailureCode       String?                 @map("last_failure_code") @db.VarChar(64)
+  createdAt             DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime                @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  completedAt           DateTime?               @map("completed_at") @db.Timestamptz(3)
+  version               DocumentVersion         @relation(fields: [documentVersionId, documentId, userId], references: [id, documentId, userId], onDelete: Cascade, onUpdate: Restrict)
+  profile               EmbeddingProfile        @relation(fields: [embeddingProfileId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  jobs                  ProcessingJob[]
+  indexes               VersionVectorIndex[]
+  desiredStates         VersionAiState[]
+  reprocessingRequests  AiReprocessingRequest[]
+
+  @@unique([documentVersionId, generation])
+  @@unique([id, documentVersionId, documentId, userId], map: "ai_runs_owned_identity_key")
+  @@unique([id, embeddingProfileId], map: "ai_runs_profile_key")
+  @@index([userId, documentId, documentVersionId, createdAt], map: "ai_runs_owner_version_idx")
+  @@index([status, updatedAt, id])
+  @@map("ai_processing_runs")
+}
+
+model ExtractedText {
+  id                    String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                String          @map("user_id") @db.Uuid
+  documentId            String          @map("document_id") @db.Uuid
+  documentVersionId     String          @map("document_version_id") @db.Uuid
+  extractionFingerprint String          @map("extraction_fingerprint") @db.VarChar(64)
+  extractor             String          @db.VarChar(100)
+  extractorVersion      String          @map("extractor_version") @db.VarChar(100)
+  normalizationVersion  String          @map("normalization_version") @db.VarChar(100)
+  sourceChecksum        String          @map("source_checksum") @db.VarChar(64)
+  contentHash           String          @map("content_hash") @db.VarChar(64)
+  text                  String          @db.Text
+  pageSpans             Json            @map("page_spans") @db.JsonB
+  characterCount        Int             @map("character_count")
+  pageCount             Int             @map("page_count")
+  outcome               String          @default("COMPLETED") @db.VarChar(16)
+  createdAt             DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  version               DocumentVersion @relation(fields: [documentVersionId, documentId, userId], references: [id, documentId, userId], onDelete: Cascade, onUpdate: Restrict)
+  chunkSets             ChunkSet[]
+  jobs                  ProcessingJob[]
+
+  @@unique([documentVersionId, extractionFingerprint], map: "extracted_texts_version_fingerprint_key")
+  @@unique([id, documentVersionId, documentId, userId], map: "extracted_texts_owned_identity_key")
+  @@index([userId, documentId, documentVersionId], map: "extracted_texts_owner_version_idx")
+  @@map("extracted_texts")
+}
+
+model ChunkSet {
+  id                String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String               @map("user_id") @db.Uuid
+  documentId        String               @map("document_id") @db.Uuid
+  documentVersionId String               @map("document_version_id") @db.Uuid
+  extractedTextId   String               @map("extracted_text_id") @db.Uuid
+  extractionHash    String               @map("extraction_hash") @db.VarChar(64)
+  fingerprint       String               @db.VarChar(64)
+  algorithm         String               @db.VarChar(100)
+  algorithmVersion  String               @map("algorithm_version") @db.VarChar(100)
+  tokenizer         String               @db.VarChar(100)
+  tokenizerVersion  String               @map("tokenizer_version") @db.VarChar(100)
+  chunkSize         Int                  @map("chunk_size")
+  chunkOverlap      Int                  @map("chunk_overlap")
+  chunkCount        Int                  @default(0) @map("chunk_count")
+  complete          Boolean              @default(false)
+  createdAt         DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  version           DocumentVersion      @relation(fields: [documentVersionId, documentId, userId], references: [id, documentId, userId], onDelete: Cascade, onUpdate: Restrict)
+  extraction        ExtractedText        @relation(fields: [extractedTextId, documentVersionId, documentId, userId], references: [id, documentVersionId, documentId, userId], onDelete: NoAction, onUpdate: Restrict)
+  chunks            DocumentChunk[]
+  indexes           VersionVectorIndex[]
+  jobs              ProcessingJob[]
+
+  @@unique([documentVersionId, fingerprint])
+  @@unique([id, documentVersionId, documentId, userId], map: "chunk_sets_owned_identity_key")
+  @@index([userId, documentId, documentVersionId], map: "chunk_sets_owner_version_idx")
+  @@map("chunk_sets")
+}
+
+model DocumentChunk {
+  // Assigned by the deterministic UUIDv5 chunker; never generated by Qdrant.
+  id                String           @id @db.Uuid
+  userId            String           @map("user_id") @db.Uuid
+  documentId        String           @map("document_id") @db.Uuid
+  documentVersionId String           @map("document_version_id") @db.Uuid
+  chunkSetId        String           @map("chunk_set_id") @db.Uuid
+  ordinal           Int
+  text              String           @db.Text
+  textHash          String           @map("text_hash") @db.VarChar(64)
+  startOffset       Int              @map("start_offset")
+  endOffset         Int              @map("end_offset")
+  tokenCount        Int              @map("token_count")
+  pageSpans         Json             @map("page_spans") @db.JsonB
+  sectionLabel      String?          @map("section_label") @db.VarChar(300)
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  version           DocumentVersion  @relation(fields: [documentVersionId, documentId, userId], references: [id, documentId, userId], onDelete: Cascade, onUpdate: Restrict)
+  set               ChunkSet         @relation(fields: [chunkSetId, documentVersionId, documentId, userId], references: [id, documentVersionId, documentId, userId], onDelete: Cascade, onUpdate: Restrict)
+  embeddings        ChunkEmbedding[]
+
+  @@unique([chunkSetId, ordinal])
+  @@unique([id, documentVersionId, documentId, userId], map: "document_chunks_owned_identity_key")
+  @@index([userId, documentId, documentVersionId], map: "document_chunks_owner_version_idx")
+  @@map("document_chunks")
+}
+
+model ChunkEmbedding {
+  id                 String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId             String           @map("user_id") @db.Uuid
+  documentId         String           @map("document_id") @db.Uuid
+  documentVersionId  String           @map("document_version_id") @db.Uuid
+  chunkId            String           @map("chunk_id") @db.Uuid
+  embeddingProfileId String           @map("embedding_profile_id") @db.Uuid
+  dimensions         Int
+  inputHash          String           @map("input_hash") @db.VarChar(64)
+  vector             Float[]          @db.DoublePrecision
+  completedAt        DateTime         @default(now()) @map("completed_at") @db.Timestamptz(3)
+  version            DocumentVersion  @relation(fields: [documentVersionId, documentId, userId], references: [id, documentId, userId], onDelete: Cascade, onUpdate: Restrict)
+  chunk              DocumentChunk    @relation(fields: [chunkId, documentVersionId, documentId, userId], references: [id, documentVersionId, documentId, userId], onDelete: Cascade, onUpdate: Restrict)
+  profile            EmbeddingProfile @relation(fields: [embeddingProfileId, dimensions], references: [id, dimensions], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([chunkId, embeddingProfileId])
+  @@index([userId, documentId, documentVersionId, embeddingProfileId], map: "chunk_embeddings_owner_profile_idx")
+  @@map("chunk_embeddings")
+}
+
+model VersionVectorIndex {
+  id                   String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId               String              @map("user_id") @db.Uuid
+  documentId           String              @map("document_id") @db.Uuid
+  documentVersionId    String              @map("document_version_id") @db.Uuid
+  aiRunId              String              @map("ai_run_id") @db.Uuid
+  chunkSetId           String              @map("chunk_set_id") @db.Uuid
+  embeddingProfileId   String              @map("embedding_profile_id") @db.Uuid
+  collectionGeneration Int                 @map("collection_generation")
+  collectionName       String              @map("collection_name") @db.VarChar(200)
+  expectedPointCount   Int                 @map("expected_point_count")
+  confirmedPointCount  Int                 @default(0) @map("confirmed_point_count")
+  checkpointOrdinal    Int                 @default(-1) @map("checkpoint_ordinal")
+  status               String              @default("BUILDING") @db.VarChar(32)
+  lastFailureCode      String?             @map("last_failure_code") @db.VarChar(64)
+  createdAt            DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  indexedAt            DateTime?           @map("indexed_at") @db.Timestamptz(3)
+  version              DocumentVersion     @relation(fields: [documentVersionId, documentId, userId], references: [id, documentId, userId], onDelete: Cascade, onUpdate: Restrict)
+  run                  AiProcessingRun     @relation(fields: [aiRunId, documentVersionId, documentId, userId], references: [id, documentVersionId, documentId, userId], onDelete: NoAction, onUpdate: Restrict)
+  set                  ChunkSet            @relation(fields: [chunkSetId, documentVersionId, documentId, userId], references: [id, documentVersionId, documentId, userId], onDelete: NoAction, onUpdate: Restrict)
+  profile              EmbeddingProfile    @relation(fields: [embeddingProfileId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  readyMappings        VersionReadyIndex[]
+  jobs                 ProcessingJob[]
+
+  @@unique([aiRunId, collectionGeneration])
+  @@unique([id, documentVersionId, documentId, userId], map: "vector_indexes_owned_identity_key")
+  @@unique([id, embeddingProfileId], map: "vector_indexes_profile_key")
+  @@index([userId, documentId, documentVersionId, embeddingProfileId, status], map: "vector_indexes_owner_profile_idx")
+  @@index([status, updatedAt, id], map: "vector_indexes_reconciliation_idx")
+  @@map("version_vector_indexes")
+}
+
+model VersionAiState {
+  documentVersionId   String           @id @map("document_version_id") @db.Uuid
+  documentId          String           @map("document_id") @db.Uuid
+  userId              String           @map("user_id") @db.Uuid
+  desiredRunId        String?          @map("desired_run_id") @db.Uuid
+  lastExtractionJobId String?          @map("last_extraction_job_id") @db.Uuid
+  updatedAt           DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version             DocumentVersion  @relation(fields: [documentVersionId, documentId, userId], references: [id, documentId, userId], onDelete: Cascade, onUpdate: Restrict)
+  desiredRun          AiProcessingRun? @relation(fields: [desiredRunId, documentVersionId, documentId, userId], references: [id, documentVersionId, documentId, userId], onDelete: NoAction, onUpdate: Restrict)
+  lastExtractionJob   ProcessingJob?   @relation("LastExtraction", fields: [lastExtractionJobId, documentVersionId, documentId, userId], references: [id, documentVersionId, documentId, userId], onDelete: NoAction, onUpdate: Restrict)
+
+  @@unique([documentVersionId, documentId, userId], map: "version_ai_states_owned_identity_key")
+  @@index([userId, documentId], map: "version_ai_states_owner_idx")
+  @@map("version_ai_states")
+}
+
+model VersionReadyIndex {
+  documentVersionId  String             @map("document_version_id") @db.Uuid
+  documentId         String             @map("document_id") @db.Uuid
+  userId             String             @map("user_id") @db.Uuid
+  embeddingProfileId String             @map("embedding_profile_id") @db.Uuid
+  vectorIndexId      String             @unique @map("vector_index_id") @db.Uuid
+  updatedAt          DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version            DocumentVersion    @relation(fields: [documentVersionId, documentId, userId], references: [id, documentId, userId], onDelete: Cascade, onUpdate: Restrict)
+  profile            EmbeddingProfile   @relation(fields: [embeddingProfileId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  index              VersionVectorIndex @relation(fields: [vectorIndexId, documentVersionId, documentId, userId], references: [id, documentVersionId, documentId, userId], onDelete: NoAction, onUpdate: Restrict)
+
+  @@id([documentVersionId, embeddingProfileId])
+  @@index([userId, embeddingProfileId, documentId], map: "version_ready_indexes_owner_profile_idx")
+  @@map("version_ready_indexes")
+}
+
+model AiReprocessingRequest {
+  documentVersionId String          @map("document_version_id") @db.Uuid
+  documentId        String          @map("document_id") @db.Uuid
+  userId            String          @map("user_id") @db.Uuid
+  key               String          @db.Uuid
+  mode              String          @db.VarChar(16)
+  runId             String          @map("run_id") @db.Uuid
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  run               AiProcessingRun @relation(fields: [runId, documentVersionId, documentId, userId], references: [id, documentVersionId, documentId, userId], onDelete: Cascade, onUpdate: Restrict)
+
+  @@id([documentVersionId, key])
+  @@index([runId])
+  @@map("ai_reprocessing_requests")
+}
+
+model AiServingProfile {
+  // SQL CHECK enforces id=1. No row means AI serving is unconfigured.
+  id                 Int              @id @default(1)
+  embeddingProfileId String           @unique @map("embedding_profile_id") @db.Uuid
+  updatedAt          DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  profile            EmbeddingProfile @relation(fields: [embeddingProfileId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@map("ai_serving_profile")
 }

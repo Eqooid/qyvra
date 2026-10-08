@@ -9,6 +9,7 @@
   },
   "license": "UNLICENSED",
   "scripts": {
+    "pdf:sandbox:build": "node scripts/build-pdf-sandbox.cjs",
     "database:build": "npm --prefix ../../packages/database run build",
     "database:generate": "npm --prefix ../../packages/database run generate",
     "prestart": "npm run shared:build",
@@ -20,6 +21,7 @@
     "pretest:e2e": "npm run shared:build",
     "pretest:integration": "npm run shared:build",
     "test:integration": "jest --config ./test/jest-integration.json --runInBand",
+    "test:integration:isolated": "node ../../infrastructure/test/api-integration.cjs",
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\"",
@@ -38,16 +40,18 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "storage:build": "npm --prefix ../../packages/storage run build",
-    "shared:build": "npm run storage:build && npm run database:build"
+    "shared:build": "npm run storage:build && npm run database:build",
+    "ai:backfill": "node scripts/ai-backfill.cjs"
   },
   "dependencies": {
-    "@qyvra/database": "file:../../packages/database",
-    "@qyvra/storage": "file:../../packages/storage",
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^3.3.0",
     "@nestjs/core": "^10.0.0",
     "@nestjs/platform-express": "^10.0.0",
     "@nestjs/swagger": "^7.4.2",
+    "@qdrant/js-client-rest": "1.19.0",
+    "@qyvra/database": "file:../../packages/database",
+    "@qyvra/storage": "file:../../packages/storage",
     "amqplib": "^2.0.1",
     "argon2": "^0.44.0",
     "busboy": "^1.6.0",
@@ -55,19 +59,25 @@
     "class-validator": "^0.14.4",
     "express": "^4.22.1",
     "helmet": "^8.1.0",
+    "pdfjs-dist": "6.4.299",
     "redis": "^6.2.1",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.1",
-    "sharp": "^0.35.4"
+    "sharp": "^0.35.5",
+    "tiktoken": "1.0.22"
   },
   "overrides": {
+    "proxy-addr": "2.0.8",
     "lodash": "4.18.1",
     "@nestjs/platform-express": {
       "multer": "2.4.0"
     },
     "js-yaml@4.1.0": "4.3.2",
     "qs": "6.16.0",
-    "body-parser@1.20.4": "1.20.6"
+    "body-parser@1.20.4": "1.20.6",
+    "@qdrant/js-client-rest": {
+      "undici": "7.29.1"
+    }
   },
   "devDependencies": {
     "@nestjs/cli": "^10.0.0",

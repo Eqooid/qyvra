@@ -1,0 +1,83 @@
+name: Phase 4 verification
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  contracts-and-recovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: qyvra_test
+          POSTGRES_DB: qyvra_ci_test
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U qyvra_test -d qyvra_ci_test"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+      qdrant:
+        image: qdrant/qdrant:v1.19.2
+        ports: [6333:6333]
+      rabbitmq:
+        image: rabbitmq:4.1-alpine
+        ports: [5672:5672]
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 5s --health-timeout 5s --health-retries 30
+      redis:
+        image: redis:7.4-alpine
+        ports: [6379:6379]
+    env:
+      DATABASE_URL: postgresql://qyvra_test@127.0.0.1:5432/qyvra_ci_test
+      TEST_DATABASE_URL: postgresql://qyvra_test@127.0.0.1:5432/qyvra_ci_test
+      TEST_MIGRATION_DATABASE_URL: postgresql://qyvra_test@127.0.0.1:5432/qyvra_ci_upgrade_test
+      TEST_QDRANT_URL: http://127.0.0.1:6333
+      TEST_RABBITMQ_URL: amqp://guest:guest@127.0.0.1:5672
+      TEST_REDIS_URL: redis://127.0.0.1:6379
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: sudo apt-get update && sudo apt-get install -y qpdf gcc
+      - name: Locked installs
+        run: |
+          npm --prefix packages/storage ci
+          npm --prefix packages/database ci
+          npm --prefix apps/api ci
+          npm --prefix apps/web ci
+      - name: Build and kernel parser guard
+        run: |
+          npm --prefix apps/api run pdf:sandbox:build
+          npm --prefix apps/api run build
+          npm --prefix apps/web run build
+      - name: Type and lint checks
+        run: |
+          for p in packages/storage packages/database apps/api apps/web; do
+            npm --prefix "$p" run typecheck
+            npm --prefix "$p" run lint
+          done
+      - name: Production dependency audit
+        run: |
+          for p in packages/storage packages/database apps/api apps/web; do
+            npm --prefix "$p" audit --omit=dev --audit-level=high
+          done
+      - name: Clean migration and Phase 3 upgrade
+        run: |
+          npm --prefix packages/database run migrate:deploy
+          node -e "const {Client}=require('./packages/database/node_modules/pg');const c=new Client({connectionString:process.env.DATABASE_URL});c.connect().then(()=>c.query('CREATE DATABASE qyvra_ci_upgrade_test')).finally(()=>c.end())"
+          npm --prefix packages/database run test:ai:migration
+      - name: Deterministic tests and real-infrastructure integration
+        run: |
+          npm --prefix packages/storage test
+          npm --prefix packages/storage run test:integration
+          npm --prefix packages/database run test:ai
+          npm --prefix packages/database run test:pipeline
+          npm --prefix apps/api test -- --runInBand
+          npm --prefix apps/api run test:e2e -- --runInBand
+          TEST_RABBITMQ_CONTAINER=${{ job.services.rabbitmq.id }} npm --prefix apps/api run test:integration:isolated
+          npm --prefix apps/web test -- --maxWorkers=1
+      # Browser fault injection stays opt-in: it stops services and deletes only
+      # fixture Qdrant collections. No paid-model calls are needed in this job.

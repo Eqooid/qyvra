@@ -2,6 +2,31 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from './generated/prisma/client';
 
 export { Prisma, PrismaClient } from './generated/prisma/client';
+export type {
+  AiProcessingRun,
+  ExtractedText,
+  ChunkSet,
+  DocumentChunk,
+  EmbeddingProfile,
+  ChunkEmbedding,
+  VersionVectorIndex,
+  VersionAiState,
+  VersionReadyIndex,
+  AiServingProfile,
+} from './generated/prisma/client';
+export {
+  aiRunStatuses,
+  vectorIndexStatuses,
+  aiStagePrerequisites,
+  embeddingProfileFingerprint,
+} from './ai';
+export type {
+  AiRunStatus,
+  VectorIndexStatus,
+  SourcePageSpan,
+  EmbeddingProfileIdentity,
+  AiStageType,
+} from './ai';
 export {
   createStoredFileVerificationIntent,
   createProcessingOutboxIntent,
@@ -22,6 +47,8 @@ export type {
   ProcessingJobType,
   ProcessingOutboxStatus,
   ProcessingMessageV1,
+  ProcessingMessageV2,
+  ProcessingMessage,
 } from './processing';
 
 export interface DatabaseOptions {
@@ -42,3 +69,6 @@ export function createPrismaClient(options: DatabaseOptions): PrismaClient {
   });
   return new PrismaClient({ adapter, log: [] });
 }
+
+export type { AiRunRequest, StageCommit } from './processing-pipeline';
+export type { AiProcessingStart } from './ai-scheduling';

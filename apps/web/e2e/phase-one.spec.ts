@@ -36,7 +36,14 @@ async function download(page: Page, expected: Buffer, filename: string) {
 const compose = (action: string) =>
   execFileSync(
     process.execPath,
-    [resolve("../../infrastructure/e2e/run.cjs"), action],
+    [
+      resolve(
+        process.env.E2E_AI_ENABLED === "true"
+          ? "../../infrastructure/e2e/ai-run.cjs"
+          : "../../infrastructure/e2e/run.cjs"
+      ),
+      action,
+    ],
     { stdio: "pipe", timeout: 240000 }
   )
 

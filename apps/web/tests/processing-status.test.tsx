@@ -34,6 +34,25 @@ function data(jobs: ProcessingJob[]): ProcessingStatus {
 }
 
 describe("processing presentation", () => {
+  it("labels AI stages and failures without claiming integrity completion or index readiness", () => {
+    render(
+      <ProcessingStatusContent
+        status={data([
+          job("FAILED", {
+            jobType: "EXTRACT_TEXT",
+            failureCode: "PROCESSING_ERROR",
+          }),
+          job("COMPLETED", { id: secondId, jobType: "GENERATE_CHUNKS" }),
+        ])}
+      />
+    )
+    expect(
+      screen.getByText("Document preparation could not be completed.")
+    ).toBeInTheDocument()
+    expect(screen.getByText("Preparing text complete")).toBeInTheDocument()
+    expect(screen.queryByText("Ready for AI search")).not.toBeInTheDocument()
+    expect(screen.queryByText("Integrity verified")).not.toBeInTheDocument()
+  })
   it("maps durable states to accurate product language and polls only active jobs", () => {
     for (const state of [
       "PENDING",

@@ -1,5 +1,15 @@
 # QYVRA product and technical specification
 
+> **Phase 4 / v1.3.0 scope authority:** the [T01 AI/RAG contract](phase-4-ai-rag.md)
+> defines the planned foundation and overrides older Phase 3 extraction/OCR and
+> Phase 4 summary/classification/chat examples below for this release. Text-bearing
+> PDF extraction is implemented in [T04](phase-4-pdf-extraction.md); deterministic chunks
+> and citation provenance in [T05](phase-4-chunk-generation.md). Embedding generation and
+> checkpoints are implemented in [T06](phase-4-embedding-generation.md). Qdrant indexing is
+> implemented in [T07](phase-4-vector-indexing.md); authorized semantic retrieval in
+> [T09](phase-4-semantic-search.md). Cited RAG and server validation are implemented in [T10](phase-4-rag-answers.md); the AI frontend and owned citation navigation are implemented in [T11](phase-4-ai-frontend.md). OCR, summaries, AI metadata, persistent chat and agents
+> are deferred. T01 implements no production functionality.
+
 > **Planned target specification**, prepared 5 September 2026. This document preserves
 > the broader product requirements and proposed architecture; it is not a list of
 > shipped capabilities. All later-phase infrastructure, endpoint/page catalogs,
@@ -37,7 +47,7 @@ API-first reference architecture for NestJS, PostgreSQL, RabbitMQ, Redis, Elasti
 | Architecture     | Modular monolith API plus asynchronous worker |
 
 | **Recommended starting point:** Build the core QYVRA document-management functionality first. Add RabbitMQ processing, AI, Qdrant, and Elasticsearch in deliberate phases rather than starting with every service enabled. |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 
 The feature and endpoint catalogs describe the target product, not completed work.
 See [the Phase 1 review](phase-1-review.md) and [roadmap](roadmap.md) for implementation status.
@@ -1206,4 +1216,4 @@ documentDate: 2026-08-10</th>
 | Multitenancy  | Single-owner user scoping                                | Household/team sharing becomes a real requirement |
 
 | **Implementation principle:** Finish useful QYVRA document-management functionality before optimizing it into a distributed system. Each added service must unlock a concrete capability and have a defined failure mode. |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

@@ -14,7 +14,16 @@ export const processingStateSchema = z.enum(processingStates)
 export const processingProgressSchema = z.object({
   attempt: z.number().int().positive(),
   percent: z.number().int().min(0).max(100),
-  stage: z.enum(["PREPARING", "READING", "VERIFYING", "FINALIZING"]),
+  stage: z.enum([
+    "PREPARING",
+    "READING",
+    "VERIFYING",
+    "FINALIZING",
+    "EXTRACTING",
+    "CHUNKING",
+    "EMBEDDING",
+    "INDEXING",
+  ]),
   updatedAt: z.string().datetime(),
 })
 export const processingJobSchema = z.object({
@@ -47,6 +56,29 @@ export const processingJobSchema = z.object({
     }),
 })
 export const processingStatusSchema = z.object({
+  aiReadiness: z
+    .enum(["READY", "PROCESSING", "FAILED", "UNAVAILABLE", "UNSUPPORTED"])
+    .optional(),
+  pipeline: z
+    .object({
+      runId: z.string().uuid(),
+      generation: z.number().int().positive(),
+      status: z.enum([
+        "BUILDING",
+        "READY",
+        "FAILED",
+        "CANCELLED",
+        "SUPERSEDED",
+      ]),
+      currentStage: z.string().nullable(),
+      stages: z.array(
+        z.object({
+          jobType: z.string(),
+          status: z.enum([...processingStates, "NOT_SCHEDULED"]),
+        })
+      ),
+    })
+    .optional(),
   documentId: z.string().uuid(),
   documentVersionId: z.string().uuid(),
   jobs: z.array(processingJobSchema),

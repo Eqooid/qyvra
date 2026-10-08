@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { Prisma, ProcessingRepository } from '@qyvra/database';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../../database/prisma.service';
@@ -12,6 +12,7 @@ import {
 } from './document-lifecycle';
 import { DocumentListQuery, UpdateDocumentDto } from './documents.dto';
 import { documentCursor, parseDocumentCursor } from './document-pagination';
+import { AiIngestionService } from '../ai/ai-ingestion.service';
 
 /** @description Only metadata needed by the public contract and relationship batching is selected. */
 const metadata = {
@@ -79,7 +80,10 @@ export class DocumentsService {
    * @param database - The PrismaService instance for database operations.
    * @constructor
    */
-  constructor(private readonly database: PrismaService) {
+  constructor(
+    private readonly database: PrismaService,
+    @Optional() private readonly aiIngestion?: AiIngestionService,
+  ) {
     this.processing = new ProcessingRepository(database.client);
   }
 
@@ -406,6 +410,12 @@ export class DocumentsService {
                 },
                 true,
               );
+            await this.aiIngestion?.scheduleInTransaction(
+              tx,
+              userId,
+              id,
+              currentVersionId,
+            );
           }
         }
         return (await this.hydrate(tx, userId, [updated]))[0];

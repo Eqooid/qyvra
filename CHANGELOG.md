@@ -5,6 +5,68 @@ applicable. Releases follow [Semantic Versioning](docs/development/conventions.m
 
 ## [Unreleased]
 
+No next phase has started. The prepared candidates below have not been published.
+
+## [1.3.0] — Release candidate, prepared 2026-10-08
+
+Phase 4 implementation, local verification and release preparation are complete.
+Decision: **READY WITH KNOWN NON-BLOCKING LIMITATIONS**. No v1.3.0 tag or release
+publication exists. See [release notes](docs/releases/v1.3.0.md),
+[T12 evidence](docs/phase-4-verification.md) and [T13 preparation](docs/phase-4-release-preparation.md).
+
+### Added
+
+- Durable canonical PDF text, deterministic token-bounded chunks, exact page/Unicode
+  provenance, immutable embedding profiles and PostgreSQL embedding checkpoints.
+- Native provider-neutral embedding/generation HTTP boundaries, private Qdrant
+  indexing, verified generation activation and artifact-only vector rebuilds.
+- Opt-in upload enrollment, owned idempotent reprocessing, restore reuse and bounded
+  resumable dry-run/apply backfill through the existing jobs/outbox/worker.
+- Authorized semantic search, standalone grounded Q&A, insufficient-evidence outcomes,
+  server-validated citations and authenticated exact-source navigation.
+- AI Search/readiness UI, deterministic real-infrastructure verification and a CI
+  workflow without paid-provider requirements.
+
+### Changed
+
+- The Phase 3 durable pipeline now covers integrity → extraction → chunks →
+  embeddings → indexing. PostgreSQL remains the state and authorization authority.
+- AI providers are independently configurable; profile compatibility is enforced
+  for indexing/querying. Qdrant is derived and Redis progress remains disposable.
+
+### Fixed
+
+- Worker AMQP setup cannot restore readiness or leak a late connection after shutdown.
+- Client page-span validation matches the configured 2,000-page server maximum.
+- Lockfiles include required Linux native entries; broker tests use isolated vhosts.
+
+### Security
+
+- Mandatory vector scope filtering plus PostgreSQL hydration/reauthorization prevent
+  forged payload ownership from admitting foreign chunks into AI context.
+- Structured model references resolve only to authorized supplied evidence. Answers
+  render as plain text; source routes enforce exact ownership and lifecycle.
+- Targeted dependency patches pass production high/critical gates without framework
+  major upgrades; remaining audit findings are explicitly tracked in T12.
+
+### Reliability
+
+- Lease-fenced atomic stage completion and outbox scheduling, resumable batches,
+  verified index activation and durable cleanup retain at-least-once safety.
+- Qdrant collection-loss rebuild reuses SQL embeddings; Redis/broker/worker outages
+  preserve durable intent. Archive/delete immediately revoke retrieval eligibility.
+
+### Known limitations
+
+- PDF text only; no OCR, persistent chat, streaming, agent actions, hybrid search or
+  local model orchestration. Native compatible HTTP adapters do not support every provider.
+- Grounding and validated citations do not guarantee factual/model-injection immunity.
+  Live-model quality, remote CI and production capacity/HA remain unverified.
+- Five moderate production API findings, development tooling advisories and 25 unchanged
+  web format warnings remain. No independent tenants, public purge or historical PDF viewer.
+
+## [1.2.0] — Accepted candidate, not tagged
+
 The following v1.2.0 release-candidate work is implemented and accepted as
 release ready; no v1.2.0 tag has been created. See the
 [T14 acceptance record](docs/phase-3-acceptance.md) for evidence and limitations.

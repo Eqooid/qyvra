@@ -1,3 +1,4 @@
 .tools/
 *.verification.log
 .env
+apps/api/src/infrastructure/extraction/pdf-parser-guard

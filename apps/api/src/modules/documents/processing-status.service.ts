@@ -51,28 +51,70 @@ export class ProcessingStatusService {
       versionId,
     );
     if (!version) throw new NotFoundException();
+    const run = version.aiState?.desiredRun;
+    const stages = [
+      'VERIFY_STORED_FILE',
+      'EXTRACT_TEXT',
+      'GENERATE_CHUNKS',
+      'GENERATE_EMBEDDINGS',
+      'INDEX_VECTORS',
+    ].map((jobType) => ({
+      jobType,
+      status:
+        (jobType === 'VERIFY_STORED_FILE'
+          ? version.processingJobs.find((job) => job.jobType === jobType)
+              ?.status
+          : run?.jobs.find((job) => job.jobType === jobType)?.status) ??
+        'NOT_SCHEDULED',
+    }));
     return {
+      aiReadiness: version.aiReadiness ?? 'UNAVAILABLE',
+      ...(run
+        ? {
+            pipeline: {
+              runId: run.id,
+              generation: run.generation,
+              status: run.status,
+              stages,
+              currentStage:
+                stages.find((stage) => stage.status !== 'COMPLETED')?.jobType ??
+                null,
+            },
+          }
+        : {}),
       documentId: version.documentId,
       documentVersionId: version.id,
       jobs: await Promise.all(
-        version.processingJobs.map(async (job) => ({
-          id: job.id,
-          jobType: job.jobType,
-          status: this.publicStatus(job.status),
-          attempts: job.attempts,
-          maxAttempts: job.maxAttempts,
-          nextRetryAt:
-            job.status === 'RETRYING' ? job.availableAt.toISOString() : null,
-          startedAt: timestamp(job.startedAt),
-          completedAt: timestamp(job.completedAt),
-          createdAt: job.createdAt.toISOString(),
-          updatedAt: job.updatedAt.toISOString(),
-          failureCode:
-            job.status === 'RETRYING' || job.status === 'FAILED'
-              ? safeFailure(job.lastFailureCode)
-              : null,
-          progress: await this.activeProgress(job),
-        })),
+        version.processingJobs
+          .filter(
+            (job) =>
+              !run ||
+              ![
+                'EXTRACT_TEXT',
+                'GENERATE_CHUNKS',
+                'GENERATE_EMBEDDINGS',
+                'INDEX_VECTORS',
+              ].includes(job.jobType) ||
+              job.aiRunId === run.id,
+          )
+          .map(async (job) => ({
+            id: job.id,
+            jobType: job.jobType,
+            status: this.publicStatus(job.status),
+            attempts: job.attempts,
+            maxAttempts: job.maxAttempts,
+            nextRetryAt:
+              job.status === 'RETRYING' ? job.availableAt.toISOString() : null,
+            startedAt: timestamp(job.startedAt),
+            completedAt: timestamp(job.completedAt),
+            createdAt: job.createdAt.toISOString(),
+            updatedAt: job.updatedAt.toISOString(),
+            failureCode:
+              job.status === 'RETRYING' || job.status === 'FAILED'
+                ? safeFailure(job.lastFailureCode)
+                : null,
+            progress: await this.activeProgress(job),
+          })),
       ),
     };
   }

@@ -30,6 +30,11 @@ import {
 } from '../src/infrastructure/worker/processing-message-handler';
 import { WorkerModule } from '../src/infrastructure/worker/worker.module';
 import { StoredFileIntegrityHandler } from '../src/infrastructure/worker/stored-file-integrity.handler';
+import { PdfTextExtractionHandler } from '../src/infrastructure/worker/pdf-text-extraction.handler';
+import { ChunkGenerationHandler } from '../src/infrastructure/worker/chunk-generation.handler';
+import { EmbeddingGenerationHandler } from '../src/infrastructure/worker/embedding-generation.handler';
+import { VectorIndexHandler } from '../src/infrastructure/worker/vector-index.handler';
+import { VectorRemovalHandler } from '../src/infrastructure/worker/vector-removal.handler';
 import { workerReadyFile } from '../src/infrastructure/worker/worker-ready';
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
@@ -177,10 +182,24 @@ describeInfrastructure('dedicated worker infrastructure', () => {
     try {
       const app = await NestFactory.createApplicationContext(WorkerModule, {
         logger: false,
+        abortOnError: false,
       });
       try {
         expect(app.get(StoredFileIntegrityHandler)).toBeInstanceOf(
           StoredFileIntegrityHandler,
+        );
+        expect(app.get(PdfTextExtractionHandler)).toBeInstanceOf(
+          PdfTextExtractionHandler,
+        );
+        expect(app.get(ChunkGenerationHandler)).toBeInstanceOf(
+          ChunkGenerationHandler,
+        );
+        expect(app.get(EmbeddingGenerationHandler)).toBeInstanceOf(
+          EmbeddingGenerationHandler,
+        );
+        expect(app.get(VectorIndexHandler)).toBeInstanceOf(VectorIndexHandler);
+        expect(app.get(VectorRemovalHandler)).toBeInstanceOf(
+          VectorRemovalHandler,
         );
         const runtime = app.get(RabbitMqConsumer);
         expect(runtime.isReady()).toBe(false);

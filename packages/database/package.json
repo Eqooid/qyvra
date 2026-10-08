@@ -12,20 +12,28 @@
     "node": ">=24.0.0"
   },
   "scripts": {
-    "lint": "eslint src/index.ts prisma.config.ts",
+    "lint": "eslint src --ext .ts prisma.config.ts",
     "generate": "prisma generate",
     "validate": "prisma validate",
     "build": "npm run generate && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "format": "prisma format && prettier --write src/index.ts prisma.config.ts package.json tsconfig.json .eslintrc.cjs",
-    "format:check": "prisma format --check && prettier --check src/index.ts prisma.config.ts package.json tsconfig.json .eslintrc.cjs",
+    "format": "prisma format && prettier --write \"src/*.ts\" prisma.config.ts package.json tsconfig.json .eslintrc.cjs",
+    "format:check": "prisma format --check && prettier --check \"src/*.ts\" prisma.config.ts package.json tsconfig.json .eslintrc.cjs",
     "migrate:deploy": "prisma migrate deploy",
-    "test:migration": "node --test test/description-migration.test.cjs"
+    "test:migration": "node --test test/description-migration.test.cjs",
+    "test:ai": "node --test test/ai-contracts.test.cjs test/ai-persistence.test.cjs",
+    "test:pipeline": "node --test --test-concurrency=1 test/processing-pipeline.test.cjs test/processing-repository.test.cjs test/processing-persistence.test.cjs test/processing-rules.test.cjs",
+    "test:ai:migration": "node --test test/ai-migration.test.cjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.0.0",
     "@prisma/client": "^7.0.0",
     "pg": "^8.16.0"
+  },
+  "overrides": {
+    "deepmerge-ts": "8.0.0",
+    "mysql2": "3.24.5",
+    "fast-uri": "3.1.8"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

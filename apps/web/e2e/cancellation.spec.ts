@@ -9,7 +9,14 @@ const storedFiles = () =>
   Number(
     execFileSync(
       process.execPath,
-      [resolve("../../infrastructure/e2e/run.cjs"), "storage-count"],
+      [
+        resolve(
+          process.env.E2E_AI_ENABLED === "true"
+            ? "../../infrastructure/e2e/ai-run.cjs"
+            : "../../infrastructure/e2e/run.cjs"
+        ),
+        "storage-count",
+      ],
       { encoding: "utf8" }
     ).trim()
   )

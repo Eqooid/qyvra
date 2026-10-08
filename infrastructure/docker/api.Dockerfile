@@ -2,6 +2,11 @@ FROM node:24-bookworm-slim AS base
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates qpdf && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
+FROM base AS pdf-sandbox
+RUN apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev && rm -rf /var/lib/apt/lists/*
+COPY apps/api/src/infrastructure/extraction/pdf-parser-guard.c /tmp/pdf-parser-guard.c
+RUN gcc -O2 -Wall -Wextra -Werror /tmp/pdf-parser-guard.c -o /tmp/pdf-parser-guard
+
 FROM base AS build
 # Independent npm lockfiles and file: links are the established package layout.
 COPY packages/storage/package*.json packages/storage/
@@ -26,12 +31,14 @@ WORKDIR /app/packages/database
 CMD ["node", "/app/infrastructure/docker/database-command.cjs", "node", "node_modules/prisma/build/index.js", "migrate", "deploy"]
 
 FROM build AS production-dependencies
-RUN npm --prefix apps/api prune --omit=dev && npm --prefix packages/database prune --omit=dev && npm --prefix packages/storage prune --omit=dev
+RUN npm --prefix apps/api prune --omit=dev --no-audit && npm --prefix packages/database prune --omit=dev --no-audit && npm --prefix packages/storage prune --omit=dev --no-audit
 
 FROM base AS runtime
 COPY --from=production-dependencies /app/apps/api/node_modules /app/apps/api/node_modules
 COPY --from=build /app/apps/api/dist /app/apps/api/dist
+COPY --from=pdf-sandbox /tmp/pdf-parser-guard /app/apps/api/dist/infrastructure/extraction/pdf-parser-guard
 COPY --from=build /app/apps/api/package.json /app/apps/api/package.json
+COPY apps/api/scripts/ai-backfill.cjs /app/apps/api/scripts/ai-backfill.cjs
 COPY --from=production-dependencies /app/packages/database/node_modules /app/packages/database/node_modules
 COPY --from=build /app/packages/database/dist /app/packages/database/dist
 COPY --from=build /app/packages/database/package.json /app/packages/database/package.json

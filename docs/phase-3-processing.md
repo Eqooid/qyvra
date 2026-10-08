@@ -1,5 +1,12 @@
 # v1.2.0 Phase 3 processing foundation
 
+**Phase 4 T03 orchestration is implemented:** [durable stage contracts and lifecycle](phase-4-processing.md)
+cover atomic successor scheduling, v2 transport, shared retry/recovery, worker routing,
+lifecycle fencing and the owned status extension. T04–T11 implement PDF extraction,
+chunks, embeddings, Qdrant, semantic retrieval, RAG and source navigation as
+extensions of this foundation; see [Phase 4](phase-4-ai-rag.md). T08 automatic AI
+enrollment is opt-in and disabled by default. The Phase 3 checkpoint below is preserved.
+
 [Documentation index](README.md) | [Roadmap](roadmap.md) |
 [Architecture](architecture.md) | [ADR-002](decisions/ADR-002-durable-processing-outbox-worker.md)
 
@@ -21,6 +28,20 @@ release. The broader [product specification](specification.md) retains older,
 uncommitted Phase 3 ideas; this guide governs the narrower v1.2.0 foundation.
 
 ## Implemented baseline and boundary
+
+**Phase 4 T02 persistence extension is implemented:** [the data foundation](phase-4-data-foundation.md)
+adds nullable owned run/predecessor/artifact references to existing jobs and declares
+the new AI stage names. SQL checks their dependency/output integrity. Existing v1
+integrity creation, outbox serialization, worker handlers and upload scheduling are
+unchanged. Stage orchestration and dual-version message support are implemented in Phase 4 T03; see its guide.
+
+**Planned Phase 4 extension:** [the v1.3.0 AI/RAG contract](phase-4-ai-rag.md#processing-stages-and-durable-lifecycle--planned)
+adds extraction, chunks, embeddings, indexing and vector cleanup to this same
+job/outbox/worker system. It requires atomic stage completion plus dependent intent,
+versioned artifact/run fencing, dual v1/v2 message rollout and a lifecycle exception
+for durable vector cleanup. These are future changes, not Phase 3 capabilities.
+RabbitMQ remains transport, PostgreSQL remains recovery authority and Redis remains
+disposable. T01 does not change this guide's implemented status or historical scope.
 
 The API validates and stores private PDF/JPEG/PNG originals, computes SHA-256
 during upload, inspects file structure, then commits a document, immutable version,

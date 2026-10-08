@@ -1,9 +1,27 @@
-# QYVRA database and storage model — v1.2.0 release candidate
+# QYVRA database and storage model — Phase 4 / v1.3.0 release candidate
+
+**Phase 4 T03 orchestration, T04 PDF extraction and T05 chunking are implemented:** [durable stage contracts and lifecycle](phase-4-processing.md)
+cover atomic successor scheduling, v2 transport, shared retry/recovery, worker routing,
+lifecycle fencing and the owned status extension. [Durable PDF text extraction](phase-4-pdf-extraction.md)
+is implemented. [Deterministic chunks and citation provenance](phase-4-chunk-generation.md)
+are implemented. [T06 embedding generation and durable checkpoints](phase-4-embedding-generation.md) are implemented. [T07 Qdrant indexing, activation and cleanup](phase-4-vector-indexing.md) are implemented. [T10 grounded answers and validated citations](phase-4-rag-answers.md) are implemented and opt-in. [T11 AI Search and authorized citation navigation](phase-4-ai-frontend.md) are implemented. OCR remains **Planned**. [T09 authorized semantic retrieval and search API](phase-4-semantic-search.md) are implemented and opt-in. [T08 upload/reprocess/restore enrollment and bounded backfill](phase-4-ingestion.md) are implemented and opt-in.
 
 [Documentation index](README.md) | [Architecture](architecture.md)
 
+T10 adds no tables or migrations. Standalone answers and request-local citation tokens
+are not persisted as conversations. Citation IDs map to existing owned canonical
+chunks/version/document provenance; SQL checks the serving profile, current version,
+READY index and lifecycle both before provider dispatch and response publication.
+See [RAG citation/data boundaries](phase-4-rag-answers.md).
+
+T06 uses the existing T02 `ChunkEmbedding` table for actual immutable PostgreSQL vectors,
+unique chunk/profile identity, exact transformed-input SHA-256, dimensions and timestamp.
+No T06 migration is needed. [Batch checkpoint and recovery rules](phase-4-embedding-generation.md#durability-concurrency-and-recovery)
+enforce current-run ownership and live leases before writes. Qdrant is the implemented T07 derived index; [verified manifests, activation and artifact-only rebuild](phase-4-vector-indexing.md) use existing T02 tables without a new migration.
+
 The [Prisma schema](../packages/database/prisma/schema.prisma) and
-[thirteen SQL migrations](../packages/database/prisma/migrations) are authoritative.
+[SQL migration chain](../packages/database/prisma/migrations) is authoritative
+(15 migrations verified in T12, including the additive T02 and T08 migrations).
 SQL-only checks, expression indexes and triggers are not fully represented by Prisma.
 Implemented models: User, UserIdentity, LocalCredential, AuthSession,
 ConsumedRefreshToken, Category, Tag, Document, DocumentTag, DocumentVersion and
@@ -398,10 +416,85 @@ change. Restore creates a new job generation and outbox intent only when the cur
 version's latest integrity job was cancelled. Completed work and historical versions
 are not automatically reprocessed. No additional migration is required for this rule.
 
-## Planned storage and entities
+## Phase 4 artifact persistence and future entities
 
-Extraction/chunks, reminders, AI profiles, chat, search indexes
-and permanent purge are **Not Implemented**. The broader catalog remains in the
+The implemented Prisma models are `EmbeddingProfile`, `AiProcessingRun`,
+`ExtractedText`, `ChunkSet`, `DocumentChunk`, `ChunkEmbedding`, `VersionVectorIndex`,
+`VersionAiState`, `VersionReadyIndex`, `AiServingProfile` and `AiReprocessingRequest`.
+The first ten come from T02; T08 adds reprocessing receipts. Existing `Document`,
+`DocumentVersion`, `ProcessingJob` and `ProcessingOutbox` remain the business/job
+foundation. This is the actual data model, not a separate AI executor or tenant policy.
+
+```mermaid
+erDiagram
+    Document ||--o{ DocumentVersion : owns
+    DocumentVersion ||--o{ ExtractedText : canonical_extractions
+    ExtractedText ||--o{ ChunkSet : versioned_chunking
+    ChunkSet ||--o{ DocumentChunk : ordered_complete_set
+    DocumentChunk ||--o{ ChunkEmbedding : checkpoints
+    EmbeddingProfile ||--o{ ChunkEmbedding : compatible_dimensions
+    DocumentVersion ||--o{ AiProcessingRun : configuration_snapshots
+    AiProcessingRun ||--o{ ProcessingJob : existing_executor
+    ProcessingJob ||--o{ ProcessingOutbox : durable_transport_intent
+    AiProcessingRun ||--o{ VersionVectorIndex : build_manifests
+    ChunkSet ||--o{ VersionVectorIndex : exact_sources
+    VersionVectorIndex ||--o| VersionReadyIndex : publication_pointer
+    DocumentVersion ||--o{ VersionReadyIndex : per_profile
+    DocumentVersion ||--o| VersionAiState : desired_run
+    EmbeddingProfile ||--o| AiServingProfile : explicit_selection
+    AiProcessingRun ||--o{ AiReprocessingRequest : owned_receipts
+```
+
+Ownership-consistent composite foreign keys enforce exact document/version/run/set
+lineage. Unique extraction/chunk fingerprints, chunk ordinals, chunk/profile
+checkpoints and version/profile pointers prevent uncontrolled duplicates. Complete
+chunk sets and validated embedding batches are committed before downstream intent;
+SQL constraints/triggers plus lease-fenced repository transactions protect ready
+publication. Job prerequisites and artifact references extend existing jobs, with
+nullable fields preserving Phase 3 integrity-only work.
+
+Manifest states and the per-version/profile pointer, not Qdrant payload flags,
+determine serving eligibility. Cleanup uses existing removal jobs and retained
+manifest metadata; lifecycle exclusion precedes remote deletion. Derived records
+are subordinate to document/version ownership, and deleting derived rows cannot
+delete originals. Historical retained artifacts preserve provenance. Full fields,
+checks and statuses are authoritative in the schema/migrations and
+[data foundation](phase-4-data-foundation.md), [index lifecycle](phase-4-vector-indexing.md)
+and [processing contract](phase-4-processing.md).
+
+**Phase 4 T02 persistence is implemented:** the [data foundation](phase-4-data-foundation.md)
+records ten additive AI artifact/profile/run/index/pointer tables, PostgreSQL
+embedding checkpoints, owned composite FKs and nullable existing-job dependencies.
+The migration seeds no profiles/artifacts/jobs and leaves extraction status and
+original version metadata unchanged. SQL validates provenance, immutable identities,
+complete stage outputs and ready index mappings. PDF extraction and deterministic
+chunk publication are implemented in T04/T05. Embedding checkpoints and Qdrant activation/cleanup are implemented in T06/T07; T09 retrieval and T10 RAG use these authoritative artifacts.
+
+The [Phase 4 proposed data model](phase-4-ai-rag.md#proposed-authoritative-data-model--planned)
+is canonical for v1.3.0; its persistence is implemented in T02. T04–T07 implement the worker pipeline through indexing; T09/T10 implement retrieval/RAG. T01 added no migrations. It defines
+owned immutable extraction artifacts, chunk sets/chunks, embedding profiles,
+durable per-chunk embedding checkpoints, processing-run metadata and vector-index
+manifests/pointers. Composite ownership constraints extend existing version/job
+constraints. PostgreSQL initially stores derived text and vectors for resumable
+index rebuilding; uploaded binaries remain in private storage. New extraction
+status values require additive checks/DTO updates before use. Runs coordinate
+existing jobs rather than provide another executor. No tenant entity is introduced.
+
+Reminders, persistent chat and public permanent purge are **Not Implemented**.
+Phase 4 provider calls and derived vector integration are implemented in the
+linked slices. The broader catalog remains in the
 [planned specification](specification.md). The current status vocabulary anticipates
 processing, but new uploads remain UPLOADED/PENDING. See [feature guides](README.md#features),
 [local migration setup](development/getting-started.md) and [storage contract](../packages/storage/README.md).
+
+## T08 ingestion integration — Implemented
+
+T08 adds ai_reprocessing_requests: unique (documentVersionId,key), mode constraint, timestamp and an owner/version-consistent composite run foreign key. It stores request receipts only; existing jobs, artifacts and manifests remain authoritative. See [ingestion persistence](phase-4-ingestion.md#owned-reprocessing-contract).
+
+## Phase 4 T09 retrieval reads — Implemented
+
+T09 needs no migration. `AiServingProfile` selects an immutable profile; `VersionReadyIndex` and READY manifests plus current active owned versions define scope. Bounded candidate-tuple joins hydrate canonical `DocumentChunk` text and source provenance only after lifecycle/ownership/profile checks. Query embeddings are ephemeral. [Serving selection and SQL authority](phase-4-semantic-search.md).
+
+## T11 source navigation and readiness — Implemented, no schema change
+
+The owned source endpoint joins `DocumentChunk → DocumentVersion → Document`, checks complete `ChunkSet` and active lifecycle, and can resolve retained historical provenance. Readiness derives from `VersionReadyIndex → VersionVectorIndex → ChunkSet`, the current owned active version and `AiServingProfile → EmbeddingProfile` compatibility. A successful run without a serving pointer is unavailable. No new tables, vectors, ownership model, transcript persistence or migration is added. [T11 contracts](phase-4-ai-frontend.md).

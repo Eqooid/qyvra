@@ -5,6 +5,11 @@ export const processingStages = [
   'READING',
   'VERIFYING',
   'FINALIZING',
+  'EXTRACTING',
+  'CHUNKING',
+  'EMBEDDING',
+  'INDEXING',
+  'CLEANING',
 ] as const;
 
 export type ProcessingStage = (typeof processingStages)[number];

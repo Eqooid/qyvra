@@ -334,3 +334,7 @@ apps/web/.env.local is excluded from the Docker build context. Only Nginx publis
 a port. Local `npm run dev` commands and direct API URLs remain supported.
 Container startup, persistence and browser workflows have passed; see
 [final browser verification](../../docs/phase-1-browser-verification.md).
+
+## Phase 4 AI Search — T11 implemented
+
+The authenticated `/ai` page consumes the semantic-search and grounded-answer APIs through AuthApi, validates responses with Zod, and renders generated text literally. Citation Sheets reauthorize sources; exact document/version/chunk pages retain page provenance. Document detail shows authoritative preparation readiness and a confirmed, idempotent repair action. See [T11 contracts and verification](../../docs/phase-4-ai-frontend.md).

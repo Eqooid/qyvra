@@ -3,6 +3,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { Prisma, ProcessingRepository } from '@qyvra/database';
 import { createHash, randomUUID } from 'node:crypto';
@@ -10,6 +11,7 @@ import { PrismaService } from '../../database/prisma.service';
 import { ConfigurationService } from '../../configuration/configuration.module';
 import { UploadedFile } from './upload-multipart';
 import { UploadResponse } from './upload.dto';
+import { AiIngestionService } from '../ai/ai-ingestion.service';
 
 const uploadDocumentSelect = {
   id: true,
@@ -40,6 +42,7 @@ export class UploadRepository {
   constructor(
     private readonly database: PrismaService,
     private readonly configuration: ConfigurationService,
+    @Optional() private readonly aiIngestion?: AiIngestionService,
   ) {
     this.processing = new ProcessingRepository(database.client);
   }
@@ -308,6 +311,12 @@ export class UploadRepository {
           correlationId,
           maxAttempts: 3,
         });
+        await this.aiIngestion?.scheduleInTransaction(
+          tx,
+          userId,
+          documentId,
+          version.id,
+        );
         if (scope === 'create' && tags.length)
           await tx.documentTag.createMany({
             data: tags.map((tag) => ({ documentId, userId, tagId: tag.id })),

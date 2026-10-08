@@ -1,54 +1,37 @@
 # QYVRA
 
-**Query Yielding Vault Recall Assistant** (formerly known as Brainless).
+**Query Yielding Vault Recall Assistant** is a private document-management app
+with immutable file versions, organization and an opt-in AI/RAG foundation.
 
-QYVRA is a personal document-management application for storing private files,
-organizing their metadata, and keeping immutable file versions.
+**Phase 4 / v1.3.0 is complete as a prepared release candidate:**
+[release notes](docs/releases/v1.3.0.md), [T13 preparation](docs/phase-4-release-preparation.md)
+and [T12 verification](docs/phase-4-verification.md) record **READY WITH KNOWN
+NON-BLOCKING LIMITATIONS**. It has not been tagged or published; the latest local
+release tag remains v1.1.0. Private package versions and API version are separate.
 
-**Latest locally verified release tag: v1.1.0. Phase 1 remains complete.** Registration,
-account settings, categories/tags, document upload/download, metadata editing,
-archive/restore, soft deletion and version history are implemented. OCR, AI,
-full-text/semantic search and reminders are **Planned**, not available.
-[Phase 2 / v1.1.0](docs/roadmap.md#phase-2--v110-release-ready) adds document
-descriptions, current-file summaries, metadata filters, deterministic sorting and
-cursor navigation. See the [incremental developer guide](docs/developer/versions/v1.1.0.md)
-for the verified version comparison and upgrade requirements.
-The [v1.2.0 Phase 3 foundation](docs/phase-3-processing.md) is implemented and
-accepted as a release-ready candidate (not yet tagged):
-PostgreSQL job/outbox persistence, job rules, RabbitMQ transport, an independently
-runnable outbox dispatcher, a separate worker consumer, and upload-triggered
-job/outbox scheduling and production stored-file integrity verification are
-implemented. T09 adds PostgreSQL-backed processing retry and expired-lease
-recovery in the separate outbox process. T10 adds the owned processing-status
-API. T11 adds optional Redis progress; T12 displays owned processing status and
-progress on document detail and inspected version history. The
-[T13 verification matrix](docs/phase-3-verification.md) records full-stack
-evidence and limits. The [T14 acceptance record](docs/phase-3-acceptance.md)
-records final checks, fixes, dependency findings and upgrade/rollback guidance;
-v1.2.0 has not been tagged as a release.
+Implemented: authenticated accounts, private PDF/JPEG/PNG storage, categories/tags,
+metadata filters/sorting/cursors, immutable versions, archive/restore and soft
+deletion. Background processing verifies originals, extracts text-bearing PDFs,
+creates deterministic citation-ready chunks, checkpoints embeddings and activates
+verified Qdrant indexes. Owned semantic search and standalone document Q&A return
+validated citations with authorized exact-source navigation. Reprocessing, restore
+reuse and bounded backfill use the same durable pipeline.
 
-## Architecture and stack
+The browser reaches Next.js and NestJS through Nginx. PostgreSQL owns durable state,
+RabbitMQ is transport, Redis is disposable progress and Qdrant is rebuildable.
+Providers sit behind independent embedding/generation interfaces. Elasticsearch is
+**Planned**, not a Phase 4 service. The stack uses Node.js 24+, TypeScript, Next.js 16,
+React 19, NestJS 10, Prisma 7 and PostgreSQL 17; lockfiles pin dependencies.
 
-The browser reaches Next.js and the NestJS REST API through Nginx. NestJS owns
-authorization and accesses PostgreSQL through Prisma and private files through
-the shared storage abstraction. See the [architecture diagram](docs/architecture.md).
+Limitations: PDF AI text only, no OCR, persistent chat, streaming or agents/tools.
+Provider access/profile setup is required for enabled AI operations. Grounding and
+validated provenance do not eliminate model errors. AI is disabled by default;
+original documents remain usable during AI outages. See [known limits](docs/releases/v1.3.0.md#verification-and-known-limitations).
 
-The repository uses Node.js 24+, TypeScript, NestJS 10, Next.js 16, React 19,
-Tailwind CSS 4, shadcn/Base UI, TanStack Query, React Hook Form/Zod, Prisma 7,
-PostgreSQL 17, Nginx 1.28 and Docker Compose. These are repository dependency/image
-majors; the four npm lockfiles record exact JavaScript dependency versions.
-
-```text
-apps/api/             NestJS API
-apps/web/             Next.js App Router frontend
-packages/database/    Prisma schema, migrations and shared client
-packages/storage/     Streaming storage interface and local adapter
-infrastructure/       Docker images, Nginx and browser-test orchestration
-docs/                 Developer guides, release snapshots and verification reports
-```
-
-Packages install independently with npm. There is no root `package.json`; the empty
-`pnpm-workspace.yml` does not define an active workspace.
+Packages install independently with npm under apps/api, apps/web, packages/database
+and packages/storage; there is no root package manifest. Infrastructure and canonical
+guides live under infrastructure and docs. [Architecture](docs/architecture.md) and
+the [documentation index](docs/README.md) explain the boundaries and release history.
 
 ## Quick start with Docker
 
@@ -76,6 +59,9 @@ which deletes the database and uploaded files. This is a local HTTP deployment.
 See [Compose operations](docs/compose.md) for persistence, backups and deployment limits.
 
 ## Develop and test
+
+Phase 4 release-candidate checks and safe recovery procedures are recorded in the
+[T12 verification matrix](docs/phase-4-verification.md). This does not create a release tag.
 
 Follow [getting started](docs/development/getting-started.md) for dependency installation,
 host PostgreSQL, qpdf, private storage, environment configuration and migrations.

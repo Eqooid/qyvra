@@ -51,7 +51,7 @@ export function ProcessingStatusContent({
           job.status === "PROCESSING" && job.progress?.attempt === job.attempts
             ? job.progress
             : null
-        const failure = processingFailureLabel(job.failureCode)
+        const failure = processingFailureLabel(job.failureCode, job.jobType)
         const label = processingLabel(job)
         return (
           <li
@@ -86,7 +86,9 @@ export function ProcessingStatusContent({
             )}
             {job.status === "PROCESSING" && !activeProgress && (
               <p className="text-sm text-muted-foreground">
-                Verification is in progress.
+                {job.jobType === "VERIFY_STORED_FILE"
+                  ? "Verification is in progress."
+                  : "Document preparation is in progress."}
               </p>
             )}
             {job.status === "RETRYING" && (
@@ -146,7 +148,9 @@ export function ProcessingStatusSection({
 
   return (
     <section aria-label="File processing" className="min-w-0 space-y-2">
-      <h3 className="text-sm font-medium">File integrity</h3>
+      <h3 className="text-sm font-medium">
+        {query.data?.pipeline ? "Document processing" : "File integrity"}
+      </h3>
       {query.isPending ? (
         <div
           role="status"

@@ -25,9 +25,25 @@ describe('processing message transport serialization', () => {
     expect(encoded.toString('utf8')).toContain('"schemaVersion":1,"messageId"');
   });
 
+  it('accepts all known v2 stages without adding content fields', () => {
+    for (const jobType of [
+      'VERIFY_STORED_FILE',
+      'EXTRACT_TEXT',
+      'GENERATE_CHUNKS',
+      'GENERATE_EMBEDDINGS',
+      'INDEX_VECTORS',
+      'REMOVE_VECTOR_INDEX',
+    ]) {
+      const message = { ...sampleMessage, schemaVersion: 2, jobType };
+      expect(parseProcessingMessage(message)).toEqual(message);
+    }
+  });
+
   it('rejects malformed or expanded envelopes before publishing', () => {
     for (const invalid of [
-      { ...sampleMessage, schemaVersion: 2 },
+      { ...sampleMessage, schemaVersion: 3 },
+      { ...sampleMessage, jobType: 'EXTRACT_TEXT' },
+      { ...sampleMessage, schemaVersion: 2, jobType: 'unknown' },
       { ...sampleMessage, dispatchSequence: 0 },
       { ...sampleMessage, jobId: 'bad' },
       { ...sampleMessage, fileContents: 'secret' },

@@ -1,6 +1,9 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { ProcessingRepository } from '@qyvra/database';
+import {
+  ProcessingRepository,
+  embeddingProfileFingerprint,
+} from '@qyvra/database';
 import { createHash, randomUUID } from 'node:crypto';
 import { Server } from 'node:http';
 import * as request from 'supertest';
@@ -23,6 +26,7 @@ describe('owned processing-status HTTP contract', () => {
   let jobs: ProcessingRepository;
   let progress: ProcessingProgressStore;
   const users: string[] = [];
+  const profiles: string[] = [];
   const owner = () => createTestOwner(db, users);
   const path = (documentId: string, versionId: string) =>
     `/api/v1/documents/${documentId}/versions/${versionId}/processing`;
@@ -104,6 +108,9 @@ describe('owned processing-status HTTP contract', () => {
           where: { userId: { in: users } },
         });
         await db.client.user.deleteMany({ where: { id: { in: users } } });
+        await db.client.embeddingProfile.deleteMany({
+          where: { id: { in: profiles } },
+        });
       }
     } finally {
       await app?.close();
@@ -117,10 +124,78 @@ describe('owned processing-status HTTP contract', () => {
     expect(response.body.data).toEqual({
       documentId: document.id,
       documentVersionId: version.id,
+      aiReadiness: 'UNAVAILABLE',
       jobs: [],
     });
     expect(response.headers['cache-control']).toContain('no-store');
     expect(response.body.meta.requestId).toBeDefined();
+  });
+
+  it('reports the desired AI pipeline without exposing another owner or internal configuration', async () => {
+    const user = await owner(),
+      foreign = await owner();
+    const { document, version } = await fixture(user);
+    const identity = {
+      profileVersion: 1,
+      provider: 'test',
+      model: randomUUID(),
+      modelRevision: 'v1',
+      dimensions: 3,
+      distance: 'Cosine' as const,
+      normalizationVersion: 'v1',
+      tokenizer: 'test',
+      tokenizerVersion: 'v1',
+      documentInstruction: '',
+      queryInstruction: '',
+    };
+    const profile = await db.client.embeddingProfile.create({
+      data: { ...identity, fingerprint: embeddingProfileFingerprint(identity) },
+    });
+    profiles.push(profile.id);
+    const run = await jobs.requestAiProcessing({
+      userId: user.id,
+      documentId: document.id,
+      documentVersionId: version.id,
+      correlationId: randomUUID(),
+      maxAttempts: 3,
+      extractor: 'test',
+      extractorVersion: 'v1',
+      normalizationVersion: 'v1',
+      chunkAlgorithm: 'test',
+      chunkAlgorithmVersion: 'v1',
+      tokenizer: 'test',
+      tokenizerVersion: 'v1',
+      chunkSize: 512,
+      chunkOverlap: 64,
+      embeddingProfileId: profile.id,
+    });
+    const waiting = await get(user, document.id, version.id).expect(200);
+    expect(waiting.body.data.pipeline).toMatchObject({
+      runId: run.id,
+      generation: 1,
+      status: 'BUILDING',
+      currentStage: 'VERIFY_STORED_FILE',
+    });
+    const verification = await db.client.processingJob.findFirstOrThrow({
+      where: { documentVersionId: version.id, jobType: 'VERIFY_STORED_FILE' },
+    });
+    const claimed = await jobs.claim(verification.id, new Date(), 60000);
+    await jobs.complete(claimed.id, claimed.leaseToken!, new Date());
+    const active = await get(user, document.id, version.id).expect(200);
+    expect(active.body.data.pipeline).toMatchObject({
+      currentStage: 'EXTRACT_TEXT',
+      stages: [
+        { jobType: 'VERIFY_STORED_FILE', status: 'COMPLETED' },
+        { jobType: 'EXTRACT_TEXT', status: 'PENDING' },
+        { jobType: 'GENERATE_CHUNKS', status: 'NOT_SCHEDULED' },
+        { jobType: 'GENERATE_EMBEDDINGS', status: 'NOT_SCHEDULED' },
+        { jobType: 'INDEX_VECTORS', status: 'NOT_SCHEDULED' },
+      ],
+    });
+    expect(JSON.stringify(active.body.data)).not.toMatch(
+      /embeddingProfileId|leaseToken|correlationId|storageKey|fingerprint/,
+    );
+    await get(foreign, document.id, version.id).expect(404);
   });
 
   (process.env.TEST_REDIS_URL ? it : it.skip)(

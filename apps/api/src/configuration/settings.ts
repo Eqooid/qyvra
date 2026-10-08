@@ -5,6 +5,73 @@
  * @interface ApiConfiguration
  */
 export interface ApiConfiguration {
+  readonly rag: {
+    readonly enabled: boolean;
+    readonly maxSources: number;
+    readonly perDocument: number;
+    readonly contextTokens: number;
+    readonly timeoutMs: number;
+    readonly concurrency: number;
+    readonly perUserPerMinute: number;
+    readonly globalPerMinute: number;
+  };
+  readonly generation: {
+    readonly tokenizer: 'cl100k_base' | 'o200k_base';
+    readonly provider: 'openai-compatible';
+    readonly model?: string;
+    readonly endpoint?: string;
+    readonly apiKey?: string;
+    readonly timeoutMs: number;
+    readonly maxOutputTokens: number;
+    readonly temperature: number;
+    readonly outputTokenField: 'max_completion_tokens' | 'max_tokens';
+  };
+  readonly semanticSearch: {
+    readonly enabled: boolean;
+    readonly minScore?: number;
+    readonly maxManifests: number;
+    readonly timeoutMs: number;
+    readonly concurrency: number;
+    readonly perUserPerMinute: number;
+    readonly globalPerMinute: number;
+  };
+  readonly aiIngestion: {
+    readonly enabled: boolean;
+    readonly profileFingerprint?: string;
+  };
+  readonly vectorIndex: {
+    readonly enabled: boolean;
+    readonly url?: string;
+    readonly apiKey?: string;
+    readonly timeoutMs: number;
+    readonly batchSize: number;
+  };
+  readonly embedding: {
+    readonly enabled: boolean;
+    readonly endpoint?: string;
+    readonly apiKey?: string;
+    readonly profileFingerprint?: string;
+    readonly batchSize: number;
+    readonly maxInputTokens: number;
+    readonly maxBatchTokens: number;
+    readonly timeoutMs: number;
+    readonly sendDimensions: boolean;
+  };
+  readonly chunking: {
+    readonly chunkSize: number;
+    readonly chunkOverlap: number;
+    readonly maxChunks: number;
+    readonly maxOutputBytes: number;
+    readonly timeoutMs: number;
+  };
+  readonly extraction: {
+    readonly maxBytes: number;
+    readonly maxPages: number;
+    readonly maxCharacters: number;
+    readonly maxTextBytes: number;
+    readonly timeoutMs: number;
+    readonly heapMb: number;
+  };
   /** Optional, disposable processing progress; PostgreSQL remains authoritative. */
   readonly progress: {
     readonly url?: string;

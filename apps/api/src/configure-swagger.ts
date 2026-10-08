@@ -4,6 +4,8 @@ import { HealthModule } from './modules/health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { TagsModule } from './modules/tags/tags.module';
 import { DocumentsModule } from './modules/documents/documents.module';
+import { SearchModule } from './modules/search/search.module';
+import { RagModule } from './modules/ai/rag.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { ConfigurationService } from './configuration/configuration.module';
 import { AppModule } from './app.module';
@@ -54,6 +56,8 @@ export function configureSwagger(app: INestApplication): void {
         CategoriesModule,
         TagsModule,
         DocumentsModule,
+        SearchModule,
+        RagModule,
       ],
     },
   );

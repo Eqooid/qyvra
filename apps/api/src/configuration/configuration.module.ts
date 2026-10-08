@@ -24,6 +24,30 @@ export const settings = registerAs('settings', () =>
  */
 @Injectable()
 export class ConfigurationService {
+  get rag() {
+    return this.settings.rag;
+  }
+  get generation() {
+    return this.settings.generation;
+  }
+  get semanticSearch() {
+    return this.settings.semanticSearch;
+  }
+  get aiIngestion() {
+    return this.settings.aiIngestion;
+  }
+  get vectorIndex() {
+    return this.settings.vectorIndex;
+  }
+  get embedding() {
+    return this.settings.embedding;
+  }
+  get chunking() {
+    return this.settings.chunking;
+  }
+  get extraction() {
+    return this.settings.extraction;
+  }
   get progress() {
     return this.settings.progress;
   }

@@ -9,6 +9,8 @@ import { AuthModule } from './modules/auth/auth.module';
 import { TagsModule } from './modules/tags/tags.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { CategoriesModule } from './modules/categories/categories.module';
+import { SearchModule } from './modules/search/search.module';
+import { RagModule } from './modules/ai/rag.module';
 
 /**
  * @Module - The main application module that imports necessary modules, declares controllers, and provides services.
@@ -26,6 +28,8 @@ import { CategoriesModule } from './modules/categories/categories.module';
     CategoriesModule,
     TagsModule,
     DocumentsModule,
+    SearchModule,
+    RagModule,
   ],
   controllers: [AppController],
   providers: [AppService],

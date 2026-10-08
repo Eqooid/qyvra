@@ -58,6 +58,49 @@ function setup(handlers: ProcessingJobHandler[] = []) {
 }
 
 describe('processing message boundary', () => {
+  it('persists unavailable AI handler failure and acknowledges only after the write', async () => {
+    const { repository, handler } = setup();
+    const ai = {
+      ...message,
+      schemaVersion: 2 as const,
+      jobType: 'EXTRACT_TEXT' as const,
+    };
+    repository.findById.mockResolvedValue({ ...job, jobType: ai.jobType });
+    expect(await handler.handle(ai, false)).toBe('ack');
+    expect(repository.fail).toHaveBeenCalledWith(
+      job.id,
+      'lease',
+      now,
+      'HANDLER_NOT_IMPLEMENTED',
+      false,
+    );
+    expect(repository.complete).not.toHaveBeenCalled();
+    repository.fail.mockRejectedValue(new Error('database unavailable'));
+    expect(await handler.handle(ai, true)).toBe('retry');
+  });
+
+  it('passes a stage publication callback to the fenced repository completion', async () => {
+    const commit = jest.fn();
+    const execute = jest.fn().mockResolvedValue({ kind: 'success', commit });
+    const { repository, handler } = setup([
+      { jobType: 'EXTRACT_TEXT', execute },
+    ]);
+    const ai = {
+      ...message,
+      schemaVersion: 2 as const,
+      jobType: 'EXTRACT_TEXT' as const,
+    };
+    repository.findById.mockResolvedValue({ ...job, jobType: ai.jobType });
+    expect(await handler.handle(ai, false)).toBe('ack');
+    expect(repository.complete).toHaveBeenCalledWith(
+      job.id,
+      'lease',
+      now,
+      commit,
+    );
+    expect(commit).not.toHaveBeenCalled();
+  });
+
   it('clears progress only after durable completion or retry and tolerates cleanup loss', async () => {
     const clear = jest.fn().mockRejectedValue(new Error('redis unavailable'));
     const execute = jest.fn().mockResolvedValue({ kind: 'success' });

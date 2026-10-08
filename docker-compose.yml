@@ -49,6 +49,29 @@ services:
       timeout: 3s
       retries: 3
 
+  qdrant:
+    image: qdrant/qdrant:v1.19.2
+    restart: unless-stopped
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:-}
+      QDRANT__TELEMETRY_DISABLED: "true"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks: [vector]
+    # No host ports or Nginx route. Bash is present in the pinned upstream image.
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bash",
+          "-ec",
+          "exec 3<>/dev/tcp/127.0.0.1/6333; printf 'GET /readyz HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3; read -r response <&3; [[ $$response == *' 200 '* ]]",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+
   migrate:
     build:
       context: .
@@ -68,11 +91,55 @@ services:
       target: runtime
     init: true
     restart: unless-stopped
+    networks: [default, vector]
     environment:
       <<: *database
       # Compiled application, but HTTP-local cookie policy. Production validation stays strict.
       NODE_ENV: ${NODE_ENV:-development}
       HTTP_HOST: 0.0.0.0
+      AI_INGESTION_ENABLED: ${AI_INGESTION_ENABLED:-false}
+      AI_INGESTION_PROFILE_FINGERPRINT: ${AI_INGESTION_PROFILE_FINGERPRINT:-}
+      SEMANTIC_SEARCH_ENABLED: ${SEMANTIC_SEARCH_ENABLED:-false}
+      SEMANTIC_SEARCH_MIN_SCORE: ${SEMANTIC_SEARCH_MIN_SCORE:-}
+      SEMANTIC_SEARCH_MAX_MANIFESTS: ${SEMANTIC_SEARCH_MAX_MANIFESTS:-250}
+      SEMANTIC_SEARCH_TIMEOUT_MS: ${SEMANTIC_SEARCH_TIMEOUT_MS:-35000}
+      SEMANTIC_SEARCH_CONCURRENCY: ${SEMANTIC_SEARCH_CONCURRENCY:-4}
+      SEMANTIC_SEARCH_USER_PER_MINUTE: ${SEMANTIC_SEARCH_USER_PER_MINUTE:-30}
+      SEMANTIC_SEARCH_GLOBAL_PER_MINUTE: ${SEMANTIC_SEARCH_GLOBAL_PER_MINUTE:-300}
+      RAG_ENABLED: ${RAG_ENABLED:-false}
+      RAG_MAX_SOURCES: ${RAG_MAX_SOURCES:-8}
+      RAG_PER_DOCUMENT_SOURCES: ${RAG_PER_DOCUMENT_SOURCES:-3}
+      RAG_CONTEXT_TOKENS: ${RAG_CONTEXT_TOKENS:-8192}
+      RAG_TIMEOUT_MS: ${RAG_TIMEOUT_MS:-60000}
+      RAG_CONCURRENCY: ${RAG_CONCURRENCY:-2}
+      RAG_USER_PER_MINUTE: ${RAG_USER_PER_MINUTE:-10}
+      RAG_GLOBAL_PER_MINUTE: ${RAG_GLOBAL_PER_MINUTE:-100}
+      GENERATION_PROVIDER: ${GENERATION_PROVIDER:-openai-compatible}
+      GENERATION_TOKENIZER: ${GENERATION_TOKENIZER:-o200k_base}
+      GENERATION_MODEL: ${GENERATION_MODEL:-}
+      GENERATION_ENDPOINT: ${GENERATION_ENDPOINT:-}
+      GENERATION_API_KEY: ${GENERATION_API_KEY:-}
+      GENERATION_ALLOW_HTTP: ${GENERATION_ALLOW_HTTP:-false}
+      GENERATION_TIMEOUT_MS: ${GENERATION_TIMEOUT_MS:-25000}
+      GENERATION_MAX_OUTPUT_TOKENS: ${GENERATION_MAX_OUTPUT_TOKENS:-1024}
+      GENERATION_TEMPERATURE: ${GENERATION_TEMPERATURE:-0}
+      GENERATION_OUTPUT_TOKEN_FIELD: ${GENERATION_OUTPUT_TOKEN_FIELD:-max_completion_tokens}
+      EMBEDDING_ENABLED: ${EMBEDDING_ENABLED:-false}
+      EMBEDDING_ENDPOINT: ${EMBEDDING_ENDPOINT:-}
+      # Query serving may retain an older profile while the worker indexes a replacement.
+      EMBEDDING_PROFILE_FINGERPRINT: ${SEMANTIC_SEARCH_PROFILE_FINGERPRINT:-${EMBEDDING_PROFILE_FINGERPRINT:-}}
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
+      EMBEDDING_ALLOW_HTTP: ${EMBEDDING_ALLOW_HTTP:-false}
+      EMBEDDING_TIMEOUT_MS: ${EMBEDDING_TIMEOUT_MS:-30000}
+      EMBEDDING_MAX_INPUT_TOKENS: ${EMBEDDING_MAX_INPUT_TOKENS:-8191}
+      EMBEDDING_SEND_DIMENSIONS: ${EMBEDDING_SEND_DIMENSIONS:-true}
+      VECTOR_INDEX_ENABLED: ${VECTOR_INDEX_ENABLED:-false}
+      QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
+      QDRANT_API_KEY: ${QDRANT_API_KEY:-}
+      QDRANT_ALLOW_HTTP: ${QDRANT_ALLOW_HTTP:-true}
+      QDRANT_TIMEOUT_MS: ${QDRANT_TIMEOUT_MS:-10000}
+      CHUNK_SIZE_TOKENS: ${CHUNK_SIZE_TOKENS:-512}
+      CHUNK_OVERLAP_TOKENS: ${CHUNK_OVERLAP_TOKENS:-64}
       PORT: "3001"
       STORAGE_PROVIDER: local
       LOCAL_STORAGE_ROOT: /data/qyvra
@@ -140,6 +207,9 @@ services:
         condition: service_healthy
 
   worker:
+    networks: [default, vector]
+    # Heap caps apply per parser; this cgroup also bounds aggregate/native RSS.
+    mem_limit: ${WORKER_MEMORY_LIMIT:-2g}
     build:
       context: .
       dockerfile: infrastructure/docker/api.Dockerfile
@@ -156,7 +226,38 @@ services:
       RABBITMQ_USER: ${RABBITMQ_USER:-qyvra}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}}
       WORKER_PREFETCH: ${WORKER_PREFETCH:-2}
+      AI_INGESTION_ENABLED: ${AI_INGESTION_ENABLED:-false}
+      AI_INGESTION_PROFILE_FINGERPRINT: ${AI_INGESTION_PROFILE_FINGERPRINT:-}
+      EMBEDDING_ENABLED: ${EMBEDDING_ENABLED:-false}
+      EMBEDDING_ENDPOINT: ${EMBEDDING_ENDPOINT:-}
+      EMBEDDING_PROFILE_FINGERPRINT: ${EMBEDDING_PROFILE_FINGERPRINT:-}
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
+      EMBEDDING_ALLOW_HTTP: ${EMBEDDING_ALLOW_HTTP:-false}
+      EMBEDDING_BATCH_SIZE: ${EMBEDDING_BATCH_SIZE:-32}
+      EMBEDDING_MAX_INPUT_TOKENS: ${EMBEDDING_MAX_INPUT_TOKENS:-8191}
+      EMBEDDING_MAX_BATCH_TOKENS: ${EMBEDDING_MAX_BATCH_TOKENS:-100000}
+      EMBEDDING_TIMEOUT_MS: ${EMBEDDING_TIMEOUT_MS:-30000}
+      EMBEDDING_SEND_DIMENSIONS: ${EMBEDDING_SEND_DIMENSIONS:-true}
+      VECTOR_INDEX_ENABLED: ${VECTOR_INDEX_ENABLED:-false}
+      QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
+      QDRANT_API_KEY: ${QDRANT_API_KEY:-}
+      QDRANT_ALLOW_HTTP: ${QDRANT_ALLOW_HTTP:-true}
+      QDRANT_TIMEOUT_MS: ${QDRANT_TIMEOUT_MS:-10000}
+      VECTOR_INDEX_BATCH_SIZE: ${VECTOR_INDEX_BATCH_SIZE:-64}
       WORKER_JOB_LEASE_MS: ${WORKER_JOB_LEASE_MS:-120000}
+      UPLOAD_MAX_BYTES: ${UPLOAD_MAX_BYTES:-52428800}
+      UPLOAD_MAX_PAGES: ${UPLOAD_MAX_PAGES:-500}
+      PDF_EXTRACTION_MAX_BYTES: ${PDF_EXTRACTION_MAX_BYTES:-${UPLOAD_MAX_BYTES:-52428800}}
+      PDF_EXTRACTION_MAX_PAGES: ${PDF_EXTRACTION_MAX_PAGES:-${UPLOAD_MAX_PAGES:-500}}
+      PDF_EXTRACTION_MAX_CHARACTERS: ${PDF_EXTRACTION_MAX_CHARACTERS:-5000000}
+      PDF_EXTRACTION_MAX_TEXT_BYTES: ${PDF_EXTRACTION_MAX_TEXT_BYTES:-20000000}
+      PDF_EXTRACTION_TIMEOUT_MS: ${PDF_EXTRACTION_TIMEOUT_MS:-30000}
+      PDF_EXTRACTION_HEAP_MB: ${PDF_EXTRACTION_HEAP_MB:-256}
+      CHUNK_SIZE_TOKENS: ${CHUNK_SIZE_TOKENS:-512}
+      CHUNK_OVERLAP_TOKENS: ${CHUNK_OVERLAP_TOKENS:-64}
+      CHUNK_MAX_COUNT: ${CHUNK_MAX_COUNT:-10000}
+      CHUNK_MAX_OUTPUT_BYTES: ${CHUNK_MAX_OUTPUT_BYTES:-40000000}
+      CHUNK_TIMEOUT_MS: ${CHUNK_TIMEOUT_MS:-30000}
       WORKER_RECONNECT_DELAY_MS: ${WORKER_RECONNECT_DELAY_MS:-1000}
       WORKER_SHUTDOWN_TIMEOUT_MS: ${WORKER_SHUTDOWN_TIMEOUT_MS:-30000}
       RABBITMQ_CONNECT_TIMEOUT_MS: ${RABBITMQ_CONNECT_TIMEOUT_MS:-5000}
@@ -170,7 +271,13 @@ services:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "node", "-e", "process.exit(require('node:fs').existsSync('/tmp/qyvra-worker-ready')?0:1)"]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "process.exit(require('node:fs').existsSync('/tmp/qyvra-worker-ready')?0:1)",
+        ]
       interval: 10s
       timeout: 3s
       retries: 6
@@ -230,7 +337,14 @@ services:
 networks:
   default:
     driver: bridge
+  vector:
+    driver: bridge
+    internal: true
 volumes:
+  qdrant_data:
+    name: ${QDRANT_VOLUME_NAME:-${COMPOSE_PROJECT_NAME}_qdrant_data}
+    # Qdrant is new in Phase 4; legacy external-volume mode must not prevent creation.
+    external: ${QDRANT_VOLUME_EXTERNAL:-false}
   postgres_data:
     name: ${POSTGRES_VOLUME_NAME:-${COMPOSE_PROJECT_NAME}_postgres_data}
     external: ${PERSISTENT_VOLUMES_EXTERNAL:-false}

@@ -27,6 +27,7 @@ import { DocumentEdit } from "./document-edit"
 import { formatBytes, mimeLabel } from "./upload-validation"
 import { versionTime } from "./version-metadata"
 import { ProcessingStatusSection } from "./processing-status"
+import { AiDocumentStatus } from "./ai-document-status"
 
 export function DocumentDetailPage({ documentId }: { documentId: string }) {
   const api = useAuthApi(),
@@ -208,6 +209,15 @@ export function DocumentDetailPage({ documentId }: { documentId: string }) {
         >
           {notice}
         </Alert>
+      )}
+      {document.currentVersion && !deleting && (
+        <AiDocumentStatus
+          key={document.currentVersion.id}
+          owner={owner}
+          documentId={documentId}
+          versionId={document.currentVersion.id}
+          archived={archived}
+        />
       )}
       <section aria-label="Document actions" className="flex flex-wrap gap-3">
         {!deleting && (

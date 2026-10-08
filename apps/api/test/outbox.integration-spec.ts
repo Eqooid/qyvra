@@ -4,7 +4,7 @@ import {
   createPrismaClient,
   ProcessingRepository,
   type PrismaClient,
-  type ProcessingMessageV1,
+  type ProcessingMessage,
 } from '@qyvra/database';
 import type { MessagePublisher } from '../src/infrastructure/messaging/message-publisher';
 import { RabbitMqPublisher } from '../src/infrastructure/messaging/rabbitmq.publisher';
@@ -74,7 +74,7 @@ describeDatabase('outbox dispatcher against PostgreSQL', () => {
 
   it('one of two dispatchers claims and records a confirmed publication', async () => {
     const { outbox } = await fixture();
-    const delivered: ProcessingMessageV1[] = [];
+    const delivered: ProcessingMessage[] = [];
     const publisher: MessagePublisher = {
       publishProcessing: async (message) => {
         delivered.push(message);

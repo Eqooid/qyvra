@@ -1,0 +1,54 @@
+# Loaded ONLY by ai-run.cjs with an isolated qyvra-e2e-ai project.
+services:
+  ai-test-provider:
+    image: node:24-bookworm-slim
+    command: [node, /fixture/ai-provider.cjs]
+    volumes:
+      - ./infrastructure/e2e/ai-provider.cjs:/fixture/ai-provider.cjs:ro
+    # No published port; this endpoint never ships in the normal Compose stack.
+    healthcheck:
+      test:
+        [
+          CMD,
+          node,
+          -e,
+          "fetch('http://127.0.0.1:8080/health').then(()=>process.exit(0)).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+  api:
+    environment:
+      AI_INGESTION_ENABLED: "true"
+      AI_INGESTION_PROFILE_FINGERPRINT: ${E2E_EMBEDDING_FINGERPRINT:?test profile required}
+      EMBEDDING_ENABLED: "true"
+      EMBEDDING_PROFILE_FINGERPRINT: ${E2E_EMBEDDING_FINGERPRINT}
+      EMBEDDING_ENDPOINT: http://ai-test-provider:8080/embeddings
+      EMBEDDING_ALLOW_HTTP: "true"
+      VECTOR_INDEX_ENABLED: "true"
+      SEMANTIC_SEARCH_ENABLED: "true"
+      SEMANTIC_SEARCH_MIN_SCORE: "0.8"
+      RAG_ENABLED: "true"
+      RAG_USER_PER_MINUTE: "100"
+      GENERATION_MODEL: e2e-generation
+      GENERATION_ENDPOINT: http://ai-test-provider:8080/chat/completions
+      GENERATION_ALLOW_HTTP: "true"
+    depends_on:
+      ai-test-provider:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+  worker:
+    environment:
+      AI_INGESTION_ENABLED: "true"
+      AI_INGESTION_PROFILE_FINGERPRINT: ${E2E_EMBEDDING_FINGERPRINT}
+      EMBEDDING_ENABLED: "true"
+      EMBEDDING_PROFILE_FINGERPRINT: ${E2E_EMBEDDING_FINGERPRINT}
+      EMBEDDING_ENDPOINT: http://ai-test-provider:8080/embeddings
+      EMBEDDING_ALLOW_HTTP: "true"
+      VECTOR_INDEX_ENABLED: "true"
+    depends_on:
+      ai-test-provider:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy

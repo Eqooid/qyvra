@@ -1,5 +1,11 @@
 # QYVRA delivery roadmap
 
+**Phase 4 T03 orchestration, T04 PDF extraction and T05 chunking are implemented:** [durable stage contracts and lifecycle](phase-4-processing.md)
+cover atomic successor scheduling, v2 transport, shared retry/recovery, worker routing,
+lifecycle fencing and the owned status extension. [Durable PDF text extraction](phase-4-pdf-extraction.md)
+is implemented. [Deterministic chunks and citation provenance](phase-4-chunk-generation.md)
+are implemented. [T06 embedding generation and durable checkpoints](phase-4-embedding-generation.md) are implemented. [T07 Qdrant indexing, activation and cleanup](phase-4-vector-indexing.md) are implemented. [T10 grounded answers and validated citations](phase-4-rag-answers.md) and [T11 AI Search and authorized citation navigation](phase-4-ai-frontend.md) are implemented. OCR remains **Planned**. [T09 authorized semantic retrieval and search API](phase-4-semantic-search.md) are implemented and opt-in. [T08 upload/reprocess/restore enrollment and bounded backfill](phase-4-ingestion.md) are implemented and opt-in.
+
 [Documentation index](README.md) | [v1.0.0 snapshot](releases/v1.0.0.md) | [v1.1.0 snapshot](releases/v1.1.0.md)
 
 ## Phase 1 — v1.0.0 released
@@ -16,7 +22,7 @@ record evidence. Completed scope:
 - Current-file download, catalog/detail/upload/history/organization/account UI.
 - Local Compose/Nginx startup, migrations, persistence and isolated browser verification.
 
-CI was a foundation target but no CI/CD workflow is checked in. It is a deferred
+At Phase 1 acceptance, CI was a foundation target but no CI/CD workflow was checked in. It was a deferred
 engineering gap, not evidence that the delivered usable-tracker acceptance failed.
 See the snapshot for precise limitations; do not redo completed Phase 1 slices.
 
@@ -167,12 +173,50 @@ agents, Elasticsearch, and hybrid retrieval. This narrows the older Phase 3
 direction below; its broad feature list does not define the v1.2.0 deliverable.
 The processing-status route is implemented at T10; optional Redis progress is implemented at T11.
 
+## Phase 4 — v1.3.0 AI/RAG foundation (Complete; unpublished release candidate)
+
+**T02 persistence implemented:** [the data foundation and verification](phase-4-data-foundation.md)
+add owned extraction/chunk artifacts, immutable profiles, SQL embedding checkpoints,
+run/index/pointer metadata and nullable Phase 3 job dependencies. Stage vocabulary
+and durable orchestration are implemented by T03. Internal explicit run requests
+produce stage intents. **T04 PDF extraction is implemented:** bounded isolated PDF.js parsing,
+canonical owned artifacts and atomic chunk-stage intent publication. Automatic upload
+wiring is implemented in T08; RAG handlers/routes are implemented in T10; AI UI is implemented in [T11](phase-4-ai-frontend.md).
+**T05 implemented:** deterministic token-bounded chunk generation, UUIDv5 identity,
+scalar-offset/page provenance and atomic successor publication. See [T05](phase-4-chunk-generation.md).
+**T06 implemented:** [provider-agnostic embeddings and durable checkpoints](phase-4-embedding-generation.md), with native HTTP, full-batch validation, lease fencing and resumable retries. **T07 implemented:** [private Qdrant indexing, activation, artifact-only rebuild and lifecycle cleanup/reconciliation](phase-4-vector-indexing.md). **T08 implemented:** [owned asynchronous upload/reprocess/restore integration and bounded backfill](phase-4-ingestion.md). **T09 implemented:** [authorized semantic retrieval and search API](phase-4-semantic-search.md). **T10 implemented:** [bounded grounded RAG and validated citations](phase-4-rag-answers.md). **T11 implemented:** [semantic/RAG UI, authoritative readiness and owned citation navigation](phase-4-ai-frontend.md). **T12 verified:** [end-to-end security, recovery and release-readiness assessment](phase-4-verification.md); known non-blocking limitations remain, with no release tag.
+
+T01 defines the [canonical architecture, contracts and acceptance](phase-4-ai-rag.md)
+and ADR-003 through ADR-005, confirmed as implemented in T13. T01 documentation, T02 persistence, T03 orchestration and T04 PDF extraction are
+implemented along with T05 chunks, T06 embeddings, T07 indexing, T08 ingestion and T09 retrieval; T10 grounded RAG is implemented; the AI frontend is implemented in T11. Extend Phase 3 instead of adding another processing
+system. Initial scope is text-bearing PDF extraction, deterministic owned chunks,
+provider-neutral embeddings, profile-isolated Qdrant, owned semantic retrieval and
+grounded answers with server-validated source citations.
+
+Follow the [ordered T02–T12 implementation table](phase-4-ai-rag.md#ordered-implementation-tasks-and-acceptance--planned):
+data/constraints → durable stage and message extensions → extraction → chunks →
+embedding checkpoints → private Qdrant/index cleanup → upload/reprocessing integration
+→ authorized retrieval → grounded RAG → frontend/citations → full-stack acceptance.
+Each slice requires focused verification. [T12](phase-4-verification.md) records
+completed security/recovery/browser acceptance: **READY WITH KNOWN NON-BLOCKING
+LIMITATIONS**, 8 October 2026. **T13 complete:** [release snapshot/notes](releases/v1.3.0.md),
+changelog and [versioning/preparation assessment](phase-4-release-preparation.md)
+finalize Phase 4. Implementation, local verification and release preparation are
+complete; remote CI on the reviewed commit, tagging and publication remain separate
+user-approved steps. No v1.3.0 release is declared or tagged; Phase 5 is not started.
+
+OCR, classification/summaries, persistent chat, autonomous agents, multi-agent
+orchestration, LangChain/LangGraph, MCP/Hermes, external actions, autonomous document
+modification, voice, city/office visualization and local LLM orchestration are
+excluded. Operational provider/model/parser choices, quotas, grounding thresholds,
+retention and profile-switch coverage remain documented pre-release decisions.
+
 ## Later phases and earlier planning directions
 
 | Phase | Direction                              | Planned additions                                                                                                                  |
 | ----- | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | 3     | Earlier processing/reminders direction | Broader ideas included extraction/OCR, reminders and purge/activity work. The narrower planned v1.2.0 foundation is defined above. |
-| 4     | Reviewable AI and semantic retrieval   | Independent generation/embedding adapters, Ollama/OpenAI options, Qdrant, cited RAG.                                               |
+| 4     | Earlier AI direction                   | Delivered foundation is defined above; specialized Ollama/local adapters remain future work.                                       |
 | 5     | Advanced keyword and hybrid search     | Elasticsearch, highlights, autocomplete and ranking.                                                                               |
 | 6     | Identity upgrade                       | Keycloak/OIDC, retaining internal ownership IDs.                                                                                   |
 

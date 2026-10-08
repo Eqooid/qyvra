@@ -442,7 +442,367 @@ export function validateEnvironment(
       'OUTBOX_LEASE_MS',
       'must exceed RABBITMQ_CONFIRM_TIMEOUT_MS by 5000 ms.',
     );
+  const chunkSize = integer(environment, 'CHUNK_SIZE_TOKENS', '512', 16384);
+  const overlap = text(environment, 'CHUNK_OVERLAP_TOKENS', '64');
+  if (
+    !/^\d+$/.test(overlap) ||
+    !Number.isSafeInteger(Number(overlap)) ||
+    Number(overlap) >= chunkSize
+  )
+    invalid(
+      'CHUNK_OVERLAP_TOKENS',
+      'must be an integer from zero to less than CHUNK_SIZE_TOKENS.',
+    );
+  const leaseMs = integer(
+    environment,
+    'WORKER_JOB_LEASE_MS',
+    '120000',
+    3600000,
+  );
+  const embeddingEnabled = boolean(environment, 'EMBEDDING_ENABLED', 'false');
+  const embeddingEndpoint = embeddingEnabled
+    ? text(environment, 'EMBEDDING_ENDPOINT')
+    : undefined;
+  const embeddingFingerprint = embeddingEnabled
+    ? text(environment, 'EMBEDDING_PROFILE_FINGERPRINT')
+    : undefined;
+  if (embeddingFingerprint && !/^[0-9a-f]{64}$/.test(embeddingFingerprint))
+    invalid(
+      'EMBEDDING_PROFILE_FINGERPRINT',
+      'must be a SHA-256 profile fingerprint.',
+    );
+  if (embeddingEndpoint) {
+    let endpoint: URL;
+    try {
+      endpoint = new URL(embeddingEndpoint);
+    } catch {
+      return invalid('EMBEDDING_ENDPOINT', 'must be an absolute URL.');
+    }
+    const allowHttp = boolean(environment, 'EMBEDDING_ALLOW_HTTP', 'false');
+    if (
+      endpoint.username ||
+      endpoint.password ||
+      endpoint.search ||
+      endpoint.hash ||
+      (endpoint.protocol !== 'https:' &&
+        !(allowHttp && endpoint.protocol === 'http:'))
+    )
+      invalid(
+        'EMBEDDING_ENDPOINT',
+        'must use HTTPS without URL credentials, query or fragment; private HTTP requires explicit opt-in.',
+      );
+  }
+  const embeddingMaxTokens = integer(
+    environment,
+    'EMBEDDING_MAX_INPUT_TOKENS',
+    '8191',
+    8192,
+  );
+  const embeddingBatchTokens = integer(
+    environment,
+    'EMBEDDING_MAX_BATCH_TOKENS',
+    '100000',
+    300000,
+  );
+  if (embeddingBatchTokens < embeddingMaxTokens)
+    invalid(
+      'EMBEDDING_MAX_BATCH_TOKENS',
+      'must be at least EMBEDDING_MAX_INPUT_TOKENS.',
+    );
+  const vectorEnabled = boolean(environment, 'VECTOR_INDEX_ENABLED', 'false');
+  const vectorUrl = vectorEnabled ? text(environment, 'QDRANT_URL') : undefined;
+  if (vectorUrl) {
+    let parsed: URL;
+    try {
+      parsed = new URL(vectorUrl);
+    } catch {
+      return invalid('QDRANT_URL', 'must be an absolute HTTP(S) origin.');
+    }
+    if (
+      !['http:', 'https:'].includes(parsed.protocol) ||
+      parsed.username ||
+      parsed.password ||
+      parsed.search ||
+      parsed.hash ||
+      parsed.pathname !== '/'
+    )
+      return invalid(
+        'QDRANT_URL',
+        'must be an HTTP(S) origin without credentials, paths, or query.',
+      );
+    if (
+      mode === 'production' &&
+      parsed.protocol !== 'https:' &&
+      !boolean(environment, 'QDRANT_ALLOW_HTTP', 'false')
+    )
+      return invalid(
+        'QDRANT_ALLOW_HTTP',
+        'must explicitly allow a private HTTP deployment, or use TLS.',
+      );
+  }
+  const ingestionEnabled = boolean(
+    environment,
+    'AI_INGESTION_ENABLED',
+    'false',
+  );
+  const ingestionFingerprint = ingestionEnabled
+    ? text(environment, 'AI_INGESTION_PROFILE_FINGERPRINT')
+    : undefined;
+  if (ingestionFingerprint && !/^[0-9a-f]{64}$/.test(ingestionFingerprint))
+    invalid(
+      'AI_INGESTION_PROFILE_FINGERPRINT',
+      'must identify an immutable embedding profile.',
+    );
+  const searchEnabled = boolean(
+    environment,
+    'SEMANTIC_SEARCH_ENABLED',
+    'false',
+  );
+  if (
+    ingestionEnabled &&
+    embeddingEnabled &&
+    !searchEnabled &&
+    ingestionFingerprint !== embeddingFingerprint
+  )
+    invalid(
+      'AI_INGESTION_PROFILE_FINGERPRINT',
+      'must match the enabled embedding profile.',
+    );
+  if (searchEnabled && (!embeddingEnabled || !vectorEnabled))
+    invalid(
+      'SEMANTIC_SEARCH_ENABLED',
+      'requires configured embeddings and Qdrant.',
+    );
+  const scoreText =
+    environment.SEMANTIC_SEARCH_MIN_SCORE === undefined ||
+    environment.SEMANTIC_SEARCH_MIN_SCORE === ''
+      ? undefined
+      : text(environment, 'SEMANTIC_SEARCH_MIN_SCORE');
+  const minScore =
+    scoreText === undefined || scoreText === '' ? undefined : Number(scoreText);
+  if (
+    minScore !== undefined &&
+    (!Number.isFinite(minScore) ||
+      minScore < -1 ||
+      minScore > 1 ||
+      !scoreText?.trim())
+  )
+    invalid(
+      'SEMANTIC_SEARCH_MIN_SCORE',
+      'must be a calibrated cosine score in [-1,1].',
+    );
+  const ragEnabled = boolean(environment, 'RAG_ENABLED', 'false');
+  if (ragEnabled && (!searchEnabled || minScore === undefined))
+    invalid(
+      'RAG_ENABLED',
+      'requires semantic search and an explicitly calibrated SEMANTIC_SEARCH_MIN_SCORE.',
+    );
+  const generationProvider = text(
+    environment,
+    'GENERATION_PROVIDER',
+    'openai-compatible',
+  );
+  const generationTokenizer = text(
+    environment,
+    'GENERATION_TOKENIZER',
+    'o200k_base',
+  );
+  if (
+    generationTokenizer !== 'cl100k_base' &&
+    generationTokenizer !== 'o200k_base'
+  )
+    invalid(
+      'GENERATION_TOKENIZER',
+      'must be cl100k_base or o200k_base and match the configured model.',
+    );
+  if (generationProvider !== 'openai-compatible')
+    invalid('GENERATION_PROVIDER', 'must be openai-compatible.');
+  const generationEndpoint = ragEnabled
+    ? text(environment, 'GENERATION_ENDPOINT')
+    : undefined;
+  if (generationEndpoint) {
+    let url: URL;
+    try {
+      url = new URL(generationEndpoint);
+    } catch {
+      return invalid('GENERATION_ENDPOINT', 'must be an absolute HTTP(S) URL.');
+    }
+    if (
+      (url.protocol !== 'https:' &&
+        !(
+          url.protocol === 'http:' &&
+          boolean(environment, 'GENERATION_ALLOW_HTTP', 'false')
+        )) ||
+      url.username ||
+      url.password ||
+      url.search ||
+      url.hash
+    )
+      invalid(
+        'GENERATION_ENDPOINT',
+        'requires HTTPS (or explicit HTTP opt-in), without credentials, query or fragment.',
+      );
+  }
+  const outputField = text(
+    environment,
+    'GENERATION_OUTPUT_TOKEN_FIELD',
+    'max_completion_tokens',
+  );
+  if (outputField !== 'max_completion_tokens' && outputField !== 'max_tokens')
+    invalid(
+      'GENERATION_OUTPUT_TOKEN_FIELD',
+      'must be max_completion_tokens or max_tokens.',
+    );
+  const temperature = Number(text(environment, 'GENERATION_TEMPERATURE', '0'));
+  if (!Number.isFinite(temperature) || temperature < 0 || temperature > 1)
+    invalid('GENERATION_TEMPERATURE', 'must be between 0 and 1.');
+  const contextTokens = integer(
+    environment,
+    'RAG_CONTEXT_TOKENS',
+    '8192',
+    32768,
+  );
+  const maxOutputTokens = integer(
+    environment,
+    'GENERATION_MAX_OUTPUT_TOKENS',
+    '1024',
+    4096,
+  );
+  if (contextTokens <= maxOutputTokens + 1024)
+    invalid(
+      'RAG_CONTEXT_TOKENS',
+      'must reserve output plus at least 1024 input/envelope tokens.',
+    );
   return Object.freeze({
+    rag: Object.freeze({
+      enabled: ragEnabled,
+      maxSources: integer(environment, 'RAG_MAX_SOURCES', '8', 20),
+      perDocument: integer(environment, 'RAG_PER_DOCUMENT_SOURCES', '3', 20),
+      contextTokens,
+      timeoutMs: integer(environment, 'RAG_TIMEOUT_MS', '60000', 120000),
+      concurrency: integer(environment, 'RAG_CONCURRENCY', '2', 32),
+      perUserPerMinute: integer(environment, 'RAG_USER_PER_MINUTE', '10', 300),
+      globalPerMinute: integer(
+        environment,
+        'RAG_GLOBAL_PER_MINUTE',
+        '100',
+        10000,
+      ),
+    }),
+    generation: Object.freeze({
+      tokenizer: generationTokenizer,
+      provider: generationProvider,
+      model: ragEnabled ? text(environment, 'GENERATION_MODEL') : undefined,
+      endpoint: generationEndpoint,
+      apiKey:
+        ragEnabled && environment.GENERATION_API_KEY
+          ? text(environment, 'GENERATION_API_KEY')
+          : undefined,
+      timeoutMs: integer(environment, 'GENERATION_TIMEOUT_MS', '25000', 60000),
+      maxOutputTokens,
+      temperature,
+      outputTokenField: outputField,
+    }),
+    semanticSearch: Object.freeze({
+      enabled: searchEnabled,
+      minScore,
+      maxManifests: integer(
+        environment,
+        'SEMANTIC_SEARCH_MAX_MANIFESTS',
+        '250',
+        2000,
+      ),
+      timeoutMs: integer(
+        environment,
+        'SEMANTIC_SEARCH_TIMEOUT_MS',
+        '35000',
+        60000,
+      ),
+      concurrency: integer(environment, 'SEMANTIC_SEARCH_CONCURRENCY', '4', 32),
+      perUserPerMinute: integer(
+        environment,
+        'SEMANTIC_SEARCH_USER_PER_MINUTE',
+        '30',
+        300,
+      ),
+      globalPerMinute: integer(
+        environment,
+        'SEMANTIC_SEARCH_GLOBAL_PER_MINUTE',
+        '300',
+        10000,
+      ),
+    }),
+    aiIngestion: Object.freeze({
+      enabled: ingestionEnabled,
+      profileFingerprint: ingestionFingerprint,
+    }),
+    vectorIndex: Object.freeze({
+      enabled: vectorEnabled,
+      url: vectorUrl,
+      apiKey:
+        vectorEnabled && environment.QDRANT_API_KEY
+          ? text(environment, 'QDRANT_API_KEY')
+          : undefined,
+      batchSize: integer(environment, 'VECTOR_INDEX_BATCH_SIZE', '64', 256),
+      timeoutMs: integer(
+        environment,
+        'QDRANT_TIMEOUT_MS',
+        String(
+          Math.min(
+            10000,
+            Math.max(
+              1,
+              Math.floor(
+                integer(environment, 'WORKER_JOB_LEASE_MS', '120000', 3600000) /
+                  2,
+              ),
+            ),
+          ),
+        ),
+        Math.max(
+          1,
+          Math.floor(
+            integer(environment, 'WORKER_JOB_LEASE_MS', '120000', 3600000) / 2,
+          ),
+        ),
+      ),
+    }),
+    embedding: Object.freeze({
+      enabled: embeddingEnabled,
+      endpoint: embeddingEndpoint,
+      profileFingerprint: embeddingFingerprint,
+      apiKey:
+        embeddingEnabled && environment.EMBEDDING_API_KEY
+          ? text(environment, 'EMBEDDING_API_KEY')
+          : undefined,
+      batchSize: integer(environment, 'EMBEDDING_BATCH_SIZE', '32', 128),
+      maxInputTokens: embeddingMaxTokens,
+      maxBatchTokens: embeddingBatchTokens,
+      timeoutMs: integer(
+        environment,
+        'EMBEDDING_TIMEOUT_MS',
+        String(Math.min(30000, Math.floor(leaseMs / 2))),
+        Math.max(1, Math.floor(leaseMs / 2)),
+      ),
+      sendDimensions: boolean(environment, 'EMBEDDING_SEND_DIMENSIONS', 'true'),
+    }),
+    chunking: Object.freeze({
+      chunkSize,
+      chunkOverlap: Number(overlap),
+      maxChunks: integer(environment, 'CHUNK_MAX_COUNT', '10000', 100000),
+      maxOutputBytes: integer(
+        environment,
+        'CHUNK_MAX_OUTPUT_BYTES',
+        '40000000',
+        100000000,
+      ),
+      timeoutMs: integer(
+        environment,
+        'CHUNK_TIMEOUT_MS',
+        String(Math.min(30000, Math.max(1, Math.floor(leaseMs * 0.5)))),
+        Math.max(1, Math.floor(leaseMs * 0.75)),
+      ),
+    }),
     progress: Object.freeze({
       url: redisUrl,
       ttlSeconds: integer(
@@ -463,6 +823,56 @@ export function validateEnvironment(
         '500',
         30000,
       ),
+    }),
+    extraction: Object.freeze({
+      maxBytes: integer(
+        environment,
+        'PDF_EXTRACTION_MAX_BYTES',
+        String(integer(environment, 'UPLOAD_MAX_BYTES', '52428800', 209715200)),
+        209715200,
+      ),
+      maxPages: integer(
+        environment,
+        'PDF_EXTRACTION_MAX_PAGES',
+        String(integer(environment, 'UPLOAD_MAX_PAGES', '500', 2000)),
+        2000,
+      ),
+      maxCharacters: integer(
+        environment,
+        'PDF_EXTRACTION_MAX_CHARACTERS',
+        '5000000',
+        5000000,
+      ),
+      maxTextBytes: integer(
+        environment,
+        'PDF_EXTRACTION_MAX_TEXT_BYTES',
+        '20000000',
+        20000000,
+      ),
+      timeoutMs: integer(
+        environment,
+        'PDF_EXTRACTION_TIMEOUT_MS',
+        String(
+          Math.min(
+            30000,
+            Math.max(
+              1,
+              Math.floor(
+                integer(environment, 'WORKER_JOB_LEASE_MS', '120000', 3600000) *
+                  0.5,
+              ),
+            ),
+          ),
+        ),
+        Math.max(
+          1,
+          Math.floor(
+            integer(environment, 'WORKER_JOB_LEASE_MS', '120000', 3600000) *
+              0.75,
+          ),
+        ),
+      ),
+      heapMb: integer(environment, 'PDF_EXTRACTION_HEAP_MB', '256', 1024),
     }),
     worker: Object.freeze({
       prefetch: integer(environment, 'WORKER_PREFETCH', '2', 16),

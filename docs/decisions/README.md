@@ -16,7 +16,14 @@ If rationale is unknown, document observed behavior in architecture instead.
 - [ADR-001: Create-only local file publication](ADR-001-create-only-file-publication.md)
   - Accepted; retrospective record of an explicitly documented storage tradeoff.
 - [ADR-002: Durable processing jobs, transactional outbox, and separate worker](ADR-002-durable-processing-outbox-worker.md)
-  - Accepted for v1.2.0; T02/T03 implement persistence and rules while delivery and execution remain planned.
+  - Accepted for v1.2.0; implemented foundation verified in the preserved Phase 3 acceptance record.
+
+- [ADR-003: Extend durable processing with versioned AI artifacts](ADR-003-ai-processing-artifacts.md)
+  - Accepted; versioned AI artifacts and existing-job orchestration implemented in T02–T08.
+- [ADR-004: Profile-isolated Qdrant indexes with PostgreSQL publication](ADR-004-profile-isolated-vector-index.md)
+  - Accepted; indexing/activation/cleanup in T07, authorized retrieval in T09.
+- [ADR-005: Qyvra-owned retrieval and citation provenance](ADR-005-grounded-rag-citations.md)
+  - Accepted; retrieval, grounded answers and authorized sources in T09–T11.
 
 ## Template
 

@@ -2,7 +2,14 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Files, FolderOpen, LayoutDashboard, Tags, X } from "lucide-react"
+import {
+  Files,
+  FolderOpen,
+  LayoutDashboard,
+  Tags,
+  X,
+  Search,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Sidebar,
@@ -64,6 +71,7 @@ export function AppSidebar() {
                     icon: LayoutDashboard,
                   },
                   { href: "/documents", label: "Documents", icon: Files },
+                  { href: "/ai", label: "AI Search", icon: Search },
                   {
                     href: "/categories",
                     label: "Categories",

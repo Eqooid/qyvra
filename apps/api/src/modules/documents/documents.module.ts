@@ -19,6 +19,10 @@ import { ProcessingStatusController } from './processing-status.controller';
 import { ProcessingStatusService } from './processing-status.service';
 import { ProcessingStatusRepository } from './processing-status.repository';
 import { ProgressModule } from '../../infrastructure/progress/progress.module';
+import { AiIngestionService } from '../ai/ai-ingestion.service';
+import { AiReprocessingController } from './ai-reprocessing.controller';
+import { CitationSourceController } from './citation-source.controller';
+import { CitationSourceService } from './citation-source.service';
 
 /**
  * @author Cristono Wijaya
@@ -40,9 +44,13 @@ import { ProgressModule } from '../../infrastructure/progress/progress.module';
     DownloadController,
     VersionsController,
     ProcessingStatusController,
+    AiReprocessingController,
+    CitationSourceController,
   ],
   providers: [
     DocumentsService,
+    CitationSourceService,
+    AiIngestionService,
     OwnedMutationGuard,
     UploadRepository,
     UploadService,

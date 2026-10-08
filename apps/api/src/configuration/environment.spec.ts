@@ -8,6 +8,227 @@ const base = {
 };
 
 describe('environment configuration', () => {
+  it('keeps RAG opt-in and validates its independent generation/budget configuration', () => {
+    expect(validateEnvironment(base).rag.enabled).toBe(false);
+    expect(() => validateEnvironment({ ...base, RAG_ENABLED: 'true' })).toThrow(
+      'RAG_ENABLED',
+    );
+    const enabled = {
+      ...base,
+      RAG_ENABLED: 'true',
+      SEMANTIC_SEARCH_ENABLED: 'true',
+      SEMANTIC_SEARCH_MIN_SCORE: '0.8',
+      EMBEDDING_ENABLED: 'true',
+      EMBEDDING_ENDPOINT: 'https://embedding.example/embeddings',
+      EMBEDDING_PROFILE_FINGERPRINT: 'a'.repeat(64),
+      VECTOR_INDEX_ENABLED: 'true',
+      QDRANT_URL: 'http://127.0.0.1:6333',
+      GENERATION_ENDPOINT: 'https://generation.example/chat/completions',
+      GENERATION_MODEL: 'separate-generation-model',
+    };
+    expect(validateEnvironment(enabled).generation.model).toBe(
+      'separate-generation-model',
+    );
+    for (const [key, value] of [
+      ['SEMANTIC_SEARCH_MIN_SCORE', ''],
+      ['GENERATION_MODEL', ''],
+      ['GENERATION_ENDPOINT', 'http://untrusted.example/chat'],
+      ['GENERATION_ENDPOINT', 'https://example/chat?secret=x'],
+      ['GENERATION_PROVIDER', 'unknown'],
+      ['GENERATION_TEMPERATURE', 'NaN'],
+      ['GENERATION_OUTPUT_TOKEN_FIELD', 'bad'],
+      ['RAG_CONTEXT_TOKENS', '2048'],
+      ['RAG_CONCURRENCY', '0'],
+      ['RAG_TIMEOUT_MS', '120001'],
+    ])
+      expect(() => validateEnvironment({ ...enabled, [key]: value })).toThrow();
+  });
+  it('keeps search opt-in, requires both adapters and validates bounded policies and calibrated scores', () => {
+    expect(validateEnvironment(base).semanticSearch.enabled).toBe(false);
+    expect(validateEnvironment(base).semanticSearch.minScore).toBeUndefined();
+    expect(() =>
+      validateEnvironment({ ...base, SEMANTIC_SEARCH_ENABLED: 'true' }),
+    ).toThrow('SEMANTIC_SEARCH_ENABLED');
+    for (const value of ['NaN', 'Infinity', '1.01', '-1.01', ' '])
+      expect(() =>
+        validateEnvironment({ ...base, SEMANTIC_SEARCH_MIN_SCORE: value }),
+      ).toThrow('SEMANTIC_SEARCH_MIN_SCORE');
+    expect(
+      validateEnvironment({ ...base, SEMANTIC_SEARCH_MIN_SCORE: '0.65' })
+        .semanticSearch.minScore,
+    ).toBe(0.65);
+    for (const [name, value] of [
+      ['SEMANTIC_SEARCH_MAX_MANIFESTS', '2001'],
+      ['SEMANTIC_SEARCH_CONCURRENCY', '0'],
+      ['SEMANTIC_SEARCH_TIMEOUT_MS', '60001'],
+      ['SEMANTIC_SEARCH_USER_PER_MINUTE', '0'],
+    ])
+      expect(() => validateEnvironment({ ...base, [name]: value })).toThrow(
+        name,
+      );
+  });
+  it('lets query serving retain its exact old profile while ingestion enrolls a replacement', () => {
+    const configured = {
+      ...base,
+      SEMANTIC_SEARCH_ENABLED: 'true',
+      EMBEDDING_ENABLED: 'true',
+      EMBEDDING_ENDPOINT: 'https://provider.example.invalid/embeddings',
+      EMBEDDING_PROFILE_FINGERPRINT: 'a'.repeat(64),
+      VECTOR_INDEX_ENABLED: 'true',
+      QDRANT_URL: 'http://qdrant:6333',
+      AI_INGESTION_ENABLED: 'true',
+      AI_INGESTION_PROFILE_FINGERPRINT: 'b'.repeat(64),
+    };
+    expect(validateEnvironment(configured).embedding.profileFingerprint).toBe(
+      'a'.repeat(64),
+    );
+    expect(() =>
+      validateEnvironment({ ...configured, SEMANTIC_SEARCH_ENABLED: 'false' }),
+    ).toThrow('AI_INGESTION_PROFILE_FINGERPRINT');
+  });
+  it('keeps automatic ingestion opt-in and validates its nonsecret profile identity', () => {
+    expect(validateEnvironment(base).aiIngestion.enabled).toBe(false);
+    expect(() =>
+      validateEnvironment({ ...base, AI_INGESTION_ENABLED: 'true' }),
+    ).toThrow('AI_INGESTION_PROFILE_FINGERPRINT');
+    expect(() =>
+      validateEnvironment({
+        ...base,
+        AI_INGESTION_ENABLED: 'true',
+        AI_INGESTION_PROFILE_FINGERPRINT: 'invalid',
+      }),
+    ).toThrow('AI_INGESTION_PROFILE_FINGERPRINT');
+    expect(
+      validateEnvironment({
+        ...base,
+        AI_INGESTION_ENABLED: 'true',
+        AI_INGESTION_PROFILE_FINGERPRINT: 'a'.repeat(64),
+      }).aiIngestion.enabled,
+    ).toBe(true);
+    expect(() =>
+      validateEnvironment({
+        ...base,
+        AI_INGESTION_ENABLED: 'true',
+        AI_INGESTION_PROFILE_FINGERPRINT: 'a'.repeat(64),
+        EMBEDDING_ENABLED: 'true',
+        EMBEDDING_PROFILE_FINGERPRINT: 'b'.repeat(64),
+        EMBEDDING_ENDPOINT: 'https://provider.example.invalid/v1/embeddings',
+      }),
+    ).toThrow('AI_INGESTION_PROFILE_FINGERPRINT');
+  });
+  it('validates private Qdrant origins, batch bounds and lease timeout budget', () => {
+    expect(validateEnvironment(base).vectorIndex.enabled).toBe(false);
+    const configured = {
+      ...base,
+      VECTOR_INDEX_ENABLED: 'true',
+      QDRANT_URL: 'http://qdrant:6333',
+    };
+    expect(validateEnvironment(configured).vectorIndex).toMatchObject({
+      enabled: true,
+      batchSize: 64,
+      timeoutMs: 10000,
+    });
+    for (const [key, value] of [
+      ['QDRANT_URL', 'https://user:secret@qdrant:6333'],
+      ['QDRANT_URL', 'http://qdrant/path'],
+      ['QDRANT_URL', 'http://qdrant/?key=secret'],
+      ['QDRANT_TIMEOUT_MS', '60001'],
+      ['VECTOR_INDEX_BATCH_SIZE', '257'],
+    ])
+      expect(() =>
+        validateEnvironment({ ...configured, [key]: value }),
+      ).toThrow(key);
+  });
+  it('disables embeddings by default and validates private operational configuration', () => {
+    expect(validateEnvironment(base).embedding.enabled).toBe(false);
+    const configured = {
+      ...base,
+      EMBEDDING_ENABLED: 'true',
+      EMBEDDING_ENDPOINT: 'https://provider.example.invalid/v1/embeddings',
+      EMBEDDING_PROFILE_FINGERPRINT: 'a'.repeat(64),
+      EMBEDDING_API_KEY: 'test-only-key',
+    };
+    expect(validateEnvironment(configured).embedding.batchSize).toBe(32);
+    for (const [key, value] of [
+      ['EMBEDDING_ENDPOINT', 'http://provider.example.invalid/v1/embeddings'],
+      [
+        'EMBEDDING_ENDPOINT',
+        'https://user:secret@provider.example.invalid/v1/embeddings',
+      ],
+      [
+        'EMBEDDING_ENDPOINT',
+        'https://provider.example.invalid/v1/embeddings?key=secret',
+      ],
+      ['EMBEDDING_PROFILE_FINGERPRINT', 'invalid'],
+      ['EMBEDDING_BATCH_SIZE', '0'],
+      ['EMBEDDING_MAX_INPUT_TOKENS', '8193'],
+      ['EMBEDDING_MAX_BATCH_TOKENS', '1'],
+      ['EMBEDDING_TIMEOUT_MS', '60001'],
+    ])
+      expect(() =>
+        validateEnvironment({ ...configured, [key]: value }),
+      ).toThrow(key);
+    expect(
+      validateEnvironment({
+        ...configured,
+        EMBEDDING_ENDPOINT: 'http://local:8080/v1/embeddings',
+        EMBEDDING_ALLOW_HTTP: 'true',
+      }).embedding.enabled,
+    ).toBe(true);
+  });
+  it('validates token chunk defaults, zero overlap, output bounds and lease budget', () => {
+    expect(validateEnvironment(base).chunking).toEqual({
+      chunkSize: 512,
+      chunkOverlap: 64,
+      maxChunks: 10000,
+      maxOutputBytes: 40000000,
+      timeoutMs: 30000,
+    });
+    expect(
+      validateEnvironment({ ...base, CHUNK_OVERLAP_TOKENS: '0' }).chunking
+        .chunkOverlap,
+    ).toBe(0);
+    for (const [key, value] of [
+      ['CHUNK_SIZE_TOKENS', '0'],
+      ['CHUNK_SIZE_TOKENS', '16385'],
+      ['CHUNK_OVERLAP_TOKENS', '-1'],
+      ['CHUNK_OVERLAP_TOKENS', '512'],
+      ['CHUNK_MAX_COUNT', '100001'],
+      ['CHUNK_MAX_OUTPUT_BYTES', '100000001'],
+      ['CHUNK_TIMEOUT_MS', '90001'],
+    ])
+      expect(() => validateEnvironment({ ...base, [key]: value })).toThrow(key);
+  });
+  it('bounds PDF extraction against durable schema ceilings and the job lease', () => {
+    expect(validateEnvironment(base).extraction).toEqual({
+      maxBytes: 52428800,
+      maxPages: 500,
+      maxCharacters: 5000000,
+      maxTextBytes: 20000000,
+      timeoutMs: 30000,
+      heapMb: 256,
+    });
+    expect(
+      validateEnvironment({ ...base, UPLOAD_MAX_PAGES: '25' }).extraction
+        .maxPages,
+    ).toBe(25);
+    for (const [key, value] of [
+      ['PDF_EXTRACTION_MAX_BYTES', '209715201'],
+      ['PDF_EXTRACTION_MAX_PAGES', '2001'],
+      ['PDF_EXTRACTION_MAX_CHARACTERS', '5000001'],
+      ['PDF_EXTRACTION_MAX_TEXT_BYTES', '20000001'],
+      ['PDF_EXTRACTION_TIMEOUT_MS', '90001'],
+      ['PDF_EXTRACTION_HEAP_MB', '1025'],
+    ])
+      expect(() => validateEnvironment({ ...base, [key]: value })).toThrow(key);
+    expect(() =>
+      validateEnvironment({
+        ...base,
+        WORKER_JOB_LEASE_MS: '1000',
+        PDF_EXTRACTION_TIMEOUT_MS: '751',
+      }),
+    ).toThrow('PDF_EXTRACTION_TIMEOUT_MS');
+  });
   it('validates optional disposable Redis progress settings without echoing credentials', () => {
     expect(validateEnvironment(base).progress).toEqual({
       url: undefined,

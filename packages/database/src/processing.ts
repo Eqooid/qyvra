@@ -13,7 +13,15 @@ export const processingJobStatuses = [
 ] as const;
 export type ProcessingJobStatus = (typeof processingJobStatuses)[number];
 
-export const processingJobTypes = ['VERIFY_STORED_FILE'] as const;
+// Persistence/domain vocabulary only. V1 delivery and creation remain integrity-only.
+export const processingJobTypes = [
+  'VERIFY_STORED_FILE',
+  'EXTRACT_TEXT',
+  'GENERATE_CHUNKS',
+  'GENERATE_EMBEDDINGS',
+  'INDEX_VECTORS',
+  'REMOVE_VECTOR_INDEX',
+] as const;
 export type ProcessingJobType = (typeof processingJobTypes)[number];
 
 export const processingOutboxStatuses = ['PENDING', 'PUBLISHED'] as const;
@@ -31,6 +39,15 @@ export interface ProcessingMessageV1 {
   readonly jobType: 'VERIFY_STORED_FILE';
   readonly dispatchSequence: number;
 }
+
+export interface ProcessingMessageV2 extends Omit<
+  ProcessingMessageV1,
+  'schemaVersion' | 'jobType'
+> {
+  readonly schemaVersion: 2;
+  readonly jobType: ProcessingJobType;
+}
+export type ProcessingMessage = ProcessingMessageV1 | ProcessingMessageV2;
 
 export interface NewStoredFileVerification {
   readonly jobType?: string;
@@ -98,12 +115,17 @@ export async function createProcessingOutboxIntent(
   job: ProcessingJob,
   dispatchSequence: number,
   occurredAt: Date,
+  schemaVersion: 1 | 2 = job.jobType === 'VERIFY_STORED_FILE' ? 1 : 2,
 ) {
+  if (schemaVersion === 1 && job.jobType !== 'VERIFY_STORED_FILE')
+    throw new Error('Unsupported v1 processing job type.');
+  if (!processingJobTypes.includes(job.jobType as ProcessingJobType))
+    throw new Error('Unsupported processing job type.');
   if (!Number.isSafeInteger(dispatchSequence) || dispatchSequence < 1)
     throw new Error('Invalid dispatch sequence.');
   const messageId = randomUUID();
-  const envelope: ProcessingMessageV1 = {
-    schemaVersion: 1,
+  const envelope = {
+    schemaVersion,
     messageId,
     type: 'processing.execute',
     occurredAt: occurredAt.toISOString(),
@@ -111,9 +133,9 @@ export async function createProcessingOutboxIntent(
     jobId: job.id,
     documentId: job.documentId,
     documentVersionId: job.documentVersionId,
-    jobType: 'VERIFY_STORED_FILE',
+    jobType: job.jobType as ProcessingJobType,
     dispatchSequence,
-  };
+  } as ProcessingMessage;
   const outbox = await tx.processingOutbox.create({
     data: {
       id: messageId,

@@ -1,8 +1,35 @@
 # API conventions and OpenAPI
 
+**Phase 4 T03 orchestration, T04 PDF extraction and T05 chunking are implemented:** [durable stage contracts and lifecycle](phase-4-processing.md)
+cover atomic successor scheduling, v2 transport, shared retry/recovery, worker routing,
+lifecycle fencing and the owned status extension. [Durable PDF text extraction](phase-4-pdf-extraction.md)
+is implemented. [Deterministic chunks and citation provenance](phase-4-chunk-generation.md)
+are implemented. [T06 embedding generation and durable checkpoints](phase-4-embedding-generation.md) are implemented. [T07 Qdrant indexing, activation and cleanup](phase-4-vector-indexing.md) are implemented. [T10 grounded answers and validated citations](phase-4-rag-answers.md) are implemented and opt-in. [T11 AI Search and authorized citation navigation](phase-4-ai-frontend.md) are implemented. OCR remains **Planned**. [T09 authorized semantic retrieval and search API](phase-4-semantic-search.md) are implemented and opt-in. [T08 upload/reprocess/restore enrollment and bounded backfill](phase-4-ingestion.md) are implemented and opt-in.
+
 [Documentation index](README.md) | [Feature workflows](README.md#features)
 
 ## Generated endpoint reference
+
+**T10 implemented:** `POST /api/v1/rag/answers` accepts `{question, documentIds?}`
+through the existing session and CSRF/Origin guards. It returns an `answered` or
+`insufficient_evidence` union in the standard no-store envelope. Answered claims
+reference server-validated citation IDs; citation provenance comes from SQL, never
+the LLM. Invalid generation returns safe 502 `AI_OUTPUT_INVALID`; provider outage
+503, timeout 504 and admission/provider rate limit 429. See [T10 contracts and
+configuration](phase-4-rag-answers.md) and the generated OpenAPI union. Citation-source
+resolution and AI frontend are implemented in [T11](phase-4-ai-frontend.md).
+
+T06 adds no HTTP routes. Embedding execution uses the existing owned processing-status
+contract and optional `EMBEDDING` progress stage. Provider credentials, endpoints, input text
+and vector arrays are never added to public job/status responses.
+
+**Implemented Phase 4 API direction:** [the AI/RAG contract](phase-4-ai-rag.md#api-direction--t01-contract-and-current-slice-status)
+defines owned semantic search, bounded cited answers, explicit idempotent current-version
+reprocessing, citation-source resolution and additive processing-status fields.
+`POST /search/semantic` is implemented in T09; RAG is implemented in [T10](phase-4-rag-answers.md); citation source resolution is implemented in [T11](phase-4-ai-frontend.md). T03 extends the existing processing-status DTO and generated
+OpenAPI with optional pipeline metadata; it adds no route.
+Ownership comes from session context; provider/profile/collection settings are
+server controlled. Existing upload receipts and HTTP conventions are preserved.
 
 Swagger is configured in [configure-swagger.ts](../apps/api/src/configure-swagger.ts)
 from the implemented controllers and DTO decorators. Treat its generated OpenAPI as
@@ -15,9 +42,29 @@ catalog of current and future routes.
 | Host defaults | [UI](http://localhost:3001/api/v1/docs/) | [JSON](http://localhost:3001/api/v1/docs-json) |
 
 Both are available when the API runs. The global HTTP prefix is `/api/v1`; OpenAPI's
-info version is `1`, distinct from product release v1.0.0. No standalone schema-export
+info version is `1`, distinct from product candidate v1.3.0. No standalone schema-export
 or client-generation npm script exists. Future tooling can consume the running JSON
 endpoint; do not claim it is already checked into the repository.
+
+### Phase 4 implemented entry points
+
+All routes use the authenticated internal user ID, strict DTOs and standard no-store
+envelopes; request-provided ownership/profile/provider fields are rejected. POST
+requests require `X-CSRF-Protection: 1` and the existing Origin policy. This table
+links to detailed implemented contracts; controller-generated schemas remain authoritative.
+
+| Method and route                                                           | Request / result                                                                                                        | Authorization, limits and failures                                                                                                                                                | Detailed contract                                                           |
+| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `GET /api/v1/documents/{documentId}/versions/{versionId}/processing`       | No input body; jobs, optional pipeline, SQL-derived `aiReadiness`                                                       | Owned UUID pair; unavailable/foreign version 404, anonymous 401; safe failures and disposable progress                                                                            | [Processing](phase-4-processing.md)                                         |
+| `POST /api/v1/documents/{documentId}/versions/{versionId}/ai/reprocess`    | `{mode?}`; default `repair`, or `extraction`, `chunking`, `embedding`, `index`; 202 run ID/generation/status            | Owned eligible current version; UUIDv4 `Idempotency-Key` required; malformed 400, inaccessible 404, incompatible replay/state 409, disabled configuration 503                     | [Reprocessing](phase-4-ingestion.md#owned-reprocessing-contract)            |
+| `POST /api/v1/search/semantic`                                             | `{query, limit?, documentIds?}`; canonical results/excerpts/profile/manifest IDs and similarity scores                  | Trimmed query 1–4,000 UTF-16 units; limit 1–20/default 8; optional 1–50 unique owned active document UUIDs; empty matches are valid; 429 admission, 503 unavailable, 504 deadline | [Search](phase-4-semantic-search.md)                                        |
+| `POST /api/v1/rag/answers`                                                 | `{question, documentIds?}`; `answered` claims/citations or `insufficient_evidence` with null answer and empty citations | Question/scope bounds as above; authorized context and publication recheck; 502 invalid output, 429 rate limit, 503 outage/disabled, 504 timeout; insufficient evidence is 200    | [RAG](phase-4-rag-answers.md)                                               |
+| `GET /api/v1/documents/{documentId}/versions/{versionId}/chunks/{chunkId}` | No query/body; exact canonical excerpt/hash/offsets, page spans and document/version/chunk metadata                     | Owned complete source; retained historical text is allowed, archived/deleted/foreign/missing source 404; malformed UUID/query/body 400                                            | [Citation source](phase-4-ai-frontend.md#minimal-additive-backend-contract) |
+
+Common 400/401/403 validation/session/CSRF failures apply. Scores are similarity,
+not confidence; limits and provider deadlines are validated server settings. No
+public embedding, Qdrant-repair, permanent-purge or historical PDF-download route
+is implied. Index-only reprocessing is the existing repair path after remote loss.
 
 ## Authentication and authorization
 
@@ -113,8 +160,7 @@ Range headers are ignored. Early read failures return safe JSON; failures after 
 close the connection. Ownership is checked at admission and cannot revoke bytes already
 sent. File paths, storage keys and checksums are not exposed by document/version APIs.
 
-Processing mutation/retry endpoints, historical-version download, extracted text,
-search indexes and chat endpoints are **Not Implemented**. The owned read-only
+General processing mutation/retry endpoints, historical binary download, full extracted-text export and persistent chat endpoints remain **Planned**. T08 owned AI reprocessing, T09 semantic search, T10 grounded answers and T11 canonical chunk-source reads are implemented. The owned read-only
 processing-status route above is implemented. The [specification](specification.md) contains a
 **Planned** target catalog, not an alternative reference for available endpoints.
 
@@ -238,8 +284,30 @@ Actual verification is implemented in T08, and the owned status route is
 implemented in T10. Both remain asynchronous to the upload request.
 
 Archive and soft delete cancel unfinished version jobs atomically with the
-document lifecycle change. Restore schedules a new generation only for a cancelled
-integrity job on the current version. Completed jobs and historical versions are
-not automatically reprocessed. The existing lifecycle response contracts are
+document lifecycle change. Restore replays a cancelled integrity job when needed. With T08 ingestion enabled,
+restore also enrolls the current PDF version using the earliest compatible stage;
+complete retained extraction/chunks/embeddings lead to a new verified index. Historical
+versions are excluded. The existing lifecycle response contracts are
 unchanged; processing remains separate from `Document.status`. See the
 [processing policy](phase-3-processing.md#archive-restore-and-deletion--implemented-processing-policy).
+
+## Phase 4 owned AI reprocessing — Implemented in T08
+
+POST /api/v1/documents/:documentId/versions/:versionId/ai/reprocess returns 202 with
+the normal envelope and {runId,generation,status}. Session and mutation CSRF/Origin
+rules, UUIDv4 Idempotency-Key and a strict optional mode (repair, extraction, chunking,
+embedding, index) apply. Only active current owned PDFs qualify. See the
+[canonical contract, modes and error behavior](phase-4-ingestion.md#owned-reprocessing-contract).
+Provider/profile/collection settings and userId are never accepted. Upload responses
+are unchanged; enabling ingestion enrolls AI runs in the upload transaction.
+Semantic retrieval and RAG are implemented in T09/T10; citation-source resolution is implemented in [T11](phase-4-ai-frontend.md).
+
+## Phase 4 T09 semantic search — Implemented
+
+`POST /api/v1/search/semantic` accepts `{query, limit?, documentIds?}` through session and CSRF/Origin guards. Query is trimmed and capped at 4000 UTF-16 units; limit defaults to 8 (1–20); every optional document ID is owned and active. Returns `{results}` in the existing envelope, with SQL-canonical excerpts, source identifiers/page spans/offsets and cosine scores. No vectors or remote payload contents are public. See [full API/error/authorization contract](phase-4-semantic-search.md). Grounded RAG is implemented in [T10](phase-4-rag-answers.md).
+
+## Phase 4 T11 owned source navigation and readiness — Implemented
+
+`GET /api/v1/documents/:documentId/versions/:versionId/chunks/:chunkId` returns an owned complete canonical chunk with document/version identity, title, filename, ordinal, text/hash, scalar offsets and page spans. Session auth, UUID parameters, no query/body, standard no-store envelope and indistinguishable unavailable/foreign 404s apply. Retained historical sources are resolvable independently of index activation.
+
+The existing version processing-status response adds `aiReadiness` (`READY`, `PROCESSING`, `FAILED`, `UNAVAILABLE`, `UNSUPPORTED`). READY requires the current active owned version, valid SQL ready pointer/complete manifest and API-compatible serving profile with semantic search enabled; a READY run alone is insufficient. It is durable eligibility rather than provider health. See [T11 fields, client behavior and security](phase-4-ai-frontend.md).

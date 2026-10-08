@@ -11,6 +11,7 @@ function setup() {
     findById: jest.fn(),
     recoverInterrupted: jest.fn(),
     scheduleRetryDispatch: jest.fn(),
+    reconcilePipelines: jest.fn().mockResolvedValue(0),
   };
   return {
     repository,
@@ -40,6 +41,7 @@ describe('processing recovery coordinator', () => {
       dispatchSequence: 2,
     });
     expect(await recovery.runOnce()).toEqual({ recovered: 1, scheduled: 1 });
+    expect(repository.reconcilePipelines).toHaveBeenCalledWith(now, 2);
     expect(repository.findStaleProcessing).toHaveBeenCalledWith(now, 2);
     expect(repository.recoverInterrupted).toHaveBeenCalledWith(
       'stale-job',

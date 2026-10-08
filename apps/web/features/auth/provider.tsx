@@ -49,6 +49,7 @@ export function useCurrentUser() {
     queryFn: () => api.currentUser(),
     enabled:
       pathname.startsWith("/dashboard") ||
+      pathname === "/ai" ||
       pathname === "/settings" ||
       pathname === "/categories" ||
       pathname === "/tags" ||

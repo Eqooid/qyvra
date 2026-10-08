@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { STATUS_CODES } from 'node:http';
+import { AiOutputInvalidException } from './ai-output-invalid.exception';
 import { Response } from 'express';
 import { map, Observable } from 'rxjs';
 import { StructuredLogger } from './structured-logger';
@@ -85,14 +86,18 @@ export class HttpErrorFilter implements ExceptionFilter {
         ? candidate
         : 500;
     const message = STATUS_CODES[status] ?? 'Internal Server Error';
+    const code =
+      exception instanceof AiOutputInvalidException
+        ? 'AI_OUTPUT_INVALID'
+        : message.toUpperCase().replaceAll(' ', '_');
     this.logger.event(status >= 500 ? 'error' : 'warn', 'http.request.failed', {
       statusCode: status,
-      code: message.toUpperCase().replaceAll(' ', '_'),
+      code,
     });
     if (response.headersSent) return;
     response.status(status).json({
       error: {
-        code: message.toUpperCase().replaceAll(' ', '_'),
+        code,
         message,
         details: {},
         traceId: requestId(response),

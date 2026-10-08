@@ -1,8 +1,27 @@
-# QYVRA architecture — v1.2.0 release candidate
+# QYVRA architecture — Phase 4 / v1.3.0 release candidate
 
-[Documentation index](README.md) | [Release snapshot](releases/v1.0.0.md)
+**Phase 4 T03 orchestration, T04 PDF extraction and T05 chunking are implemented:** [durable stage contracts and lifecycle](phase-4-processing.md)
+cover atomic successor scheduling, v2 transport, shared retry/recovery, worker routing,
+lifecycle fencing and the owned status extension. [Durable PDF text extraction](phase-4-pdf-extraction.md)
+is implemented. [Deterministic chunks and citation provenance](phase-4-chunk-generation.md)
+are implemented. [T06 embedding generation and durable checkpoints](phase-4-embedding-generation.md) are implemented. [T07 Qdrant indexing, activation and cleanup](phase-4-vector-indexing.md) are implemented. [T10 grounded answers and validated citations](phase-4-rag-answers.md) are implemented and opt-in. [T11 AI Search and authorized citation navigation](phase-4-ai-frontend.md) are implemented. OCR remains **Planned**. [T09 authorized semantic retrieval and search API](phase-4-semantic-search.md) are implemented and opt-in. [T08 upload/reprocess/restore enrollment and bounded backfill](phase-4-ingestion.md) are implemented and opt-in.
+
+[Documentation index](README.md) | [Current candidate snapshot](releases/v1.3.0.md)
 
 ## Runtime overview
+
+T10 adds an opt-in synchronous, bounded RAG use case: owned T09 retrieval → SQL
+reauthorization → serialized untrusted evidence → independent generation provider →
+SQL reauthorization → strict claim/source-token validation → cited response. It does
+not create ingestion jobs or use RabbitMQ/Redis for interactive correctness. See
+[the implemented RAG boundary and security limits](phase-4-rag-answers.md).
+
+The [Phase 4 / v1.3.0 AI/RAG runtime contract](phase-4-ai-rag.md) is implemented through T02–T11:
+extraction, chunking, embeddings and vector indexing extend the existing dedicated
+worker and PostgreSQL job/outbox lifecycle. Qdrant is a derived index; API-owned
+retrieval authorizes sources before content enters an independently configured
+generation adapter. T01 adds no runtime services or code. This guide's diagram
+continues to describe the implemented Phase 3 baseline.
 
 QYVRA is a modular monolith: a NestJS HTTP API, separate outbox and worker
 processes, and a Next.js application. PostgreSQL is the durable system of record;
@@ -36,8 +55,41 @@ See [Compose](compose.md) for actual HTTP policy and production limitations.
 
 ## Backend
 
-[AppModule](../apps/api/src/app.module.ts) composes Auth, Categories, Tags, Documents
-and Health modules with Configuration, Storage and Observability providers. Controllers
+### Phase 4 implemented runtime
+
+The Phase 3 diagram above is the retained foundation. T04–T11 extend it as follows;
+the [T12 verification record](phase-4-verification.md) records integration evidence
+and deployment limitations.
+
+```mermaid
+flowchart LR
+    Browser --> Nginx
+    Nginx --> Web[Next.js]
+    Nginx --> API[Owned API / search / RAG / source navigation]
+    API -->|versions, jobs and outbox in one transaction| SQL[(PostgreSQL authority)]
+    API -->|original upload/download| Files[(Private storage)]
+    SQL --> Outbox[Outbox dispatcher and recovery]
+    Outbox --> MQ[(RabbitMQ identifiers only)]
+    MQ --> Worker[Integrity → extraction → chunks → embeddings → indexing]
+    Worker -->|original reads| Files
+    Worker -->|artifacts, checkpoints, activation| SQL
+    Worker -->|native embedding HTTP| Embedding[Embedding provider]
+    Worker -->|verified derived points / cleanup| Qdrant[(Private Qdrant)]
+    Worker -.-> Redis[(Disposable progress)]
+    API -.-> Redis
+    API -->|compatible query embedding| Embedding
+    API -->|owner/profile/ready-manifest filtering| Qdrant
+    API -->|canonical authorization before context and publication| SQL
+    API -->|bounded untrusted authorized evidence| Generation[Independent generation provider]
+```
+
+PostgreSQL ready pointers exclude partial generations. Qdrant payloads do not
+authorize access. Original documents remain usable when AI dependencies fail.
+AMQP setup is fenced against shutdown so a late connection cannot restore worker
+readiness after stopping. No model may grant access or execute external tools.
+
+[AppModule](../apps/api/src/app.module.ts) composes Auth, Categories, Tags, Documents,
+Search, Rag and Health modules with Configuration, Storage and Observability providers. Controllers
 validate transport inputs; services coordinate owned queries and transactions through
 `PrismaService`. Document services also use the injected `STORAGE` interface.
 
@@ -129,6 +181,12 @@ Elasticsearch, Qdrant, embedding provider, broker, Redis or AI adapter.
 
 ## v1.2.0 processing boundary — implemented foundation
 
+**Phase 4 T02 adds persistence only:** [the implemented data model](phase-4-data-foundation.md)
+extends shared Prisma and existing jobs with owned artifacts/profiles/manifests and
+nullable dependency references. The runtime topology and upload/worker scheduling
+are unchanged. Atomic stage orchestration and v2 transport are implemented in T03;
+PDF extraction/chunks, provider-neutral embeddings and private Qdrant indexing/cleanup are implemented in T04–T07. Authorized retrieval and grounded RAG are implemented in T09/T10; frontend navigation is implemented in [T11](phase-4-ai-frontend.md).
+
 The runtime overview above includes the implemented Phase 3 deployment. The
 [Phase 3 processing contract](phase-3-processing.md) distinguishes implemented
 jobs, outbox delivery, worker transport, integrity execution, PostgreSQL
@@ -164,3 +222,15 @@ not be used to represent a running worker. The first implemented worker operatio
 verifies stored-file integrity. Extraction and search indexes are outside this
 foundation. Future ranked retrieval must preserve owner filtering and remain
 separate from the existing catalog cursor contract.
+
+## T08 ingestion integration — Implemented
+
+[T08](phase-4-ingestion.md) adds one database-only scheduler shared by upload, restore, owned reprocessing and maintenance backfill. Reuse validates artifact fingerprints and embedding input hashes. Ingestion HTTP operations never call providers, Qdrant or RabbitMQ. T09 search separately performs bounded read-only provider/Qdrant calls. Private worker infrastructure and original-document access are unchanged.
+
+## Phase 4 T09 read boundary — Implemented
+
+The SearchModule owns interactive authorized retrieval, reuses the T06 query embedding interface and T07 native vector adapter, and reads active mappings from PostgreSQL. Mandatory owner/profile/manifest prefilters precede vector similarity; SQL joins reauthorize before text hydration. No jobs, repair or index writes occur in a search request. [Flow, limits and runtime boundary](phase-4-semantic-search.md).
+
+## Phase 4 T11 frontend and source boundary — Implemented
+
+[AI Search](phase-4-ai-frontend.md) uses the existing protected Next.js shell and shared AuthApi. Search and answers stay independent POST requests; the browser never accesses providers or indexes. Citation buttons come only from validated T10 sources, and the Sheet/exact-version route reauthorizes through the DocumentsModule canonical chunk endpoint. SQL-derived readiness extends the existing owned processing-status boundary. No migration or job framework is introduced.

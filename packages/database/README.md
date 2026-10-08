@@ -1,5 +1,29 @@
 # Shared PostgreSQL client
 
+**Phase 4 T03 orchestration is implemented:** [durable stage contracts and lifecycle](../../docs/phase-4-processing.md)
+cover atomic successor scheduling, v2 transport, shared retry/recovery, worker routing,
+lifecycle fencing and the owned status extension. T04–T06 extraction/chunks/embeddings
+and [T07 Qdrant activation/cleanup](../../docs/phase-4-vector-indexing.md) are implemented.
+T08 opt-in enrollment, T09 semantic retrieval and T10 RAG are implemented using
+these authoritative artifacts. [T12 verification](../../docs/phase-4-verification.md)
+records release-readiness evidence; automatic AI enrollment is disabled by default.
+
+Phase 4 T02 adds ten AI persistence models and nullable dependencies on existing
+jobs. See [the implemented data contract](../../docs/phase-4-data-foundation.md)
+and migration `20261004010000_ai_data_foundation`. SQL checks/triggers supplement
+Prisma for owned lineage, immutable artifacts, page/chunk provenance, exact finite
+vector shape, complete stage outputs and ready mappings. Preserve those invariants
+in future migrations. No automatic AI backfill is enabled. T07 requires no new schema.
+`requestVectorRebuild` reuses actual artifacts/checkpoints in a new fenced run;
+`replayVectorRemoval` creates controlled owned cleanup work after retry exhaustion.
+
+`src/ai.ts` exports typed states/profile/page contracts, stage prerequisites and
+the canonical profile-fingerprint helper. Existing v1 scheduling/serialization is
+integrity-only. Run `npm run test:ai` with a migrated disposable `TEST_DATABASE_URL`
+and `npm run test:ai:migration` with a separate empty disposable
+`TEST_MIGRATION_DATABASE_URL`. Regenerate/build after schema changes; public HTTP
+contracts must not expose generated ORM models directly.
+
 This package owns the Prisma schema, generated client, and migrations.
 It uses Prisma 7's PostgreSQL driver adapter, generates CommonJS-compatible client
 code, and exports `createPrismaClient` and `PrismaClient`. Node 24+ is required.

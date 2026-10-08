@@ -8,6 +8,11 @@ export const profileSchema = z.object({
   timezone: z.string(),
 })
 export type Profile = z.infer<typeof profileSchema>
+export type RequestOptions = {
+  signal?: AbortSignal
+  timeoutMs?: number
+  headers?: Record<string, string>
+}
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -76,7 +81,8 @@ export class AuthApi {
     body?: unknown,
     csrf = false,
     envelope = false,
-    method?: "PATCH" | "DELETE" | "POST"
+    method?: "PATCH" | "DELETE" | "POST",
+    options: RequestOptions = {}
   ): Promise<T> {
     let response: Response
     try {
@@ -86,10 +92,16 @@ export class AuthApi {
         method: method ?? (body !== undefined || csrf ? "POST" : "GET"),
         credentials: "include",
         cache: "no-store",
-        signal: AbortSignal.timeout(10000),
+        signal: options.signal
+          ? AbortSignal.any([
+              options.signal,
+              AbortSignal.timeout(options.timeoutMs ?? 10000),
+            ])
+          : AbortSignal.timeout(options.timeoutMs ?? 10000),
         headers: {
           ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
           ...(csrf ? { "X-CSRF-Protection": "1" } : {}),
+          ...options.headers,
         },
         ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
       })
@@ -124,13 +136,33 @@ export class AuthApi {
       : await operation()
   }
   /** Authenticated reads share the existing transport and serialized refresh. */
-  async get<T>(path: string, schema: z.ZodType<T>): Promise<T> {
+  async get<T>(
+    path: string,
+    schema: z.ZodType<T>,
+    options: RequestOptions = {}
+  ): Promise<T> {
     try {
-      return await this.request(path, schema, undefined, false, true)
+      return await this.request(
+        path,
+        schema,
+        undefined,
+        false,
+        true,
+        undefined,
+        options
+      )
     } catch (error) {
       if (!(error instanceof ApiError) || error.status !== 401) throw error
       if (!(await this.currentUser())) throw new ApiError(401)
-      return this.request(path, schema, undefined, false, true)
+      return this.request(
+        path,
+        schema,
+        undefined,
+        false,
+        true,
+        undefined,
+        options
+      )
     }
   }
   /** JSON mutations preserve the existing cookie, CSRF and refresh policy. */
@@ -138,9 +170,11 @@ export class AuthApi {
     path: string,
     method: "PATCH" | "DELETE" | "POST",
     schema: z.ZodType<T>,
-    body?: unknown
+    body?: unknown,
+    options: RequestOptions = {}
   ): Promise<T> {
-    const send = () => this.request(path, schema, body, true, false, method)
+    const send = () =>
+      this.request(path, schema, body, true, false, method, options)
     try {
       return await send()
     } catch (error) {
