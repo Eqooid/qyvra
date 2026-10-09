@@ -26,6 +26,8 @@ publication exists. See [release notes](docs/releases/v1.3.0.md),
   server-validated citations and authenticated exact-source navigation.
 - AI Search/readiness UI, deterministic real-infrastructure verification and a CI
   workflow without paid-provider requirements.
+- [Versioned v1.3.0 developer walkthrough](docs/developer/versions/v1.3.0.md),
+  added on 9 October 2026 to complete the missing T13 documentation deliverable.
 
 ### Changed
 

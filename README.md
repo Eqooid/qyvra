@@ -1,4 +1,4 @@
-# QYVRA
+# QYVRA v1.3.0
 
 **Query Yielding Vault Recall Assistant** is a private document-management app
 with immutable file versions, organization and an opt-in AI/RAG foundation.
@@ -60,6 +60,10 @@ See [Compose operations](docs/compose.md) for persistence, backups and deploymen
 
 ## Develop and test
 
+Start with the [v1.3.0 developer guide](docs/developer/versions/v1.3.0.md) for
+upload-to-RAG source navigation, AI configuration, independent worker startup,
+contracts, lifecycle/recovery and the limits of the recorded verification.
+
 Phase 4 release-candidate checks and safe recovery procedures are recorded in the
 [T12 verification matrix](docs/phase-4-verification.md). This does not create a release tag.
 
@@ -94,7 +98,8 @@ double and do not replace database integration tests.
 
 ## Documentation
 
-- [Developer documentation](docs/developer/README.md): preserved v1.0.0 baseline plus v1.1.0 changes, walkthroughs and upgrade guidance
+- [v1.3.0 development documentation](docs/developer/versions/v1.3.0.md): Phase 4 architecture, data, processing, APIs, frontend, security and operations
+- [Developer documentation history](docs/developer/README.md): preserved v1.0.0 baseline and v1.1.0/v1.2.0/v1.3.0 delta guides
 - [Documentation index](docs/README.md) and [contributing](CONTRIBUTING.md)
 - [API conventions](docs/api.md), [local Swagger UI](http://localhost:8080/api/v1/docs/)
   and [generated OpenAPI JSON](http://localhost:8080/api/v1/docs-json)

@@ -227,7 +227,7 @@ credentials are not developer configuration; see [browser setup](../phase-1-brow
 
 ## T08 ingestion integration — Implemented
 
-AI_INGESTION_ENABLED defaults false. When true, AI_INGESTION_PROFILE_FINGERPRINT must identify a provisioned immutable SQL profile; API startup checks it. Set identical chunk size/overlap on API and worker, enable worker embeddings/vector indexing first, and match its embedding fingerprint. API needs no embedding or Qdrant secrets. See [T08 configuration](../phase-4-ingestion.md#configuration-and-deployment).
+AI_INGESTION_ENABLED defaults false. When true, AI_INGESTION_PROFILE_FINGERPRINT must identify a provisioned immutable SQL profile; API startup checks it. Set identical chunk size/overlap on API and worker, enable worker embeddings/vector indexing first, and match its embedding fingerprint. Ingestion-only API operation needs no embedding or Qdrant secrets; enabling T09 search also configures server-side query embedding and Qdrant access. See [T08 configuration](../phase-4-ingestion.md#configuration-and-deployment) and the [current developer setup](../developer/versions/v1.3.0.md#development-deployment-and-operations).
 
 ## Phase 4 T09 semantic search
 

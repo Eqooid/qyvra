@@ -205,6 +205,31 @@ finalize Phase 4. Implementation, local verification and release preparation are
 complete; remote CI on the reviewed commit, tagging and publication remain separate
 user-approved steps. No v1.3.0 release is declared or tagged; Phase 5 is not started.
 
+The [v1.3.0 developer delta](developer/versions/v1.3.0.md), completed in the
+[9 October T13 correction](phase-4-release-preparation.md#t13-correction--9-october-2026),
+supplies the missing versioned developer walkthrough. The earlier T13 completion
+claim omitted this deliverable. Current status by task:
+
+| Task | Deliverable                                        | Implementation / documentation       | Verification                                                                      |
+| ---- | -------------------------------------------------- | ------------------------------------ | --------------------------------------------------------------------------------- |
+| T01  | Architecture and scope                             | Complete                             | Contracts matched to implemented slices                                           |
+| T02  | Durable data foundation                            | Complete                             | T12 migration/ownership constraints                                               |
+| T03  | AI-stage orchestration                             | Complete                             | T12 retries, prerequisites, outbox and recovery                                   |
+| T04  | PDF extraction                                     | Complete                             | T12 native Linux fixtures and controlled failures                                 |
+| T05  | Chunks and provenance                              | Complete                             | T12 determinism, complete sets, Unicode/page lineage                              |
+| T06  | Embedding generation                               | Complete                             | T12 HTTP fixtures/checkpoints; live-model quality unverified                      |
+| T07  | Qdrant indexing                                    | Complete                             | T12 real activation/cleanup/rebuild                                               |
+| T08  | Ingestion/reprocess/restore/backfill               | Complete                             | T12 lifecycle, reuse and bounded scheduling                                       |
+| T09  | Authorized retrieval                               | Complete                             | T12 SQL authorization and stale/malicious payload cases                           |
+| T10  | Grounded answers/citations                         | Complete                             | T12 fixture-based validation/abstention; universal grounding unproven             |
+| T11  | Frontend/source navigation                         | Complete                             | T12 browser, safe rendering, themes/keyboard; full accessibility audit unexecuted |
+| T12  | Release verification                               | Complete within recorded local scope | READY WITH KNOWN NON-BLOCKING LIMITATIONS; remote CI unexecuted                   |
+| T13  | Release/developer documentation and version review | Corrected and complete               | Targeted documentation/preservation checks; no release action                     |
+
+Implementation and local verification are completed; the release is **ready with
+known non-blocking limitations**, **not released**. Final remote CI and publication
+remain maintainer-approved steps, not another implemented product capability.
+
 OCR, classification/summaries, persistent chat, autonomous agents, multi-agent
 orchestration, LangChain/LangGraph, MCP/Hermes, external actions, autonomous document
 modification, voice, city/office visualization and local LLM orchestration are

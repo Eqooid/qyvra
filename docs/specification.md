@@ -15,7 +15,8 @@
 > shipped capabilities. All later-phase infrastructure, endpoint/page catalogs,
 > processing examples and non-functional targets remain **Planned** unless confirmed
 > in the [v1.0.0](releases/v1.0.0.md) or [v1.1.0](releases/v1.1.0.md) release snapshots,
-> or in the current [v1.2.0 processing guide](phase-3-processing.md).
+> the historical [v1.2.0 processing guide](phase-3-processing.md), or the current
+> [v1.3.0 developer guide](developer/versions/v1.3.0.md) and owning Phase 4 contracts.
 >
 > Phase 1 is complete. For current behavior use the [documentation index](README.md),
 > [architecture](architecture.md), [database](database.md), [API/OpenAPI guide](api.md)
@@ -31,7 +32,9 @@
 > The [v1.2.0 Phase 3 foundation](phase-3-processing.md) is narrower than the
 > older Phase 3 examples in this specification: it implements durable jobs, delivery,
 > recovery, progress, owned status, and stored-file integrity verification.
-> Extraction/OCR, reminders, purge, and AI/search integrations remain future work.
+> Extraction/OCR, reminders, purge, and AI/search integrations were outside that
+> Phase 3 scope. Phase 4 implements extraction and AI/search as described above;
+> OCR, reminders and public purge remain deferred.
 > T02–T12 have implemented durable jobs, transport, a separate consumer,
 > upload-triggered scheduling, stored-file integrity verification,
 > PostgreSQL-backed retry/recovery, owned status, disposable progress and UI.

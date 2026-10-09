@@ -5,6 +5,12 @@ Prepared **8 October 2026**. **READY WITH KNOWN NON-BLOCKING LIMITATIONS** under
 it does not publish or tag it. [Release notes/snapshot](releases/v1.3.0.md) and
 [changelog](../CHANGELOG.md) distinguish implemented scope from future work.
 
+**Correction, 9 October 2026:** the initial T13 completion claim was premature:
+the versioned v1.3.0 developer guide was missing and its index still identified
+v1.2.0 as current. The initial inspection/evidence below records 8 October state;
+the [correction report](#t13-correction--9-october-2026) supersedes its completion
+claim and records the current repository and focused verification.
+
 ## Repository and completion assessment
 
 Inspected branch: **v1.3.0**, at baseline `039dc5e` plus the existing T01–T12 working
@@ -132,7 +138,7 @@ commit before tagging; T13 cannot attest to a remote job that has not run.
 28. Working tree: existing modified/untracked implementation plus two new release docs; review and commit still required.
 29. Git steps: commands above recommended only; no branch/commit/tag/push/merge performed.
 30. Final readiness: READY WITH KNOWN NON-BLOCKING LIMITATIONS; targeted documentation checks pass.
-31. T13 completion: fully complete as release preparation, with no publication.
+31. Original T13 completion claim was premature: the missing versioned developer guide is addressed in the correction below, with no publication.
 32. Release approval: candidate prepared for user review; exact commit, remote CI, tag/publication and deployment remain user-approved steps.
 
 ## Final T13 file inventory
@@ -181,8 +187,81 @@ saved evidence is reused. No live provider call, remote CI run or production loa
 is claimed. No release-critical blocker is recorded in the supported verified scope;
 the explicitly documented T12 limitations remain.
 
-**T13 is fully complete. Final classification: READY WITH KNOWN NON-BLOCKING
-LIMITATIONS.** The v1.3.0 candidate is ready for user review and approval of the
+**Initial T13 completion claim was incomplete and is superseded by the correction
+below.** T12's classification remains READY WITH KNOWN NON-BLOCKING LIMITATIONS.
+The v1.3.0 candidate is prepared for user review and approval of the
 reviewed release commit and publication process. Run remote CI on that exact commit
 before tagging/publishing. The candidate is not yet an immutable, tagged or published
 release. Phase 5 has not begun.
+
+## T13 correction — 9 October 2026
+
+The previous run omitted `docs/developer/versions/v1.3.0.md` and failed to update
+the developer index's current-version introduction. Root README already said
+v1.3.0, but its developer-reading description named only older versions. Declaring
+all T13 deliverables complete was incorrect. This correction follows the existing
+`docs/developer/versions/v1.1.0.md` and `v1.2.0.md` delta-guide convention, preserving
+the 16 historical baseline chapters and previous version guides.
+
+Current inspection: clean `main` at `4e6bc02` (`Initial V3`) before the correction;
+the maintainer has committed the previously inspected Phase 4 tree. Only local
+tag `v1.1.0` exists. The original branch/dirty-tree record above is historical,
+not current Git state. No Git mutation or publication is performed by this task;
+use the maintainer's intended current branch for review rather than treating the
+original `git switch v1.3.0` suggestion as an action already performed or required.
+
+### Correction completion report
+
+1. **Cause:** versioned development guide missing; stale developer index and README reading-map description; original completion claim corrected explicitly.
+2. **Structure:** preserved v1.0.0 baseline chapters plus versioned delta guides in `docs/developer/versions/`.
+3. **Created:** `docs/developer/versions/v1.3.0.md`, substantive source-linked architecture/data/processing/API/frontend/security/operations/verification walkthrough.
+4. **Updated:** root README, `docs/README.md`, `docs/developer/README.md`, `docs/roadmap.md`, `docs/specification.md`, `docs/deployment/environment-variables.md`, `CHANGELOG.md`, `docs/releases/v1.3.0.md` and this preparation record.
+5. **README:** explicit `QYVRA v1.3.0` heading, current developer guide in development and documentation navigation; existing setup/features retained.
+6. **Version metadata:** current product/developer designation v1.3.0; four private packages remain independently `0.0.1`, HTTP `/api/v1`, OpenAPI `1`. No root/worker manifest, app release constant, registry release tag or release script exists to bump.
+7. **Lockfiles:** unchanged; four manifest/root-lock identities checked together. No dependency or package version changed.
+8. **Roadmap:** explicit T01–T13 implementation/documentation and verification table; ready candidate distinguished from released; no Phase 5 begun.
+9. **Index:** direct v1.3.0 development links and preserved access to v1.0.0/v1.1.0/v1.2.0 history.
+10. **Changelog/release notes:** existing accurate v1.3.0 candidate retained, with developer guide/correction links; preparation date remains 8 October, not a publication date.
+11. **History:** older release snapshots, developer version deltas/baseline chapters and Phase 3/T12 evidence unchanged. Developer-index historical baseline body preserved.
+12. **Links:** targeted final validation recorded below; paths, anchors, code fences and source entry points checked.
+13. **Version references:** stale current developer-index v1.2.0 label corrected. Remaining product v1.2.0 mentions identify historical Phase 3 sections, comparison records, old guides or links. Numeric package-lock/dependency versions are independent and are not globally replaced.
+14. **Checks:** targeted formatting, links/anchors, manifest/lock identity, source-backed settings/routes, Git whitespace and scope/history preservation; no application test/build required for documentation-only changes.
+15. **T12:** READY WITH KNOWN NON-BLOCKING LIMITATIONS; saved 419 API unit / 237 integration / 281 HTTP / 214 web / 11 browser evidence reused, not rerun.
+16. **Blockers:** no unresolved release-critical blocker recorded in T12's supported tested scope. Remote CI, live-model quality, production capacity, moderate/development advisories and baseline formatting limitations remain explicit.
+17. **Missing deliverables:** all now exist and pass focused validation below; no capability or evidence is fabricated.
+18. **Final T13 status:** complete after this correction; tagging/publishing/deployment require maintainer approval and CI on the reviewed commit.
+
+### Focused validation results
+
+- Local path/anchor/fence review: **294 local links, 42 anchors, no findings** across
+  the nine modified Markdown files and new developer guide. Linked source files
+  exist; APIs, configuration names, model lineage and scripts were inspected against
+  the implementation. The guide has substantive walkthroughs in every requested area.
+- Formatting: installed API Prettier `--write` and final `--check` on nine current/new
+  documents passed. The updated developer-index introduction was formatted separately.
+  Its historical baseline body remains unchanged; a full-index formatting check still
+  has the pre-existing baseline style issue, confirmed on HEAD before the correction.
+  The initial all-ten check failed and is not reported as a pass.
+- Manifest/lock verification: four private `0.0.1` pairs agree; OpenAPI `1` and HTTP
+  `/api/v1` preserved. No manifest, lock, dependency, executable constant or Docker
+  configuration changed. No release-versioned image or release script was found.
+- Version search: `rg -n 'v1\.2\.0' README.md docs -g '*.md'` and a repository-wide
+  search excluding ignored build/dependency output were reviewed. The stale current
+  developer-index label and specification wording were corrected. Remaining product
+  references are historical Phase 3 documentation/comparisons/navigation; numeric
+  dependency occurrences in lockfiles are independent, not application release labels.
+- Scope and history: `git diff --name-only`, untracked-file review and baseline-body
+  comparison show nine intended Markdown edits and one new guide only. Older release
+  snapshots, v1.1.0/v1.2.0 developer deltas, the 16 baseline chapters, T12 results and
+  all application/configuration/lock files remain unchanged. Credential-pattern
+  review found no secret in the documentation additions. No staged change, commit,
+  branch switch, tag, push, publication or deployment occurred.
+- `git diff --check`: passed. Runtime builds/type checks, Compose startup and T12
+  suites were not rerun because only documentation changed. No provider call,
+  reprocessing, vector rebuild or destructive recovery test was performed.
+
+**The previously missing T13 deliverables now exist. T13 is complete after the
+9 October correction.** Final classification remains **READY WITH KNOWN
+NON-BLOCKING LIMITATIONS** under T12's recorded evidence, with no claim of remote
+CI, live-model quality or production validation. The candidate is ready for review;
+CI on the approved commit, tagging and publication remain separate authorized steps.

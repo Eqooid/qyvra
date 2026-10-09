@@ -6,6 +6,7 @@ tag/publication exists. Start with [getting started](development/getting-started
 [release notes](releases/v1.3.0.md) and [T13 readiness/Git steps](phase-4-release-preparation.md).
 The v1.0.0/v1.1.0 snapshots and v1.2.0 acceptance/developer records remain historical.
 
+Start with the [v1.3.0 developer walkthrough](developer/versions/v1.3.0.md).
 The [developer baseline](developer/README.md), [v1.1.0 delta](developer/versions/v1.1.0.md)
 and [v1.2.0 processing walkthrough](developer/versions/v1.2.0.md) describe their recorded
 versions. Current architecture and Phase 4 contracts are linked below.
@@ -46,6 +47,8 @@ versions. Current architecture and Phase 4 contracts are linked below.
 
 ## Development
 
+- [v1.3.0: AI/RAG development guide](developer/versions/v1.3.0.md)
+- [Versioned developer history: v1.0.0 baseline and v1.1.0/v1.2.0/v1.3.0](developer/README.md)
 - [Getting started: Docker or host development](development/getting-started.md)
 - [Testing and verification commands](development/testing.md)
 - [Conventions and versioning](development/conventions.md)

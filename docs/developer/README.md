@@ -1,15 +1,17 @@
 # QYVRA developer documentation
 
-**Current implementation: v1.2.0 — asynchronous document processing foundation.**
-Start with the [v1.2.0 developer changes](versions/v1.2.0.md) for jobs/outbox,
-RabbitMQ, independent runtimes, integrity verification, recovery, optional Redis
-progress, owned status and frontend code navigation. It is a release-ready
-candidate, not a tagged release. The [v1.1.0 guide](versions/v1.1.0.md) covers
-descriptions, filtering, sorting and cursor navigation. Both extend the preserved
-v1.0.0 baseline below without duplicating unchanged domains.
+**Current implementation: v1.3.0 — AI/RAG foundation, unpublished release candidate.**
+Start with the [v1.3.0 developer changes](versions/v1.3.0.md) for PDF extraction,
+deterministic chunks, embedding checkpoints, Qdrant activation, authorized search,
+grounded answers/citations, frontend navigation, provider setup and recovery.
+The [v1.2.0 guide](versions/v1.2.0.md) records the durable processing foundation;
+the [v1.1.0 guide](versions/v1.1.0.md) records metadata/filtering/navigation changes.
+These version deltas extend the preserved v1.0.0 baseline below. T12 classifies
+v1.3.0 as READY WITH KNOWN NON-BLOCKING LIMITATIONS; publication remains separate.
 
 Version history:
 
+- [v1.3.0 developer changes](versions/v1.3.0.md): AI/RAG source walkthrough, persistent provenance, API/frontend contracts, configuration and operations.
 - [v1.2.0 developer changes](versions/v1.2.0.md): processing walkthrough, source navigation, runtime and compatibility changes.
 - [v1.1.0 developer changes](versions/v1.1.0.md): verified implementation delta and current document behavior.
 - [v1.0.0 baseline chapters](#reading-map): preserved Phase 1 architecture and walkthroughs.
