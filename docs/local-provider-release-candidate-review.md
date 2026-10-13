@@ -312,3 +312,55 @@ infrastructure/test/local-ai-test.Dockerfile
 infrastructure/test/local-provider-network.compose.yml
 infrastructure/test/pdf-fixture-integrity.test.cjs
 ```
+
+## T08 commit and CI tracking
+
+Recorded 13 October 2026. **COMMITTED — PUSH BLOCKED**. This section is an
+uncommitted documentation-only tracking update; it is not part of the candidate
+SHA below. No extra bookkeeping commit, amendment, tag, merge or deployment was made.
+
+- Initial branch `v1.3.1`, HEAD `dec2c0f42421a90aa32d96c2799af5daec7ba8be`.
+  The 65 reviewed paths exactly matched the effective working-tree changes:
+  no extra/missing paths, unexpected deletions or unrelated work were staged.
+- T07 CONDITIONALLY READY permits candidate preparation within its qualified
+  model/deployment scope; it is not final publication approval. Existing successful
+  build/type/lint/provider/UI/live-model evidence was reused without expensive reruns.
+- `node .tools/v131-t07-validate.cjs` passed version/lock roots, 496 links,
+  historical hashes and credential/artifact checks. `git diff --check` and
+  `git diff --cached --check` passed. All staged bytes were checked against the
+  recovered scope before the commit; no generated fixture password was present.
+- Created exactly one commit:
+  **`358edf95db481d57fbed0a7167abcf0b8b01a418`**,
+  `chore(release): prepare Qyvra v1.3.1`, with the proposed body above.
+  `git diff-tree --no-commit-id --name-only -r HEAD` matches all 65 proposed paths:
+  7,184 insertions, 255 deletions. No corrective commit exists.
+- Intended destination: `origin`, `https://github.com/Eqooid/qyvra.git`,
+  existing `refs/heads/v1.3.1`, also the configured upstream. Read-only remote
+  inspection finds the branch at the baseline SHA and not protected. Only this
+  one candidate commit is ahead; normal fast-forward push is appropriate.
+- Initial push waited for Git Credential Manager and was interrupted. Bounded
+  noninteractive push, including the continuation retry, failed with:
+  `could not read Username for 'https://github.com': terminal prompts disabled`.
+  Local Git HTTPS authentication is unavailable. Read-only GitHub connector access
+  does not supply credentials to local Git. No force push or protection bypass occurred.
+- Remote branch still points to `dec2c0f42421a90aa32d96c2799af5daec7ba8be`.
+  Exact-SHA GitHub Actions query returned **zero runs** for `358edf95...`.
+  Workflow `Phase 4 verification` runs on push/PR/manual dispatch; no push means
+  there is no new run ID, conclusion or job result. **CI NOT VERIFIED**, not CI passed
+  or a failed test run. The historical baseline failure above remains separate.
+- Before this tracking update, eight PDF status entries remained but raw bytes
+  equal HEAD and `git diff --numstat` is empty; they were not included in the commit.
+  This report is now the only actual content change left unstaged. No untracked
+  release files remain; ignored local assets/logs are untouched.
+- T05 native providers, tokenizer, worker, retrieval, citation and recovery evidence
+  still applies: T08 changed no runtime behavior. T07's frontend security patch has
+  separate production-build and 214-test evidence; no new live-browser claim is made.
+
+The safe local portion is complete. **T08 is not fully complete:** Git push and
+exact-candidate CI verification are blocked by missing local Git credentials.
+Authenticate local Git for GitHub using the operator's approved credential flow,
+then resume the normal `git push origin HEAD:refs/heads/v1.3.1` and inspect Actions
+for the exact candidate SHA. Do not paste tokens into chat or commit credentials.
+Keep this tracking edit unstaged or include it in a separately reviewed later
+documentation change; do not silently amend the candidate merely for bookkeeping.
+No tagging, release publication or deployment is authorized by this task.
