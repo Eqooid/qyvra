@@ -59,6 +59,8 @@ jobs:
             npm --prefix "$p" run typecheck
             npm --prefix "$p" run lint
           done
+      - name: Local-provider Compose and security boundaries
+        run: node --test infrastructure/docker/local-provider-config.test.cjs infrastructure/test/pdf-fixture-integrity.test.cjs
       - name: Production dependency audit
         run: |
           for p in packages/storage packages/database apps/api apps/web; do

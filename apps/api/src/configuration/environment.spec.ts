@@ -8,6 +8,65 @@ const base = {
 };
 
 describe('environment configuration', () => {
+  it('validates independent Ollama generation and operator-provisioned local budgeting', () => {
+    const enabled = {
+      ...base,
+      RAG_ENABLED: 'true',
+      SEMANTIC_SEARCH_ENABLED: 'true',
+      SEMANTIC_SEARCH_MIN_SCORE: '0.8',
+      EMBEDDING_ENABLED: 'true',
+      EMBEDDING_ENDPOINT: 'https://embedding.example/embeddings',
+      EMBEDDING_PROFILE_FINGERPRINT: 'a'.repeat(64),
+      VECTOR_INDEX_ENABLED: 'true',
+      QDRANT_URL: 'http://127.0.0.1:6333',
+      GENERATION_PROVIDER: 'ollama',
+      GENERATION_ENDPOINT: 'http://localhost:11434/api/chat',
+      GENERATION_ALLOW_HTTP: 'true',
+      GENERATION_MODEL: 'configured-qwen',
+      GENERATION_TOKENIZER: 'huggingface-json',
+      GENERATION_TOKENIZER_PATH: resolve(storageTestRoot, 'generation.json'),
+      GENERATION_THINK: 'false',
+    };
+    const result = validateEnvironment(enabled);
+    expect(result.generation).toMatchObject({
+      provider: 'ollama',
+      model: 'configured-qwen',
+      think: false,
+    });
+    expect(result.embedding.endpoint).toBe(enabled.EMBEDDING_ENDPOINT);
+    for (const [key, value] of [
+      ['GENERATION_TOKENIZER_PATH', ''],
+      ['GENERATION_TOKENIZER_PATH', './relative.json'],
+      ['GENERATION_TOKENIZER', 'o200k_base'],
+      ['GENERATION_ENDPOINT', 'http://localhost:11434/v1/chat/completions'],
+      ['GENERATION_ALLOW_HTTP', 'false', 'GENERATION_ENDPOINT'],
+      ['GENERATION_THINK', 'unknown'],
+    ])
+      expect(() => validateEnvironment({ ...enabled, [key]: value })).toThrow(
+        key === 'GENERATION_ALLOW_HTTP' ? 'GENERATION_ENDPOINT' : key,
+      );
+    expect(() =>
+      validateEnvironment({
+        ...enabled,
+        GENERATION_PROVIDER: 'openai-compatible',
+      }),
+    ).toThrow('GENERATION_TOKENIZER');
+  });
+  it('validates an independent absolute local embedding asset path without changing generation', () => {
+    const tokenizerPath = resolve(storageTestRoot, 'tokenizer-bundle.json');
+    const config = validateEnvironment({
+      ...base,
+      EMBEDDING_TOKENIZER_PATH: tokenizerPath,
+    });
+    expect(config.embedding.tokenizerPath).toBe(tokenizerPath);
+    expect(config.generation.provider).toBe('openai-compatible');
+    expect(() =>
+      validateEnvironment({
+        ...base,
+        EMBEDDING_TOKENIZER_PATH: './relative.json',
+      }),
+    ).toThrow('EMBEDDING_TOKENIZER_PATH');
+  });
   it('keeps RAG opt-in and validates its independent generation/budget configuration', () => {
     expect(validateEnvironment(base).rag.enabled).toBe(false);
     expect(() => validateEnvironment({ ...base, RAG_ENABLED: 'true' })).toThrow(

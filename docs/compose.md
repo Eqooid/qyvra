@@ -6,6 +6,11 @@
 
 ## Status and boundaries
 
+[v1.3.1 T04 provider deployment](local-provider-configuration.md) adds optional
+read-only assets/private provider network and native-Linux host-gateway overrides.
+Neither is loaded by default; no inference service/public port/GPU is added.
+Enabled official OpenAI operations require their own key and HTTPS.
+
 Current product candidate: **v1.3.0**; [T13 preparation](phase-4-release-preparation.md)
 and [release snapshot](releases/v1.3.0.md) record the untagged status and exact limits.
 Compose continues to build local project/service images, without release-specific
@@ -21,7 +26,8 @@ deployment requirements](phase-4-rag-answers.md#configuration).
 
 T06 implements [embedding generation and checkpoint configuration](phase-4-embedding-generation.md#configuration-and-deployment).
 The worker receives embedding configuration and its optional bearer secret; builds and
-ordinary startup require no provider key. Embeddings default to disabled. Configure an exact
+disabled-AI startup require no provider key. Enabled official OpenAI endpoints require
+the corresponding embedding key. Embeddings default to disabled. Configure an exact
 persisted profile fingerprint and operator-controlled endpoint before explicit processing.
 The bridge permits outbound requests; production egress must allow only approved providers.
 [T07 private Qdrant indexing and cleanup](phase-4-vector-indexing.md),

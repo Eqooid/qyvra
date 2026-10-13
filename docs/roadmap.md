@@ -1,5 +1,9 @@
 # QYVRA delivery roadmap
 
+**Current candidate: v1.3.1 — Local AI Provider Compatibility.** T01–T06 are complete
+within the [documented support matrix](local-provider-release-preparation.md).
+Readiness is CONDITIONALLY READY; publishing remains separate.
+
 **Phase 4 T03 orchestration, T04 PDF extraction and T05 chunking are implemented:** [durable stage contracts and lifecycle](phase-4-processing.md)
 cover atomic successor scheduling, v2 transport, shared retry/recovery, worker routing,
 lifecycle fencing and the owned status extension. [Durable PDF text extraction](phase-4-pdf-extraction.md)
@@ -236,12 +240,33 @@ modification, voice, city/office visualization and local LLM orchestration are
 excluded. Operational provider/model/parser choices, quotas, grounding thresholds,
 retention and profile-switch coverage remain documented pre-release decisions.
 
+## v1.3.1 — Local AI Provider Compatibility
+
+[T01 compatibility audit](developer/versions/v1.3.1.md) is complete as documentation
+only. [Proposed ADR-006](decisions/ADR-006-local-provider-compatibility.md) recommends
+native Ollama adapters alongside existing compatible providers; T02/T03 implement
+that approach. The v1.3.0 foundation, historical releases and durable AI/RAG
+invariants remain intact. T05 verifies the pinned pair; T06 prepares the candidate.
+
+| Task | Scope                                                                                  | Status                                                                                                                    |
+| ---- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| T01  | Provider/model audit, security and validation plan                                     | Complete audit; subsequent real-model evidence recorded in T05                                                            |
+| T02  | Ollama embeddings, profile dispatch, local input/tokenizer correctness and checkpoints | Implemented; [deterministic verification and limits](local-embeddings.md)                                                 |
+| T03  | Ollama generation, Qwen context/template/thinking and validated structured output      | Implemented; [deterministic verification and limits](local-generation.md)                                                 |
+| T04  | Independent provider configuration and host/LAN/optional Compose guidance              | Implemented; [configuration/networking and verification limits](local-provider-configuration.md)                          |
+| T05  | Security/recovery and installed-model PDF-to-RAG E2E                                   | Complete: [real pinned pair PASS; CONDITIONALLY READY](local-provider-verification.md)                                    |
+| T06  | Development/setup documentation, candidate VERSION and release readiness               | Complete: [focused finalization checks and handoff](local-provider-release-preparation.md)                                |
+| T07  | Candidate audit, CI review and precise commit preparation                              | Complete review: [qualified readiness and proposed scope](local-provider-release-candidate-review.md); no commit executed |
+
+No agents, OCR, streaming, new formats, hybrid search, frameworks or GPU management.
+No model downloads, reindex, version bump, release action or Phase 5 work in T01.
+
 ## Later phases and earlier planning directions
 
 | Phase | Direction                              | Planned additions                                                                                                                  |
 | ----- | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | 3     | Earlier processing/reminders direction | Broader ideas included extraction/OCR, reminders and purge/activity work. The narrower planned v1.2.0 foundation is defined above. |
-| 4     | Earlier AI direction                   | Delivered foundation is defined above; specialized Ollama/local adapters remain future work.                                       |
+| 4     | Earlier AI direction                   | Delivered foundation is defined above; v1.3.1 adds the verified native Ollama adapters.                                            |
 | 5     | Advanced keyword and hybrid search     | Elasticsearch, highlights, autocomplete and ranking.                                                                               |
 | 6     | Identity upgrade                       | Keycloak/OIDC, retaining internal ownership IDs.                                                                                   |
 

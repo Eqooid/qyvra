@@ -35,14 +35,21 @@ export function embeddingText(
   profile: EmbeddingProfileIdentity,
   purpose: 'document' | 'query',
 ): string {
-  if (profile.normalizationVersion !== 'qyvra-embedding-input/v1')
+  if (
+    profile.normalizationVersion !== 'qyvra-embedding-input/v1' &&
+    profile.normalizationVersion !== 'qyvra-embedding-prefix/v1'
+  )
     throw new EmbeddingFailure('EMBEDDING_PROFILE_UNSUPPORTED');
   if (!text.trim()) throw new EmbeddingFailure('EMBEDDING_EMPTY_INPUT');
   const instruction =
     purpose === 'document'
       ? profile.documentInstruction
       : profile.queryInstruction;
-  return instruction ? `${instruction}\n${text}` : text;
+  return instruction
+    ? profile.normalizationVersion === 'qyvra-embedding-prefix/v1'
+      ? `${instruction}${text}`
+      : `${instruction}\n${text}`
+    : text;
 }
 
 export function embeddingInputHash(text: string): string {

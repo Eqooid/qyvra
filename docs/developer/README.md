@@ -1,16 +1,15 @@
 # QYVRA developer documentation
 
-**Current implementation: v1.3.0 — AI/RAG foundation, unpublished release candidate.**
-Start with the [v1.3.0 developer changes](versions/v1.3.0.md) for PDF extraction,
-deterministic chunks, embedding checkpoints, Qdrant activation, authorized search,
-grounded answers/citations, frontend navigation, provider setup and recovery.
-The [v1.2.0 guide](versions/v1.2.0.md) records the durable processing foundation;
-the [v1.1.0 guide](versions/v1.1.0.md) records metadata/filtering/navigation changes.
-These version deltas extend the preserved v1.0.0 baseline below. T12 classifies
-v1.3.0 as READY WITH KNOWN NON-BLOCKING LIMITATIONS; publication remains separate.
+**Current implementation: v1.3.1 — Local AI Provider Compatibility, unpublished candidate.**
+Start with the [v1.3.1 walkthrough](versions/v1.3.1.md), [local setup](../development/local-ai.md)
+and [release notes](../releases/v1.3.1.md). T05 certifies the documented pinned pair
+and local PDF-to-RAG/browser workflow; readiness is CONDITIONALLY READY. The
+[v1.3.0 walkthrough](versions/v1.3.0.md) retains the foundation, while v1.2.0/v1.1.0
+and the v1.0.0 baseline below preserve their own scope.
 
 Version history:
 
+- [v1.3.1 local-provider implementation](versions/v1.3.1.md): T01–T06 complete, pinned real-model evidence and qualified readiness.
 - [v1.3.0 developer changes](versions/v1.3.0.md): AI/RAG source walkthrough, persistent provenance, API/frontend contracts, configuration and operations.
 - [v1.2.0 developer changes](versions/v1.2.0.md): processing walkthrough, source navigation, runtime and compatibility changes.
 - [v1.1.0 developer changes](versions/v1.1.0.md): verified implementation delta and current document behavior.

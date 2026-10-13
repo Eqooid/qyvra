@@ -1,0 +1,9 @@
+# Optional native-Linux host access; Docker Desktop supplies this alias itself.
+# Requires a Docker Engine supporting host-gateway. No host ports are published.
+services:
+  api:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+  worker:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

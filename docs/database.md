@@ -1,4 +1,4 @@
-# QYVRA database and storage model — Phase 4 / v1.3.0 release candidate
+# QYVRA database and storage model — v1.3.1 candidate, unchanged Phase 4 schema
 
 **Phase 4 T03 orchestration, T04 PDF extraction and T05 chunking are implemented:** [durable stage contracts and lifecycle](phase-4-processing.md)
 cover atomic successor scheduling, v2 transport, shared retry/recovery, worker routing,
@@ -119,6 +119,11 @@ without `description` would discard newly entered values and requires a delibera
 backup/restore or reviewed data migration.
 
 ## Implemented PostgreSQL foundation
+
+**v1.3.1 T02:** [local embedding identities](local-embeddings.md#checkpoints-switching-and-search)
+reuse immutable profiles/checkpoints and existing profile-isolated index manifests.
+Provider `ollama`, installed model digest and tokenizer bundle hash distinguish
+incompatible vectors. No tables or migrations are added, and old OpenAI data is unchanged.
 
 ### First immutable upload version and idempotency
 

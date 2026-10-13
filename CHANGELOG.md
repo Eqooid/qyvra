@@ -7,6 +7,54 @@ applicable. Releases follow [Semantic Versioning](docs/development/conventions.m
 
 No next phase has started. The prepared candidates below have not been published.
 
+## [1.3.1] — Release candidate, prepared 2026-10-13
+
+Local AI Provider Compatibility. **CONDITIONALLY READY** for the documented pinned
+Nomic/Qwen pair; unpublished. [Release notes](docs/releases/v1.3.1.md),
+[T05 evidence](docs/local-provider-verification.md), [T06 preparation](docs/local-provider-release-preparation.md).
+
+### Added
+
+- Native Ollama document/query embeddings and structured grounded generation behind
+  existing independent interfaces; configurable local Qwen models with certified bundles.
+- Model digest/tokenizer parity checks, shared configuration, optional read-only local
+  assets/host-gateway networking and isolated real-model/service verification tooling.
+- Real PDF-to-RAG/browser acceptance with local models, durable checkpoint resume,
+  SQL-authorized citations and no-reembedding Qdrant rebuild.
+- Current v1.3.1 developer/setup/release documentation and root candidate `VERSION`.
+
+### Changed
+
+- Enabled official OpenAI operations validate their own key and HTTPS; native/local
+  compatible endpoints need no dummy OpenAI key. Existing OpenAI adapters remain intact.
+- Disabled embedding configuration skips unused tokenizer loading. API/worker share
+  profile/transport semantics; generation settings remain independent of vector data.
+
+### Fixed
+
+- Next.js and its matching ESLint configuration updated to 16.3.8 after reproducing
+  the release CI production-audit failure; no unrelated dependency upgrade.
+- Encrypted PDF fixture checkout bytes restored and both encrypted fixtures included
+  in xref-offset regression checks.
+- PDF fixture binary attributes preserve xref offsets under Windows checkout.
+- Isolated Compose probes use supported `pull_policy: never` rather than unsupported
+  `compose run --pull`; rebuild/browser fixtures correctly wait/select their targets.
+
+### Security
+
+- Existing PostgreSQL authorization, lifecycle checks, profile isolation and server-side
+  citation validation remain mandatory; local providers receive only authorized evidence.
+- Native responses are bounded/validated and errors sanitized; assets/credentials remain
+  server-side. No public Ollama route or model/tool execution capability was added.
+
+### Known Limitations
+
+- Certified only for Ollama 0.40.3, Nomic v1.5/768 and Qwen3 0.6B with pinned bundles
+  in the recorded host/Docker setup. Other models/templates/deployments need validation.
+- Tiny Qwen may fail closed on adversarial context; provenance is not a universal
+  factuality/injection guarantee. No paid OpenAI smoke or remote CI result is claimed.
+- No new migration, OCR, streaming/chat persistence, agents or AI frameworks.
+
 ## [1.3.0] — Release candidate, prepared 2026-10-08
 
 Phase 4 implementation, local verification and release preparation are complete.

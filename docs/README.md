@@ -1,12 +1,14 @@
 # QYVRA documentation
 
-**Current prepared candidate: v1.3.0 / Phase 4.** Implementation, local verification
-and release preparation are complete with known non-blocking limitations. No v1.3.0
-tag/publication exists. Start with [getting started](development/getting-started.md),
-[release notes](releases/v1.3.0.md) and [T13 readiness/Git steps](phase-4-release-preparation.md).
+**Current prepared candidate: v1.3.1 / Local AI Provider Compatibility.**
+Documentation/version preparation is complete; readiness is **CONDITIONALLY READY**
+for the pinned pair, with no publication claim. Start with [getting started](development/getting-started.md),
+[local AI setup](development/local-ai.md), [release notes](releases/v1.3.1.md)
+and [T06 readiness/handoff](local-provider-release-preparation.md).
 The v1.0.0/v1.1.0 snapshots and v1.2.0 acceptance/developer records remain historical.
 
-Start with the [v1.3.0 developer walkthrough](developer/versions/v1.3.0.md).
+Start with the [v1.3.1 developer walkthrough](developer/versions/v1.3.1.md).
+The [v1.3.0 walkthrough](developer/versions/v1.3.0.md) preserves the AI/RAG baseline.
 The [developer baseline](developer/README.md), [v1.1.0 delta](developer/versions/v1.1.0.md)
 and [v1.2.0 processing walkthrough](developer/versions/v1.2.0.md) describe their recorded
 versions. Current architecture and Phase 4 contracts are linked below.
@@ -26,6 +28,26 @@ versions. Current architecture and Phase 4 contracts are linked below.
 - [T11 AI frontend and authorized source navigation](phase-4-ai-frontend.md)
 - [T12 security/recovery verification ledger](phase-4-verification.md)
 - [T13 final release preparation and versioning](phase-4-release-preparation.md)
+
+## v1.3.1 — Local AI Provider Compatibility
+
+- [Current developer walkthrough and retained T01 audit](developer/versions/v1.3.1.md)
+- [Proposed ADR-006: Native local-provider adapters](decisions/ADR-006-local-provider-compatibility.md)
+
+- [T02 native Ollama embeddings, pinned profiles/assets and verification](local-embeddings.md)
+- [T03 native Ollama generation, pinned context/framing and validated citations](local-generation.md)
+- [T04 provider configuration matrix, private assets/networking and host access](local-provider-configuration.md)
+- [T05 real local PDF-to-RAG, security/recovery and qualified readiness](local-provider-verification.md)
+- [Reproducible local models/tokenizers and deployment setup](development/local-ai.md)
+- [T06 candidate version, upgrade/release review and validation](local-provider-release-preparation.md)
+- [T07 release candidate audit, CI findings and proposed commit scope](local-provider-release-candidate-review.md)
+- [v1.3.1 release notes and upgrade/rollback](releases/v1.3.1.md)
+
+T01 is documentation only. T02 implements native embeddings; T03 implements native
+generation; T04 consolidates configuration/networking. T05 is complete: real Nomic
+embeddings, Qwen generation, PDF-to-RAG/browser and service recovery pass for the
+documented pinned pair. Status is **CONDITIONALLY READY**, with deployment/model
+limits recorded in the report. T06 is complete; no release occurred.
 
 ## Architecture
 
@@ -47,6 +69,7 @@ versions. Current architecture and Phase 4 contracts are linked below.
 
 ## Development
 
+- [v1.3.1: implemented local-provider development guide](developer/versions/v1.3.1.md)
 - [v1.3.0: AI/RAG development guide](developer/versions/v1.3.0.md)
 - [Versioned developer history: v1.0.0 baseline and v1.1.0/v1.2.0/v1.3.0](developer/README.md)
 - [Getting started: Docker or host development](development/getting-started.md)
@@ -72,6 +95,7 @@ versions. Current architecture and Phase 4 contracts are linked below.
 ## Releases
 
 - [Changelog](../CHANGELOG.md)
+- [v1.3.1: prepared local-provider candidate](releases/v1.3.1.md)
 - [v1.0.0: Phase 1 snapshot](releases/v1.0.0.md)
 - [v1.1.0: Phase 2 snapshot](releases/v1.1.0.md)
 - [v1.3.0: prepared Phase 4 candidate, release notes and limits](releases/v1.3.0.md)

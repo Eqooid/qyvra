@@ -162,6 +162,7 @@ export class RagAnswerService {
       this.configuration.rag,
       this.configuration.generation.maxOutputTokens,
       this.configuration.generation.tokenizer,
+      this.generation.countInputTokens?.bind(this.generation),
     );
     if (!context.sources.length) return insufficient('context_budget');
     const generationStarted = performance.now();

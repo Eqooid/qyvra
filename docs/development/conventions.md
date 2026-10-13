@@ -52,13 +52,16 @@ Move completed [Unreleased changelog](../../CHANGELOG.md) entries to a dated rel
 and capture the shipped scope/evidence in `docs/releases/`. Future backlog belongs
 in the [roadmap](../roadmap.md), not Unreleased until work actually starts.
 
-The four private npm manifests currently say `0.0.1`; generated OpenAPI uses version
-`1`, and HTTP uses `/api/v1`. Those identifiers serve different purposes and do not
-change the product release designation. The v1.3.0 release candidate retains
-them; the maintainer publishes the product version with a Git tag. Tag/release
+The four private npm manifests say `0.0.1`; generated OpenAPI uses version `1`, and
+HTTP uses `/api/v1`. Those independently governed identifiers remain unchanged in
+v1.3.1. Root `VERSION` now records the prepared product candidate (`1.3.1`) for
+reviewable release metadata, not runtime API compatibility or proof of publication.
+Git tags/releases remain the authority for published versions. No root npm manifest,
+separate worker package or release-image automation is invented. Tag/release
 automation is **Not Implemented**.
 
-The current [v1.3.0 snapshot](../releases/v1.3.0.md) is explicitly an unpublished
-candidate. Its preparation date is not a release date. Existing version branches
-are retained, but T13 creates no branch, commit or tag; the maintainer decides the
+The current [v1.3.1 snapshot](../releases/v1.3.1.md) is explicitly an unpublished
+candidate; the [v1.3.0 record](../releases/v1.3.0.md) is preserved. Preparation dates
+are not release dates. Existing branches are retained; T06 creates no branch, commit
+or tag. The maintainer decides the
 reviewed commit and publishes only after its CI result and explicit approval.

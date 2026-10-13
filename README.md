@@ -1,13 +1,26 @@
-# QYVRA v1.3.0
+# QYVRA v1.3.1
 
 **Query Yielding Vault Recall Assistant** is a private document-management app
 with immutable file versions, organization and an opt-in AI/RAG foundation.
 
-**Phase 4 / v1.3.0 is complete as a prepared release candidate:**
-[release notes](docs/releases/v1.3.0.md), [T13 preparation](docs/phase-4-release-preparation.md)
-and [T12 verification](docs/phase-4-verification.md) record **READY WITH KNOWN
-NON-BLOCKING LIMITATIONS**. It has not been tagged or published; the latest local
-release tag remains v1.1.0. Private package versions and API version are separate.
+**Current development candidate: v1.3.1 — Local AI Provider Compatibility.**
+[Release notes](docs/releases/v1.3.1.md), [T05 evidence](docs/local-provider-verification.md)
+and [T06 preparation](docs/local-provider-release-preparation.md) record
+**CONDITIONALLY READY** for the pinned Nomic/Qwen deployment. [VERSION](VERSION)
+is `1.3.1`; publication/tagging remains separate. Private npm packages stay `0.0.1`
+and the HTTP contract remains `/api/v1` / OpenAPI `1`.
+
+The [v1.3.1 developer walkthrough](docs/developer/versions/v1.3.1.md) explains
+implemented adapters and retains the original T01 audit. [T02 native Ollama
+embeddings](docs/local-embeddings.md) are implemented. [T03 native Ollama generation](docs/local-generation.md)
+is implemented behind the same grounded RAG interface.
+[T04 provider configuration and Docker networking](docs/local-provider-configuration.md)
+adds optional private networking/assets and shared credential validation.
+[T05](docs/local-provider-verification.md) verifies the pinned Nomic/Qwen pair,
+real local PDF-to-RAG, browser navigation and service recovery: **CONDITIONALLY READY**.
+Other models/deployments require validation. T06 documentation/version preparation
+is complete; no automatic release action occurred. The [v1.3.0 snapshot](docs/releases/v1.3.0.md)
+preserves the AI/RAG foundation's historical scope.
 
 Implemented: authenticated accounts, private PDF/JPEG/PNG storage, categories/tags,
 metadata filters/sorting/cursors, immutable versions, archive/restore and soft
@@ -26,7 +39,7 @@ React 19, NestJS 10, Prisma 7 and PostgreSQL 17; lockfiles pin dependencies.
 Limitations: PDF AI text only, no OCR, persistent chat, streaming or agents/tools.
 Provider access/profile setup is required for enabled AI operations. Grounding and
 validated provenance do not eliminate model errors. AI is disabled by default;
-original documents remain usable during AI outages. See [known limits](docs/releases/v1.3.0.md#verification-and-known-limitations).
+original documents remain usable during AI outages. See [known limits](docs/releases/v1.3.1.md#known-limits-and-release-gate).
 
 Packages install independently with npm under apps/api, apps/web, packages/database
 and packages/storage; there is no root package manifest. Infrastructure and canonical
@@ -60,12 +73,21 @@ See [Compose operations](docs/compose.md) for persistence, backups and deploymen
 
 ## Develop and test
 
-Start with the [v1.3.0 developer guide](docs/developer/versions/v1.3.0.md) for
+For optional local RAG, T05 verified `nomic-embed-text:v1.5` (768 dimensions) and
+`qwen3:0.6b` with Ollama 0.40.3 and pinned tokenizer bundles. Prepare models/assets,
+an immutable SQL profile and calibrated retrieval settings before enabling AI.
+API and worker use trusted server-only endpoints; container `localhost` does not
+reach host Ollama. Follow [local setup](docs/development/local-ai.md) and
+[host/container/LAN networking](docs/local-provider-configuration.md).
+
+Start with the [v1.3.1 developer guide](docs/developer/versions/v1.3.1.md) and
+[local model/tokenizer setup](docs/development/local-ai.md) for
 upload-to-RAG source navigation, AI configuration, independent worker startup,
 contracts, lifecycle/recovery and the limits of the recorded verification.
 
-Phase 4 release-candidate checks and safe recovery procedures are recorded in the
-[T12 verification matrix](docs/phase-4-verification.md). This does not create a release tag.
+Local-provider checks are recorded in [T05](docs/local-provider-verification.md).
+The earlier Phase 4 [T12 matrix](docs/phase-4-verification.md) remains historical.
+Neither document creates a release tag.
 
 Follow [getting started](docs/development/getting-started.md) for dependency installation,
 host PostgreSQL, qpdf, private storage, environment configuration and migrations.

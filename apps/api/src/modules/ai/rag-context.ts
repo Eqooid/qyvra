@@ -27,8 +27,12 @@ export function buildRagContext(
   policy: ApiConfiguration['rag'],
   outputTokens: number,
   encoding: ApiConfiguration['generation']['tokenizer'] = 'cl100k_base',
+  countInputTokens?: (messages: readonly GenerationMessage[]) => number,
 ): RagContext {
-  const tokenizer = get_encoding(encoding);
+  if (encoding === 'huggingface-json' && !countInputTokens)
+    throw new AiOutputInvalidException();
+  const tokenizer =
+    encoding === 'huggingface-json' ? undefined : get_encoding(encoding);
   const sources: RagSource[] = [];
   const messages = (items: readonly RagSource[]): GenerationMessage[] => [
     { role: 'system', content: SYSTEM },
@@ -43,12 +47,17 @@ export function buildRagContext(
       }),
     },
   ];
-  const count = (items: readonly RagSource[]) =>
-    tokenizer.encode(
-      JSON.stringify(messages(items)) + JSON.stringify(RAG_OUTPUT_SCHEMA),
-      [],
-      [],
-    ).length + 1024;
+  const count = (items: readonly RagSource[]) => {
+    if (countInputTokens) return countInputTokens(messages(items));
+    if (!tokenizer) throw new AiOutputInvalidException();
+    return (
+      tokenizer.encode(
+        JSON.stringify(messages(items)) + JSON.stringify(RAG_OUTPUT_SCHEMA),
+        [],
+        [],
+      ).length + 1024
+    );
+  };
   try {
     for (const source of candidates) {
       if (sources.length >= policy.maxSources) break;
@@ -83,6 +92,6 @@ export function buildRagContext(
       inputTokens: count(sources),
     };
   } finally {
-    tokenizer.free();
+    tokenizer?.free();
   }
 }

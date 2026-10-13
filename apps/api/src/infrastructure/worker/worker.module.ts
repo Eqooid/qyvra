@@ -18,7 +18,7 @@ import { EmbeddingGenerationHandler } from './embedding-generation.handler';
 import { VectorIndexHandler } from './vector-index.handler';
 import { VectorRemovalHandler } from './vector-removal.handler';
 import { QdrantVectorStore } from '../vectors/qdrant-vector-store';
-import { OpenAiCompatibleEmbeddingProvider } from '../embeddings/openai-compatible.provider';
+import { createEmbeddingProvider } from '../embeddings/embedding-provider.factory';
 import { DeterministicChunker } from '../../modules/ai/deterministic-chunker';
 import { IsolatedPdfParser } from '../extraction/pdf-parser';
 import { ProgressModule } from '../progress/progress.module';
@@ -84,7 +84,7 @@ import {
       ) =>
         new EmbeddingGenerationHandler(
           database.client,
-          new OpenAiCompatibleEmbeddingProvider(config.embedding),
+          createEmbeddingProvider(config.embedding),
           config.embedding,
           config.worker.jobLeaseMs,
           progress,

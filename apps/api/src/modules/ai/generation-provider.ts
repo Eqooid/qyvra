@@ -12,6 +12,8 @@ export interface GenerationResult {
   usage?: { inputTokens: number; outputTokens: number };
 }
 export interface GenerationProvider {
+  /** Provider-specific input budgeting; includes conservative framing/schema reserve. */
+  countInputTokens?(messages: readonly GenerationMessage[]): number;
   generate(request: GenerationRequest): Promise<GenerationResult>;
 }
 export class GenerationFailure extends Error {
@@ -21,6 +23,7 @@ export class GenerationFailure extends Error {
       | 'GENERATION_TIMEOUT'
       | 'GENERATION_RATE_LIMITED'
       | 'AI_OUTPUT_INVALID',
+    readonly retryable = false,
   ) {
     super(code);
     this.name = 'GenerationFailure';

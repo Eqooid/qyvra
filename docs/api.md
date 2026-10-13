@@ -10,6 +10,11 @@ are implemented. [T06 embedding generation and durable checkpoints](phase-4-embe
 
 ## Generated endpoint reference
 
+**v1.3.1 T02:** native Ollama embeddings are selected only by operator configuration
+and immutable SQL profiles. Search/RAG HTTP contracts and PostgreSQL authorization
+are unchanged; provider URLs, assets and secrets are never request fields.
+See [local embedding configuration and limitations](local-embeddings.md).
+
 **T10 implemented:** `POST /api/v1/rag/answers` accepts `{question, documentIds?}`
 through the existing session and CSRF/Origin guards. It returns an `answered` or
 `insufficient_evidence` union in the standard no-store envelope. Answered claims

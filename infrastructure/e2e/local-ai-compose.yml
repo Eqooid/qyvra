@@ -1,0 +1,44 @@
+# Explicit isolated T05 stack only. Reuses cached images; no models/public provider ports.
+services:
+  api:
+    image: qyvra-v131-local-test:latest
+    pull_policy: never
+    environment:
+      AUTH_REGISTER_RATE_LIMIT: "100"
+      AUTH_LOGIN_RATE_LIMIT: "200"
+      AUTH_GLOBAL_RATE_LIMIT: "1000"
+  worker:
+    image: qyvra-v131-local-test:latest
+    pull_policy: never
+  outbox:
+    image: qyvra-v131-local-test:latest
+    pull_policy: never
+  migrate:
+    image: qyvra-migrate:latest
+    pull_policy: never
+  web:
+    image: qyvra-web:latest
+    pull_policy: never
+  nginx:
+    image: qyvra-nginx:latest
+    pull_policy: never
+  postgres:
+    pull_policy: never
+    ports: ["127.0.0.1:55440:5432"]
+  rabbitmq:
+    pull_policy: never
+    ports: ["127.0.0.1:55672:5672"]
+  redis:
+    pull_policy: never
+    ports: ["127.0.0.1:56379:6379"]
+  qdrant:
+    pull_policy: never
+    ports: ["127.0.0.1:56333:6333"]
+  local-provider-relay:
+    image: node:24-bookworm-slim
+    pull_policy: never
+    command: [node, /fixture/local-ollama-relay.cjs]
+    volumes:
+      - ./infrastructure/e2e/local-ollama-relay.cjs:/fixture/local-ollama-relay.cjs:ro
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    # Default test-only network. No published port or route through Nginx.

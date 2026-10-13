@@ -1,1 +1,2 @@
 infrastructure/nginx/*.envsh text eol=lf
+*.pdf binary

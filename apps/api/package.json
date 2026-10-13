@@ -44,6 +44,7 @@
     "ai:backfill": "node scripts/ai-backfill.cjs"
   },
   "dependencies": {
+    "@huggingface/tokenizers": "0.2.0",
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^3.3.0",
     "@nestjs/core": "^10.0.0",

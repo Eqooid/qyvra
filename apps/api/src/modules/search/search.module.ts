@@ -7,7 +7,7 @@ import { DatabaseModule } from '../../database/database.module';
 import { ObservabilityModule } from '../../common/observability.module';
 import { OwnedMutationGuard } from '../../common/owned-mutation.guard';
 import { AuthModule } from '../auth';
-import { OpenAiCompatibleEmbeddingProvider } from '../../infrastructure/embeddings/openai-compatible.provider';
+import { createEmbeddingProvider } from '../../infrastructure/embeddings/embedding-provider.factory';
 import { QdrantVectorStore } from '../../infrastructure/vectors/qdrant-vector-store';
 import { SemanticSearchRepository } from './semantic-search.repository';
 import {
@@ -34,7 +34,7 @@ import { SemanticSearchController } from './semantic-search.controller';
       provide: QUERY_EMBEDDINGS,
       inject: [ConfigurationService],
       useFactory: (c: ConfigurationService) =>
-        new OpenAiCompatibleEmbeddingProvider(c.embedding),
+        createEmbeddingProvider(c.embedding),
     },
     {
       provide: SEMANTIC_VECTORS,

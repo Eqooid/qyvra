@@ -5,6 +5,7 @@ import {
   ProcessingRepository,
   type PrismaClient,
   type ProcessingMessage,
+  type EmbeddingProfileIdentity,
 } from '@qyvra/database';
 import {
   hashText,
@@ -24,6 +25,28 @@ import {
 import type { ApiConfiguration } from '../src/configuration/settings';
 import { RabbitMqConsumer } from '../src/infrastructure/messaging/rabbitmq.consumer';
 import { RabbitMqPublisher } from '../src/infrastructure/messaging/rabbitmq.publisher';
+import { ollamaFixture } from './ollama.fixture';
+import { createEmbeddingProvider } from '../src/infrastructure/embeddings/embedding-provider.factory';
+import { VectorIndexHandler } from '../src/infrastructure/worker/vector-index.handler';
+import {
+  validatePoints,
+  VectorStoreFailure,
+  type VectorPoint,
+  type VectorStore,
+  type VectorSearchStore,
+} from '../src/modules/ai/vector-store';
+import { SemanticSearchRepository } from '../src/modules/search/semantic-search.repository';
+import { SemanticSearchService } from '../src/modules/search/semantic-search.service';
+import { PrismaService } from '../src/database/prisma.service';
+import { ConfigurationService } from '../src/configuration/configuration.module';
+import { validateEnvironment } from '../src/configuration/environment';
+import { storageTestRoot } from './configuration.fixture';
+import { StructuredLogger } from '../src/common/structured-logger';
+import { RequestContext } from '../src/common/request-context';
+import { RagAnswerService } from '../src/modules/ai/rag-answer.service';
+import { CitationSourceService } from '../src/modules/documents/citation-source.service';
+import { createGenerationProvider } from '../src/infrastructure/generation/generation-provider.factory';
+import { ollamaGenerationFixture } from './ollama-generation.fixture';
 
 const url = process.env.TEST_DATABASE_URL;
 (url ? describe : describe.skip)(
@@ -46,6 +69,9 @@ const url = process.env.TEST_DATABASE_URL;
     });
     afterAll(async () => {
       try {
+        await db.aiServingProfile.deleteMany({
+          where: { embeddingProfileId: { in: profiles } },
+        });
         await db.document.deleteMany({ where: { userId: { in: users } } });
         await db.user.deleteMany({ where: { id: { in: users } } });
         await db.embeddingProfile.deleteMany({
@@ -62,7 +88,10 @@ const url = process.env.TEST_DATABASE_URL;
       });
       return outbox.payload as unknown as ProcessingMessage;
     }
-    async function fixture(dimensions = 3) {
+    async function fixture(
+      dimensions = 3,
+      overrides: Partial<EmbeddingProfileIdentity> = {},
+    ) {
       const user = await db.user.create({
         data: { email: `${randomUUID()}@example.invalid` },
       });
@@ -96,9 +125,12 @@ const url = process.env.TEST_DATABASE_URL;
         tokenizerVersion: 'tiktoken-1.0.22',
         documentInstruction: '',
         queryInstruction: '',
+        ...overrides,
       };
-      const profile = await db.embeddingProfile.create({
-        data: {
+      const profile = await db.embeddingProfile.upsert({
+        where: { fingerprint: embeddingProfileFingerprint(identity) },
+        update: {},
+        create: {
           ...identity,
           fingerprint: embeddingProfileFingerprint(identity),
         },
@@ -229,6 +261,466 @@ const url = process.env.TEST_DATABASE_URL;
         attempt: job.attempts,
       };
     }
+    it.each(['openai-compatible', 'ollama'] as const)(
+      'resumes native Ollama checkpoints and authorized %s RAG without repeating completed batches',
+      async (generationProvider) => {
+        const localGeneration = ollamaGenerationFixture();
+        const local = ollamaFixture();
+        try {
+          const f = await fixture(3, local.profile);
+          const config = {
+            ...f.config,
+            tokenizerPath: local.path,
+            endpoint: local.config.endpoint,
+          };
+          let attempts = 0;
+          let unavailable = true;
+          const embedded: string[] = [];
+          const transport: typeof fetch = async (_url, init) => {
+            if (init?.method === 'GET')
+              return new Response(
+                JSON.stringify({
+                  models: [
+                    { name: local.profile.model, digest: 'a'.repeat(64) },
+                  ],
+                }),
+              );
+            if (unavailable && attempts++ === 1)
+              return new Response(
+                JSON.stringify({ error: 'temporary outage' }),
+                {
+                  status: 503,
+                },
+              );
+            const body = JSON.parse(String(init?.body)) as {
+              input: string[];
+              truncate: boolean;
+            };
+            expect(body.truncate).toBe(false);
+            embedded.push(...body.input);
+            return new Response(
+              JSON.stringify({
+                model: local.profile.model,
+                embeddings: body.input.map(() => [1, 2, 3]),
+                prompt_eval_count: body.input.reduce(
+                  (sum, text) => sum + local.tokenizer.count(text),
+                  0,
+                ),
+              }),
+            );
+          };
+          const worker = new ProcessingMessageHandler(repository, [
+            new EmbeddingGenerationHandler(
+              db,
+              createEmbeddingProvider(config, transport),
+              config,
+            ),
+          ]);
+          expect(await worker.handle(f.message, false)).toBe('ack');
+          expect((await repository.findById(f.job.id))?.status).toBe(
+            'RETRYING',
+          );
+          expect(
+            await db.chunkEmbedding.count({
+              where: { embeddingProfileId: f.profile.id, userId: f.user.id },
+            }),
+          ).toBe(2);
+          expect(
+            await db.processingJob.count({
+              where: { aiRunId: f.run.id, jobType: 'INDEX_VECTORS' },
+            }),
+          ).toBe(0);
+          unavailable = false;
+          await db.processingJob.update({
+            where: { id: f.job.id },
+            data: { availableAt: new Date(Date.now() - 1) },
+          });
+          await repository.scheduleRetryDispatch(f.job.id, new Date());
+          expect(await worker.handle(await envelope(f.job.id), false)).toBe(
+            'ack',
+          );
+          expect(await worker.handle(await envelope(f.job.id), true)).toBe(
+            'ack',
+          );
+          expect(embedded).toEqual(
+            f.chunks.map((chunk) => 'search_document: ' + chunk.text),
+          );
+          const checkpoints = await db.chunkEmbedding.findMany({
+            where: { embeddingProfileId: f.profile.id, userId: f.user.id },
+          });
+          expect(checkpoints).toHaveLength(f.chunks.length);
+          for (const chunk of f.chunks)
+            expect(
+              checkpoints.find((c) => c.chunkId === chunk.id)?.inputHash,
+            ).toBe(embeddingInputHash('search_document: ' + chunk.text));
+          expect(
+            await db.processingJob.count({
+              where: { aiRunId: f.run.id, jobType: 'INDEX_VECTORS' },
+            }),
+          ).toBe(1);
+          // Real SQL activation/retrieval/RAG, deterministic derived-store boundary.
+          // The real Qdrant transport remains covered by its own adapter suite.
+          const points = new Map<string, VectorPoint>();
+          const store: VectorStore & VectorSearchStore = {
+            ensureCollection: async (scope, dimensions) => {
+              expect(scope.embeddingProfileId).toBe(f.profile.id);
+              expect(dimensions).toBe(3);
+            },
+            upsert: async (scope, batch) => {
+              validatePoints(scope, batch, 3);
+              batch.forEach((point) => points.set(point.id, point));
+            },
+            verify: async (_scope, batch) =>
+              batch.every(
+                (point) =>
+                  JSON.stringify(points.get(point.id)) ===
+                  JSON.stringify(point),
+              ),
+            count: async (scope) =>
+              [...points.values()].filter(
+                (point) =>
+                  point.payload.indexManifestId === scope.indexManifestId,
+              ).length,
+            remove: async () => {},
+            search: async (request) => {
+              expect(request.embeddingProfileId).toBe(f.profile.id);
+              expect(request.vector).toEqual([1, 2, 3]);
+              return [...points.values()]
+                .filter(
+                  (point) =>
+                    point.payload.userId === request.userId &&
+                    point.payload.embeddingProfileId ===
+                      request.embeddingProfileId &&
+                    request.manifestIds.includes(point.payload.indexManifestId),
+                )
+                .slice(0, request.limit)
+                .map((point) => ({ ...point.payload, score: 0.9 }));
+            },
+          };
+          const next = await db.processingJob.findFirstOrThrow({
+            where: { aiRunId: f.run.id, jobType: 'INDEX_VECTORS' },
+          });
+          const indexWorker = new ProcessingMessageHandler(repository, [
+            new VectorIndexHandler(db, store, {
+              enabled: true,
+              timeoutMs: 1000,
+              batchSize: 2,
+            }),
+          ]);
+          expect(await indexWorker.handle(await envelope(next.id), false)).toBe(
+            'ack',
+          );
+          expect(
+            await db.versionVectorIndex.findUniqueOrThrow({
+              where: { id: next.vectorIndexId! },
+            }),
+          ).toMatchObject({
+            status: 'READY',
+            confirmedPointCount: f.chunks.length,
+          });
+          await db.aiServingProfile.upsert({
+            where: { id: 1 },
+            create: { id: 1, embeddingProfileId: f.profile.id },
+            update: { embeddingProfileId: f.profile.id },
+          });
+          const base = validateEnvironment({
+            DATABASE_URL: url,
+            LOCAL_STORAGE_ROOT: storageTestRoot,
+          });
+          const settings = {
+            ...base,
+            embedding: config,
+            semanticSearch: {
+              ...base.semanticSearch,
+              enabled: true,
+              minScore: 0.8,
+            },
+            rag: { ...base.rag, enabled: true },
+            generation: {
+              ...base.generation,
+              endpoint: 'https://generation.example/v1/chat/completions',
+              model: 'cloud-fixture',
+              ...(generationProvider === 'ollama'
+                ? localGeneration.config
+                : {}),
+            },
+          };
+          const requestContext = new RequestContext();
+          const logger = new StructuredLogger(requestContext, () => {});
+          const search = new SemanticSearchService(
+            new SemanticSearchRepository({ client: db } as PrismaService),
+            new ConfigurationService(settings),
+            createEmbeddingProvider(config, transport),
+            store,
+            logger,
+          );
+          const results = await search.search(f.user.id, {
+            query: 'Hello world',
+          });
+          expect(results.results.length).toBeGreaterThan(0);
+          expect(results.results[0]).toMatchObject({
+            documentId: f.document.id,
+            embeddingProfileId: f.profile.id,
+          });
+          expect(
+            await search.search(randomUUID(), { query: 'Hello world' }),
+          ).toEqual({ results: [] });
+          const generationTransport: typeof fetch = async () =>
+            new Response(
+              JSON.stringify({
+                choices: [
+                  {
+                    finish_reason: 'stop',
+                    message: {
+                      content: JSON.stringify({
+                        outcome: 'answered',
+                        claims: [
+                          {
+                            text: 'Authoritative canonical text.',
+                            sourceTokens: ['S1'],
+                          },
+                        ],
+                      }),
+                    },
+                  },
+                ],
+              }),
+            );
+          const nativeGenerationTransport: typeof fetch = async (url, init) => {
+            if (init?.method === 'GET')
+              return localGeneration.transport(url, init);
+            const body = JSON.parse(String(init?.body));
+            return new Response(
+              JSON.stringify(
+                localGeneration.response(
+                  body.messages,
+                  JSON.stringify({
+                    outcome: 'answered',
+                    claims: [
+                      {
+                        text: 'Authoritative canonical text.',
+                        sourceTokens: ['S1'],
+                      },
+                    ],
+                  }),
+                ),
+              ),
+            );
+          };
+          const selectedGenerationTransport = jest.fn(
+            generationProvider === 'ollama'
+              ? nativeGenerationTransport
+              : generationTransport,
+          );
+          const rag = new RagAnswerService(
+            search,
+            new ConfigurationService(settings),
+            createGenerationProvider(
+              settings.generation,
+              settings.rag.contextTokens,
+              true,
+              selectedGenerationTransport,
+            ),
+            logger,
+            requestContext,
+          );
+          const answer = await rag.answer(f.user.id, {
+            question: 'Hello world',
+          });
+          expect(answer.outcome).toBe('answered');
+          expect(answer.citations[0]).toMatchObject({
+            documentId: f.document.id,
+            documentVersionId: f.version.id,
+          });
+          expect(answer.citations[0].excerpt).toContain(
+            'Authoritative canonical text.',
+          );
+          const generationCalls = selectedGenerationTransport.mock.calls.length;
+          expect(
+            await rag.answer(randomUUID(), { question: 'Hello world' }),
+          ).toMatchObject({
+            outcome: 'insufficient_evidence',
+            reason: 'no_authorized_evidence',
+            citations: [],
+          });
+          expect(selectedGenerationTransport).toHaveBeenCalledTimes(
+            generationCalls,
+          );
+          // Both identities have complete native embeddings and SQL READY mappings.
+          const other = await fixture(3, local.profile);
+          expect(await worker.handle(other.message, false)).toBe('ack');
+          const otherIndex = await db.processingJob.findFirstOrThrow({
+            where: { aiRunId: other.run.id, jobType: 'INDEX_VECTORS' },
+          });
+          expect(
+            await indexWorker.handle(await envelope(otherIndex.id), false),
+          ).toBe('ack');
+          const citationSource = new CitationSourceService({
+            client: db,
+          } as PrismaService);
+          expect(
+            await citationSource.resolve(
+              f.user.id,
+              f.document.id,
+              f.version.id,
+              f.chunks[0].id,
+            ),
+          ).toMatchObject({ chunkId: f.chunks[0].id });
+          await expect(
+            citationSource.resolve(
+              f.user.id,
+              other.document.id,
+              other.version.id,
+              other.chunks[0].id,
+            ),
+          ).rejects.toMatchObject({ status: 404 });
+          const trustedSearch = store.search;
+          const owned = [...points.values()].find(
+            (p) => p.payload.userId === f.user.id,
+          )!;
+          const foreign = [...points.values()].find(
+            (p) => p.payload.userId === other.user.id,
+          )!;
+          store.search = async (request) => [
+            ...(await trustedSearch(request)),
+            {
+              ...foreign.payload,
+              indexManifestId: owned.payload.indexManifestId,
+              score: 1,
+            },
+            ...[
+              'chunkId',
+              'documentId',
+              'documentVersionId',
+              'chunkSetId',
+              'indexManifestId',
+            ].map((field) => ({
+              ...owned.payload,
+              [field]: randomUUID(),
+              score: 1,
+            })),
+          ];
+          const poisoned = await search.search(f.user.id, {
+            query: 'Hello world',
+          });
+          expect(poisoned.results.length).toBeGreaterThan(0);
+          expect(
+            poisoned.results.every(
+              (source) => source.documentId === f.document.id,
+            ),
+          ).toBe(true);
+          expect(
+            (
+              await rag.answer(f.user.id, { question: 'Hello world' })
+            ).citations.every((c) => c.documentId === f.document.id),
+          ).toBe(true);
+          store.search = trustedSearch;
+          // Derived-store loss and partial upsert cannot activate an incomplete replacement.
+          const documentCalls = () =>
+            embedded.filter((text) => text.startsWith('search_document: '))
+              .length;
+          const beforeRebuild = documentCalls();
+          for (const [id, point] of points)
+            if (point.payload.documentId === f.document.id) points.delete(id);
+          const replacement = await repository.requestVectorRebuild(
+            f.user.id,
+            next.vectorIndexId!,
+          );
+          const rebuildJob = await db.processingJob.findFirstOrThrow({
+            where: { aiRunId: replacement.id, jobType: 'INDEX_VECTORS' },
+          });
+          const write = store.upsert;
+          let interrupt = true;
+          store.upsert = async (scope, batch) => {
+            await write(scope, batch);
+            if (interrupt) {
+              interrupt = false;
+              throw new VectorStoreFailure('VECTOR_PROVIDER_UNAVAILABLE', true);
+            }
+          };
+          expect(
+            await indexWorker.handle(await envelope(rebuildJob.id), false),
+          ).toBe('ack');
+          expect((await repository.findById(rebuildJob.id))?.status).toBe(
+            'RETRYING',
+          );
+          expect(
+            (
+              await db.versionReadyIndex.findFirstOrThrow({
+                where: { documentVersionId: f.version.id },
+              })
+            ).vectorIndexId,
+          ).toBe(next.vectorIndexId);
+          expect(
+            (
+              await db.versionVectorIndex.findUniqueOrThrow({
+                where: { id: rebuildJob.vectorIndexId! },
+              })
+            ).status,
+          ).not.toBe('READY');
+          await db.processingJob.update({
+            where: { id: rebuildJob.id },
+            data: { availableAt: new Date(Date.now() - 1) },
+          });
+          await repository.scheduleRetryDispatch(rebuildJob.id, new Date());
+          expect(
+            await indexWorker.handle(await envelope(rebuildJob.id), false),
+          ).toBe('ack');
+          expect(
+            await indexWorker.handle(await envelope(rebuildJob.id), true),
+          ).toBe('ack');
+          expect(documentCalls()).toBe(beforeRebuild);
+          expect(
+            (
+              await db.versionReadyIndex.findFirstOrThrow({
+                where: { documentVersionId: f.version.id },
+              })
+            ).vectorIndexId,
+          ).toBe(rebuildJob.vectorIndexId);
+          expect(
+            (await rag.answer(f.user.id, { question: 'Hello world' })).outcome,
+          ).toBe('answered');
+          // SQL lifecycle metadata still excludes stale points before remote cleanup.
+          await db.document.update({
+            where: { id: f.document.id },
+            data: { isArchived: true, status: 'ARCHIVED' },
+          });
+          await expect(
+            citationSource.resolve(
+              f.user.id,
+              f.document.id,
+              f.version.id,
+              f.chunks[0].id,
+            ),
+          ).rejects.toMatchObject({ status: 404 });
+          const beforeArchive = selectedGenerationTransport.mock.calls.length;
+          expect(
+            await rag.answer(f.user.id, { question: 'Hello world' }),
+          ).toMatchObject({ outcome: 'insufficient_evidence', citations: [] });
+          expect(selectedGenerationTransport).toHaveBeenCalledTimes(
+            beforeArchive,
+          );
+          // Switching serving configuration fails before searching another vector space.
+          const mismatched = new SemanticSearchService(
+            new SemanticSearchRepository({ client: db } as PrismaService),
+            new ConfigurationService({
+              ...settings,
+              embedding: { ...config, profileFingerprint: 'b'.repeat(64) },
+            }),
+            createEmbeddingProvider(config, transport),
+            store,
+            logger,
+          );
+          await expect(
+            mismatched.search(f.user.id, { query: 'Hello world' }),
+          ).rejects.toMatchObject({ status: 503 });
+          await db.aiServingProfile.delete({ where: { id: 1 } });
+        } finally {
+          local.dispose();
+          localGeneration.dispose();
+        }
+      },
+    );
     it('persists exact owned vectors, schedules one indexing intent and handles duplicate/concurrent delivery', async () => {
       const f = await fixture(),
         { provider, calls } = fake();

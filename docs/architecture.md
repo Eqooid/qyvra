@@ -1,4 +1,4 @@
-# QYVRA architecture — Phase 4 / v1.3.0 release candidate
+# QYVRA architecture — v1.3.1 candidate, Phase 4 foundation
 
 **Phase 4 T03 orchestration, T04 PDF extraction and T05 chunking are implemented:** [durable stage contracts and lifecycle](phase-4-processing.md)
 cover atomic successor scheduling, v2 transport, shared retry/recovery, worker routing,
@@ -6,9 +6,24 @@ lifecycle fencing and the owned status extension. [Durable PDF text extraction](
 is implemented. [Deterministic chunks and citation provenance](phase-4-chunk-generation.md)
 are implemented. [T06 embedding generation and durable checkpoints](phase-4-embedding-generation.md) are implemented. [T07 Qdrant indexing, activation and cleanup](phase-4-vector-indexing.md) are implemented. [T10 grounded answers and validated citations](phase-4-rag-answers.md) are implemented and opt-in. [T11 AI Search and authorized citation navigation](phase-4-ai-frontend.md) are implemented. OCR remains **Planned**. [T09 authorized semantic retrieval and search API](phase-4-semantic-search.md) are implemented and opt-in. [T08 upload/reprocess/restore enrollment and bounded backfill](phase-4-ingestion.md) are implemented and opt-in.
 
-[Documentation index](README.md) | [Current candidate snapshot](releases/v1.3.0.md)
+[Documentation index](README.md) | [Current candidate snapshot](releases/v1.3.1.md)
 
 ## Runtime overview
+
+**v1.3.1 T04 increment:** [shared provider configuration and Docker networking](local-provider-configuration.md)
+preserve SQL embedding identity and independent generation. Optional private asset/network
+and host-gateway overrides add no provider service, public port or health dependency.
+Invalid configuration fails startup; an optional provider outage remains a runtime failure.
+
+**v1.3.1 T03 increment:** [native Ollama generation](local-generation.md) extends
+the existing generation interface and RAG context budgeting with pinned local
+tokenizer/framing checks. Retrieval authorization, canonical citations, public API
+and embedding/index profiles are unchanged. [T05](local-provider-verification.md)
+certifies the documented pinned model pair; other models/templates require validation.
+
+**v1.3.1 T02 increment:** [native Ollama embeddings](local-embeddings.md) extend the
+same worker/query interfaces with profile-selected dispatch. Generation remains
+independent and compatible-only; historical v1.3.0 release evidence is preserved.
 
 T10 adds an opt-in synchronous, bounded RAG use case: owned T09 retrieval → SQL
 reauthorization → serialized untrusted evidence → independent generation provider →

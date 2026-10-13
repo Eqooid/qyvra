@@ -1,5 +1,24 @@
 # Environment variables
 
+**v1.3.1 T04:** API/worker share endpoint validation. Enabled official
+`api.openai.com` operations require their own `EMBEDDING_API_KEY` or
+`GENERATION_API_KEY` and HTTPS; native/private compatible services keep optional
+keys. Embedding model/provider/dimensions remain SQL profile fields, not redundant
+environment variables. `LOCAL_AI_ASSETS_DIR` is Compose-only, required only with
+`docker-compose.local-ai.yml`. See [all four combinations and deployment](../local-provider-configuration.md).
+
+**v1.3.1 T03:** `GENERATION_PROVIDER=ollama` uses native `/api/chat`;
+`GENERATION_TOKENIZER=huggingface-json` and absolute `GENERATION_TOKENIZER_PATH`
+select a pinned model/tokenizer/framing bundle. `GENERATION_THINK` defaults false
+and must match certified framing. Existing endpoint/key/model/timeouts/budgets are
+reused independently of embeddings. These settings are API/server-only. See
+[T03 configuration, provisioning and limits](../local-generation.md).
+
+**v1.3.1 T02:** `EMBEDDING_TOKENIZER_PATH` is an optional absolute, server-only path
+to a pinned local tokenizer bundle, required for native Ollama profiles. Mount it
+read-only for API/worker. Existing embedding endpoint, key, timeout and profile
+settings are reused; generation is independent. See [provisioning](../local-embeddings.md#configuration-and-provisioning).
+
 T10 adds API-only, opt-in standalone grounded answers. The validated `RAG_*` and
 independent `GENERATION_*` settings, defaults, model/tokenizer/schema requirements
 and data boundary are listed in [the RAG configuration reference](../phase-4-rag-answers.md#configuration).
@@ -24,6 +43,53 @@ follow [the Docker namespace migration](../docker-rename.md) to preserve its dat
 Sources: [root example](../../.env.example), [web example](../../apps/web/.env.example),
 [API validation](../../apps/api/src/configuration/environment.ts),
 [Compose](../../docker-compose.yml) and [Dockerfiles](../../infrastructure/docker).
+
+## v1.3.1 native provider reference
+
+Provider/model/dimensions/revision for embeddings are immutable SQL profile fields,
+selected by fingerprints; there are no embedding provider/model/dimensions envs.
+All endpoints below are full request URLs. [Four-combination examples and networking](../local-provider-configuration.md)
+and [pinned model setup](../development/local-ai.md) explain provider-specific requirements.
+
+| Variable                                       | Default                 | Scope / meaning                                                     |
+| ---------------------------------------------- | ----------------------- | ------------------------------------------------------------------- |
+| `AI_INGESTION_ENABLED`                         | `false`                 | API/worker opt-in durable enrollment                                |
+| `AI_INGESTION_PROFILE_FINGERPRINT`             | unset                   | Existing persisted ingestion profile                                |
+| `EMBEDDING_ENABLED`                            | `false`                 | API query + worker document embeddings                              |
+| `EMBEDDING_PROFILE_FINGERPRINT`                | unset                   | Immutable compatible profile selection                              |
+| `EMBEDDING_ENDPOINT`                           | unset                   | Full compatible embeddings or native `/api/embed` URL               |
+| `EMBEDDING_API_KEY`                            | unset                   | Own OpenAI operation key or optional local proxy bearer key         |
+| `EMBEDDING_ALLOW_HTTP`                         | `false`                 | Explicit trusted private HTTP opt-in                                |
+| `EMBEDDING_TOKENIZER_PATH`                     | unset                   | Absolute pinned native bundle; API/worker                           |
+| `EMBEDDING_BATCH_SIZE`                         | `32`                    | 1–128 inputs per bounded batch                                      |
+| `EMBEDDING_MAX_INPUT_TOKENS`                   | `8191`                  | 1–8192; choose actual model cap                                     |
+| `EMBEDDING_MAX_BATCH_TOKENS`                   | `100000`                | ≤300000, at least input cap                                         |
+| `EMBEDDING_TIMEOUT_MS`                         | `min(30000, lease/2)`   | Positive; at most half worker lease                                 |
+| `EMBEDDING_SEND_DIMENSIONS`                    | `true`                  | Request option only; false for tested Nomic, response still checked |
+| `VECTOR_INDEX_ENABLED`                         | `false`                 | Worker derived vector indexing                                      |
+| `SEMANTIC_SEARCH_ENABLED`                      | `false`                 | API owned semantic retrieval                                        |
+| `SEMANTIC_SEARCH_MIN_SCORE`                    | unset                   | Calibrated profile-specific floor; required for RAG                 |
+| `RAG_ENABLED`                                  | `false`                 | API standalone grounded Q&A                                         |
+| `RAG_CONTEXT_TOKENS`                           | `8192`                  | Total budget, maximum 32768; certified Qwen example 4096            |
+| `RAG_TIMEOUT_MS`                               | `60000`                 | Bounded request deadline, maximum 120000                            |
+| `RAG_MAX_SOURCES` / `RAG_PER_DOCUMENT_SOURCES` | `8` / `3`               | Whole canonical excerpts, each maximum 20                           |
+| `GENERATION_PROVIDER`                          | `openai-compatible`     | Independent `openai-compatible` or `ollama`                         |
+| `GENERATION_MODEL`                             | unset                   | Required for enabled generation, no hardcoded Qwen                  |
+| `GENERATION_ENDPOINT`                          | unset                   | Full chat-completions or native `/api/chat` URL                     |
+| `GENERATION_API_KEY`                           | unset                   | Own OpenAI operation key or optional local proxy bearer key         |
+| `GENERATION_ALLOW_HTTP`                        | `false`                 | Explicit trusted private HTTP opt-in                                |
+| `GENERATION_TOKENIZER`                         | `o200k_base`            | Compatible cloud tokenizer; `huggingface-json` for native           |
+| `GENERATION_TOKENIZER_PATH`                    | unset                   | Absolute certified framing/tokenizer bundle, API only               |
+| `GENERATION_THINK`                             | `false`                 | Native mode must match pinned bundle                                |
+| `GENERATION_TIMEOUT_MS`                        | `25000`                 | Maximum 60000                                                       |
+| `GENERATION_MAX_OUTPUT_TOKENS`                 | `1024`                  | Maximum 4096; certified example 256                                 |
+| `GENERATION_TEMPERATURE`                       | `0`                     | 0–1                                                                 |
+| `GENERATION_OUTPUT_TOKEN_FIELD`                | `max_completion_tokens` | Compatible adapter only; optional `max_tokens`                      |
+| `LOCAL_AI_ASSETS_DIR`                          | unset                   | Optional Compose-only read-only asset directory                     |
+
+Generation model changes do not invalidate checkpoints/indexes. Embedding identity
+changes require controlled profile cutover. URL/key validation is startup-only; no
+health check performs inference. Web/Nginx receive none of these provider settings.
 Examples below are public values or placeholders, never usable credentials.
 
 ## Loading and overrides

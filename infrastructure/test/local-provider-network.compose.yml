@@ -1,0 +1,43 @@
+# Isolated network test only. No inference, models, host ports or persistent volumes.
+services:
+  provider-mock:
+    image: node:24-bookworm-slim
+    pull_policy: never
+    command:
+      - node
+      - -e
+      - |
+        require('node:http').createServer((req,res)=>{
+          res.setHeader('Content-Type','application/json');
+          res.end(JSON.stringify({model:'synthetic-network-fixture',path:req.url}));
+        }).listen(11434,'0.0.0.0');
+    networks: [ai_provider]
+  api-probe:
+    image: node:24-bookworm-slim
+    pull_policy: never
+    environment:
+      EMBEDDING_ENDPOINT: http://provider-mock:11434/api/embed
+      GENERATION_ENDPOINT: http://provider-mock:11434/api/chat
+    command:
+      - node
+      - -e
+      - |
+        (async()=>{
+          for(const name of ['EMBEDDING_ENDPOINT','GENERATION_ENDPOINT']){
+            let result;
+            for(let i=0;i<30;i++){
+              try {const r=await fetch(process.env[name],{signal:AbortSignal.timeout(1000)});result=await r.json();break;}
+              catch {await new Promise(r=>setTimeout(r,100));}
+            }
+            if(result?.model!=='synthetic-network-fixture'||result.path!==new URL(process.env[name]).pathname) throw Error('provider network check failed');
+          }
+        })().catch(()=>process.exit(1));
+    networks: [ai_provider]
+  worker-probe:
+    extends:
+      service: api-probe
+    environment:
+      GENERATION_ENDPOINT: http://provider-mock:11434/api/tags
+networks:
+  ai_provider:
+    internal: true

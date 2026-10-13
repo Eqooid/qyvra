@@ -13,6 +13,8 @@ If rationale is unknown, document observed behavior in architecture instead.
 
 ## Index
 
+- [ADR-006: Native local-provider adapters behind existing AI interfaces](ADR-006-local-provider-compatibility.md)
+  - Embedding and generation portions implemented in v1.3.1 T02/T03. Live models unverified.
 - [ADR-001: Create-only local file publication](ADR-001-create-only-file-publication.md)
   - Accepted; retrospective record of an explicitly documented storage tradeoff.
 - [ADR-002: Durable processing jobs, transactional outbox, and separate worker](ADR-002-durable-processing-outbox-worker.md)

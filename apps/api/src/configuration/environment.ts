@@ -16,6 +16,39 @@ function invalid(key: string, rule: string): never {
   throw new Error(`Invalid configuration: ${key} ${rule}`);
 }
 
+/** Shared API/worker policy; compatible private services may legitimately omit keys. */
+function providerEndpoint(
+  environment: Record<string, unknown>,
+  operation: 'EMBEDDING' | 'GENERATION',
+  value: string,
+): URL {
+  const key = `${operation}_ENDPOINT`;
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return invalid(key, 'must be an absolute HTTP(S) URL.');
+  }
+  const allowHttp = boolean(environment, `${operation}_ALLOW_HTTP`, 'false');
+  if (
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash ||
+    (url.protocol !== 'https:' && !(url.protocol === 'http:' && allowHttp))
+  )
+    invalid(
+      key,
+      'requires HTTPS (or explicit HTTP opt-in), without credentials, query or fragment.',
+    );
+  if (url.hostname.replace(/\.$/, '') === 'api.openai.com') {
+    if (url.protocol !== 'https:')
+      invalid(key, 'official OpenAI requires HTTPS.');
+    text(environment, `${operation}_API_KEY`);
+  }
+  return url;
+}
+
 /**
  * @author Cristono Wijaya
  * @description Reads a string setting or its fallback and rejects blanks, placeholders, newlines, and surrounding whitespace.
@@ -460,6 +493,14 @@ export function validateEnvironment(
     3600000,
   );
   const embeddingEnabled = boolean(environment, 'EMBEDDING_ENABLED', 'false');
+  const embeddingTokenizerPath = environment.EMBEDDING_TOKENIZER_PATH
+    ? text(environment, 'EMBEDDING_TOKENIZER_PATH')
+    : undefined;
+  if (embeddingTokenizerPath && !isAbsolute(embeddingTokenizerPath))
+    invalid(
+      'EMBEDDING_TOKENIZER_PATH',
+      'must be an absolute operator-owned file path.',
+    );
   const embeddingEndpoint = embeddingEnabled
     ? text(environment, 'EMBEDDING_ENDPOINT')
     : undefined;
@@ -472,25 +513,7 @@ export function validateEnvironment(
       'must be a SHA-256 profile fingerprint.',
     );
   if (embeddingEndpoint) {
-    let endpoint: URL;
-    try {
-      endpoint = new URL(embeddingEndpoint);
-    } catch {
-      return invalid('EMBEDDING_ENDPOINT', 'must be an absolute URL.');
-    }
-    const allowHttp = boolean(environment, 'EMBEDDING_ALLOW_HTTP', 'false');
-    if (
-      endpoint.username ||
-      endpoint.password ||
-      endpoint.search ||
-      endpoint.hash ||
-      (endpoint.protocol !== 'https:' &&
-        !(allowHttp && endpoint.protocol === 'http:'))
-    )
-      invalid(
-        'EMBEDDING_ENDPOINT',
-        'must use HTTPS without URL credentials, query or fragment; private HTTP requires explicit opt-in.',
-      );
+    providerEndpoint(environment, 'EMBEDDING', embeddingEndpoint);
   }
   const embeddingMaxTokens = integer(
     environment,
@@ -609,39 +632,40 @@ export function validateEnvironment(
   );
   if (
     generationTokenizer !== 'cl100k_base' &&
-    generationTokenizer !== 'o200k_base'
+    generationTokenizer !== 'o200k_base' &&
+    generationTokenizer !== 'huggingface-json'
   )
     invalid(
       'GENERATION_TOKENIZER',
-      'must be cl100k_base or o200k_base and match the configured model.',
+      'must match the provider: cl100k_base/o200k_base or huggingface-json.',
     );
-  if (generationProvider !== 'openai-compatible')
-    invalid('GENERATION_PROVIDER', 'must be openai-compatible.');
+  if (
+    generationProvider !== 'openai-compatible' &&
+    generationProvider !== 'ollama'
+  )
+    invalid('GENERATION_PROVIDER', 'must be openai-compatible or ollama.');
+  if (
+    (generationProvider === 'ollama') !==
+    (generationTokenizer === 'huggingface-json')
+  )
+    invalid('GENERATION_TOKENIZER', 'must match the configured provider.');
+  const generationTokenizerPath = environment.GENERATION_TOKENIZER_PATH
+    ? text(environment, 'GENERATION_TOKENIZER_PATH')
+    : undefined;
+  if (generationTokenizerPath && !isAbsolute(generationTokenizerPath))
+    invalid(
+      'GENERATION_TOKENIZER_PATH',
+      'must be an absolute operator-provisioned path.',
+    );
+  if (ragEnabled && generationProvider === 'ollama' && !generationTokenizerPath)
+    invalid('GENERATION_TOKENIZER_PATH', 'is required for Ollama generation.');
   const generationEndpoint = ragEnabled
     ? text(environment, 'GENERATION_ENDPOINT')
     : undefined;
   if (generationEndpoint) {
-    let url: URL;
-    try {
-      url = new URL(generationEndpoint);
-    } catch {
-      return invalid('GENERATION_ENDPOINT', 'must be an absolute HTTP(S) URL.');
-    }
-    if (
-      (url.protocol !== 'https:' &&
-        !(
-          url.protocol === 'http:' &&
-          boolean(environment, 'GENERATION_ALLOW_HTTP', 'false')
-        )) ||
-      url.username ||
-      url.password ||
-      url.search ||
-      url.hash
-    )
-      invalid(
-        'GENERATION_ENDPOINT',
-        'requires HTTPS (or explicit HTTP opt-in), without credentials, query or fragment.',
-      );
+    const url = providerEndpoint(environment, 'GENERATION', generationEndpoint);
+    if (generationProvider === 'ollama' && !url.pathname.endsWith('/api/chat'))
+      invalid('GENERATION_ENDPOINT', 'must end with /api/chat for Ollama.');
   }
   const outputField = text(
     environment,
@@ -692,6 +716,8 @@ export function validateEnvironment(
     generation: Object.freeze({
       tokenizer: generationTokenizer,
       provider: generationProvider,
+      tokenizerPath: generationTokenizerPath,
+      think: boolean(environment, 'GENERATION_THINK', 'false'),
       model: ragEnabled ? text(environment, 'GENERATION_MODEL') : undefined,
       endpoint: generationEndpoint,
       apiKey:
@@ -785,6 +811,7 @@ export function validateEnvironment(
         Math.max(1, Math.floor(leaseMs / 2)),
       ),
       sendDimensions: boolean(environment, 'EMBEDDING_SEND_DIMENSIONS', 'true'),
+      tokenizerPath: embeddingTokenizerPath,
     }),
     chunking: Object.freeze({
       chunkSize,

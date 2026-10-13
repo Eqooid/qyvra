@@ -16,8 +16,10 @@ export interface ApiConfiguration {
     readonly globalPerMinute: number;
   };
   readonly generation: {
-    readonly tokenizer: 'cl100k_base' | 'o200k_base';
-    readonly provider: 'openai-compatible';
+    readonly tokenizer: 'cl100k_base' | 'o200k_base' | 'huggingface-json';
+    readonly provider: 'openai-compatible' | 'ollama';
+    readonly tokenizerPath?: string;
+    readonly think?: boolean;
     readonly model?: string;
     readonly endpoint?: string;
     readonly apiKey?: string;
@@ -47,6 +49,7 @@ export interface ApiConfiguration {
     readonly batchSize: number;
   };
   readonly embedding: {
+    readonly tokenizerPath?: string;
     readonly enabled: boolean;
     readonly endpoint?: string;
     readonly apiKey?: string;
