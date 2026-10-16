@@ -1,5 +1,10 @@
 # QYVRA web
 
+Phase 5 T09 adds the protected `/search` workspace with Keyword/Hybrid modes,
+private suggestions, safe highlights and exact version/page text sheets. See the
+[frontend/source guide and actual verification](../../docs/phase-5-search-frontend.md).
+Local checks are recorded separately from pending live Nginx/Compose acceptance.
+
 **v1.0.0 / Phase 1 released; v1.1.0 / Phase 2 release-ready.** Start with [onboarding](../../docs/development/getting-started.md),
 [feature guides](../../docs/README.md#features), [test commands](../../docs/development/testing.md)
 and [release evidence](../../docs/releases/v1.1.0.md). The UI refinement and theme

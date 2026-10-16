@@ -362,7 +362,7 @@ export function validateEnvironment(
   if (!/^[A-Za-z0-9_-]{1,64}$/.test(cookieName))
     invalid(
       'COOKIE_NAME',
-      'must contain 1–64 letters, digits, underscores, or hyphens.',
+      'must contain 1Ã¢â‚¬â€œ64 letters, digits, underscores, or hyphens.',
     );
   const refreshName = text(
     environment,
@@ -563,6 +563,166 @@ export function validateEnvironment(
         'must explicitly allow a private HTTP deployment, or use TLS.',
       );
   }
+  const keywordEnrollmentEnabled = boolean(
+    environment,
+    'SEARCH_ENROLLMENT_ENABLED',
+    'false',
+  );
+  const searchGenerationFingerprint = keywordEnrollmentEnabled
+    ? text(environment, 'SEARCH_GENERATION_FINGERPRINT')
+    : '';
+  if (
+    keywordEnrollmentEnabled &&
+    !/^[0-9a-f]{64}$/.test(searchGenerationFingerprint)
+  )
+    invalid(
+      'SEARCH_GENERATION_FINGERPRINT',
+      'must identify a provisioned immutable search generation.',
+    );
+  const elasticEnabled = boolean(environment, 'ELASTICSEARCH_ENABLED', 'false');
+  const keywordEnabled = boolean(
+    environment,
+    'KEYWORD_SEARCH_ENABLED',
+    'false',
+  );
+  const keywordFingerprint = keywordEnabled
+    ? text(environment, 'KEYWORD_SEARCH_GENERATION_FINGERPRINT')
+    : '';
+  if (
+    keywordEnabled &&
+    (!elasticEnabled || !/^[0-9a-f]{64}$/.test(keywordFingerprint))
+  )
+    invalid(
+      'KEYWORD_SEARCH_GENERATION_FINGERPRINT',
+      'requires Elasticsearch and a compatible serving fingerprint.',
+    );
+  const elasticPrefix = text(
+    environment,
+    'ELASTICSEARCH_INDEX_PREFIX',
+    'qyvra-search',
+  );
+  if (
+    !/^qyvra-search(?:-[a-z0-9]+)*$/.test(elasticPrefix) ||
+    elasticPrefix.length > 40
+  )
+    invalid(
+      'ELASTICSEARCH_INDEX_PREFIX',
+      'must be a bounded qyvra-search namespace.',
+    );
+  const elasticSchema = integer(
+    environment,
+    'ELASTICSEARCH_SCHEMA_VERSION',
+    '1',
+    1,
+  );
+  const elasticHttp = boolean(environment, 'ELASTICSEARCH_ALLOW_HTTP', 'false');
+  const elasticUrl = elasticEnabled
+    ? text(environment, 'ELASTICSEARCH_URL')
+    : undefined;
+  const elasticValue = (key: string) =>
+    elasticEnabled && environment[key] ? text(environment, key) : undefined;
+  const elasticUsername = elasticValue('ELASTICSEARCH_USERNAME');
+  const elasticPassword = elasticValue('ELASTICSEARCH_PASSWORD');
+  const elasticPasswordFile = elasticValue('ELASTICSEARCH_PASSWORD_FILE');
+  const elasticKey = elasticValue('ELASTICSEARCH_API_KEY');
+  const elasticKeyFile = elasticValue('ELASTICSEARCH_API_KEY_FILE');
+  const elasticCa = elasticValue('ELASTICSEARCH_CA_FILE');
+  if (elasticEnabled) {
+    let endpoint: URL;
+    try {
+      endpoint = new URL(elasticUrl!);
+    } catch {
+      return invalid(
+        'ELASTICSEARCH_URL',
+        'must be an explicit HTTP(S) endpoint.',
+      );
+    }
+    if (
+      !['https:', 'http:'].includes(endpoint.protocol) ||
+      endpoint.username ||
+      endpoint.password ||
+      endpoint.search ||
+      endpoint.hash ||
+      endpoint.pathname !== '/'
+    )
+      invalid(
+        'ELASTICSEARCH_URL',
+        'must not contain credentials, query, fragment or path.',
+      );
+    const host = endpoint.hostname.replace(/^\[|\]$/g, '');
+    const privateHost =
+      host === 'localhost' ||
+      host === '::1' ||
+      /^(127\.|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)/.test(host) ||
+      (/^f[cd][0-9a-f:]+$/i.test(host) && isIP(host) === 6) ||
+      /^elasticsearch(?:-[a-z0-9]+)*$/.test(host) ||
+      /\.(local|internal)$/.test(host);
+    if (
+      endpoint.protocol === 'http:' &&
+      (mode === 'production' || !elasticHttp || !privateHost)
+    )
+      invalid(
+        'ELASTICSEARCH_URL',
+        'requires authenticated TLS; isolated development HTTP needs explicit allowance.',
+      );
+    if (
+      (elasticPassword && elasticPasswordFile) ||
+      (elasticKey && elasticKeyFile) ||
+      !!(elasticKey || elasticKeyFile) ===
+        !!(elasticUsername || elasticPassword || elasticPasswordFile) ||
+      (!(elasticKey || elasticKeyFile) &&
+        !(elasticUsername && (elasticPassword || elasticPasswordFile)))
+    )
+      invalid(
+        'ELASTICSEARCH_AUTH',
+        'requires exactly one complete Basic or API-key credential.',
+      );
+    for (const [key, path] of [
+      ['ELASTICSEARCH_PASSWORD_FILE', elasticPasswordFile],
+      ['ELASTICSEARCH_API_KEY_FILE', elasticKeyFile],
+      ['ELASTICSEARCH_CA_FILE', elasticCa],
+    ])
+      if (path && !isAbsolute(path))
+        invalid(key!, 'must be an absolute server-only file path.');
+    if (elasticCa && endpoint.protocol !== 'https:')
+      invalid('ELASTICSEARCH_CA_FILE', 'requires HTTPS.');
+  }
+  const elasticTimeout = integer(
+    environment,
+    'ELASTICSEARCH_TIMEOUT_MS',
+    '10000',
+    60000,
+  );
+  const elasticRequestBytes = integer(
+    environment,
+    'ELASTICSEARCH_MAX_REQUEST_BYTES',
+    '1048576',
+    1048576,
+  );
+  const elasticResponseBytes = integer(
+    environment,
+    'ELASTICSEARCH_MAX_RESPONSE_BYTES',
+    '4194304',
+    8388608,
+  );
+  const elasticBulkSize = integer(
+    environment,
+    'ELASTICSEARCH_BULK_SIZE',
+    '100',
+    100,
+  );
+  const elasticMaxScopes = integer(
+    environment,
+    'ELASTICSEARCH_MAX_SCOPES',
+    '100',
+    100,
+  );
+  const elasticConcurrency = integer(
+    environment,
+    'ELASTICSEARCH_CONCURRENCY',
+    '4',
+    16,
+  );
   const ingestionEnabled = boolean(
     environment,
     'AI_INGESTION_ENABLED',
@@ -758,6 +918,82 @@ export function validateEnvironment(
         10000,
       ),
     }),
+    hybridSearch: Object.freeze({
+      enabled: (() => {
+        const enabled = boolean(environment, 'HYBRID_SEARCH_ENABLED', 'false');
+        if (enabled && (!keywordEnabled || !searchEnabled))
+          invalid(
+            'HYBRID_SEARCH_ENABLED',
+            'requires keyword and semantic search.',
+          );
+        return enabled;
+      })(),
+    }),
+    keywordSearch: Object.freeze({
+      enabled: keywordEnabled,
+      generationFingerprint: keywordFingerprint,
+      timeoutMs: integer(
+        environment,
+        'KEYWORD_SEARCH_TIMEOUT_MS',
+        '10000',
+        60000,
+      ),
+      maxScopes: (() => {
+        const max = integer(
+          environment,
+          'KEYWORD_SEARCH_MAX_SCOPES',
+          String(elasticMaxScopes),
+          100,
+        );
+        if (max > elasticMaxScopes)
+          invalid(
+            'KEYWORD_SEARCH_MAX_SCOPES',
+            'must not exceed ELASTICSEARCH_MAX_SCOPES.',
+          );
+        return max;
+      })(),
+      rawHitLimit: integer(
+        environment,
+        'KEYWORD_SEARCH_RAW_HIT_LIMIT',
+        '200',
+        200,
+      ),
+      concurrency: integer(environment, 'KEYWORD_SEARCH_CONCURRENCY', '4', 32),
+      perUserPerMinute: integer(
+        environment,
+        'KEYWORD_SEARCH_USER_PER_MINUTE',
+        '30',
+        300,
+      ),
+      globalPerMinute: integer(
+        environment,
+        'KEYWORD_SEARCH_GLOBAL_PER_MINUTE',
+        '300',
+        10000,
+      ),
+    }),
+    searchEnrollment: Object.freeze({
+      enabled: keywordEnrollmentEnabled,
+      generationFingerprint: searchGenerationFingerprint,
+    }),
+    elasticsearch: Object.freeze({
+      enabled: elasticEnabled,
+      url: elasticUrl,
+      username: elasticUsername,
+      password: elasticPassword,
+      passwordFile: elasticPasswordFile,
+      apiKey: elasticKey,
+      apiKeyFile: elasticKeyFile,
+      caFile: elasticCa,
+      indexPrefix: elasticPrefix,
+      schemaVersion: elasticSchema as 1,
+      timeoutMs: elasticTimeout,
+      maxRequestBytes: elasticRequestBytes,
+      maxResponseBytes: elasticResponseBytes,
+      bulkSize: elasticBulkSize,
+      maxScopes: elasticMaxScopes,
+      concurrency: elasticConcurrency,
+    }),
     aiIngestion: Object.freeze({
       enabled: ingestionEnabled,
       profileFingerprint: ingestionFingerprint,
@@ -923,6 +1159,11 @@ export function validateEnvironment(
       ),
     }),
     outbox: Object.freeze({
+      searchDeliveryEnabled: boolean(
+        environment,
+        'SEARCH_OUTBOX_DELIVERY_ENABLED',
+        elasticEnabled ? 'true' : 'false',
+      ),
       pollIntervalMs: integer(
         environment,
         'OUTBOX_POLL_INTERVAL_MS',

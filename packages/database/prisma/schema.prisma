@@ -27,13 +27,15 @@ model User {
   deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(3)
   lastLoginAt DateTime? @map("last_login_at") @db.Timestamptz(3)
 
-  identities       UserIdentity[]
-  localCredentials LocalCredential?
-  sessions         AuthSession[]
-  categories       Category[]
-  tags             Tag[]
-  documents        Document[]
-  uploads          DocumentUpload[]
+  identities                  UserIdentity[]
+  localCredentials            LocalCredential?
+  sessions                    AuthSession[]
+  categories                  Category[]
+  tags                        Tag[]
+  documents                   Document[]
+  uploads                     DocumentUpload[]
+  searchChanges               SearchProjectionChange[]
+  searchMaintenanceOperations SearchMaintenanceOperation[]
 
   @@map("users")
 }
@@ -139,27 +141,28 @@ model ConsumedRefreshToken {
 }
 
 model Document {
-  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId          String            @map("user_id") @db.Uuid
-  categoryId      String?           @map("category_id") @db.Uuid
-  title           String            @db.VarChar(300)
-  description     String?           @db.VarChar(2000)
-  documentType    String            @default("OTHER") @map("document_type") @db.VarChar(50)
-  status          String            @default("UPLOADED") @db.VarChar(32)
-  issuer          String?           @db.VarChar(200)
-  referenceNumber String?           @map("reference_number") @db.VarChar(200)
-  documentDate    DateTime?         @map("document_date") @db.Date
-  expirationDate  DateTime?         @map("expiration_date") @db.Date
-  verifiedSummary String?           @map("verified_summary") @db.VarChar(10000)
-  isArchived      Boolean           @default(false) @map("is_archived")
-  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt       DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
-  deletedAt       DateTime?         @map("deleted_at") @db.Timestamptz(3)
-  user            User              @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  category        Category?         @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Restrict, onUpdate: Restrict)
+  id              String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String               @map("user_id") @db.Uuid
+  categoryId      String?              @map("category_id") @db.Uuid
+  title           String               @db.VarChar(300)
+  description     String?              @db.VarChar(2000)
+  documentType    String               @default("OTHER") @map("document_type") @db.VarChar(50)
+  status          String               @default("UPLOADED") @db.VarChar(32)
+  issuer          String?              @db.VarChar(200)
+  referenceNumber String?              @map("reference_number") @db.VarChar(200)
+  documentDate    DateTime?            @map("document_date") @db.Date
+  expirationDate  DateTime?            @map("expiration_date") @db.Date
+  verifiedSummary String?              @map("verified_summary") @db.VarChar(10000)
+  isArchived      Boolean              @default(false) @map("is_archived")
+  createdAt       DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt       DateTime?            @map("deleted_at") @db.Timestamptz(3)
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  category        Category?            @relation(fields: [categoryId, userId], references: [id, userId], onDelete: Restrict, onUpdate: Restrict)
   tags            DocumentTag[]
   versions        DocumentVersion[]
   processingJobs  ProcessingJob[]
+  searchState     DocumentSearchState?
 
   @@unique([id, userId])
   @@index([userId, createdAt, id])
@@ -197,14 +200,16 @@ model DocumentVersion {
   document         Document        @relation(fields: [documentId, userId], references: [id, userId], onDelete: Cascade, onUpdate: Restrict)
   processingJobs   ProcessingJob[]
 
-  aiRuns          AiProcessingRun[]
-  extractedTexts  ExtractedText[]
-  chunkSets       ChunkSet[]
-  chunks          DocumentChunk[]
-  chunkEmbeddings ChunkEmbedding[]
-  vectorIndexes   VersionVectorIndex[]
-  aiState         VersionAiState?
-  readyIndexes    VersionReadyIndex[]
+  aiRuns            AiProcessingRun[]
+  extractedTexts    ExtractedText[]
+  chunkSets         ChunkSet[]
+  chunks            DocumentChunk[]
+  chunkEmbeddings   ChunkEmbedding[]
+  vectorIndexes     VersionVectorIndex[]
+  aiState           VersionAiState?
+  readyIndexes      VersionReadyIndex[]
+  searchStates      DocumentSearchState[]
+  searchProjections VersionSearchProjection[]
 
   @@unique([id, documentId, userId])
   @@unique([documentId, versionNumber])
@@ -255,19 +260,21 @@ model ProcessingJob {
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  aiRunId          String? @map("ai_run_id") @db.Uuid
-  predecessorJobId String? @map("predecessor_job_id") @db.Uuid
-  extractedTextId  String? @map("extracted_text_id") @db.Uuid
-  chunkSetId       String? @map("chunk_set_id") @db.Uuid
-  vectorIndexId    String? @map("vector_index_id") @db.Uuid
+  aiRunId            String? @map("ai_run_id") @db.Uuid
+  predecessorJobId   String? @map("predecessor_job_id") @db.Uuid
+  extractedTextId    String? @map("extracted_text_id") @db.Uuid
+  chunkSetId         String? @map("chunk_set_id") @db.Uuid
+  vectorIndexId      String? @map("vector_index_id") @db.Uuid
+  searchProjectionId String? @map("search_projection_id") @db.Uuid
 
-  aiRun            AiProcessingRun?    @relation(fields: [aiRunId, documentVersionId, documentId, userId], references: [id, documentVersionId, documentId, userId], onDelete: NoAction, onUpdate: Restrict)
-  predecessor      ProcessingJob?      @relation("JobDependency", fields: [predecessorJobId, documentVersionId, documentId, userId], references: [id, documentVersionId, documentId, userId], onDelete: NoAction, onUpdate: Restrict)
-  successors       ProcessingJob[]     @relation("JobDependency")
-  extraction       ExtractedText?      @relation(fields: [extractedTextId, documentVersionId, documentId, userId], references: [id, documentVersionId, documentId, userId], onDelete: NoAction, onUpdate: Restrict)
-  chunkSet         ChunkSet?           @relation(fields: [chunkSetId, documentVersionId, documentId, userId], references: [id, documentVersionId, documentId, userId], onDelete: NoAction, onUpdate: Restrict)
-  vectorIndex      VersionVectorIndex? @relation(fields: [vectorIndexId, documentVersionId, documentId, userId], references: [id, documentVersionId, documentId, userId], onDelete: NoAction, onUpdate: Restrict)
-  extractionStates VersionAiState[]    @relation("LastExtraction")
+  aiRun            AiProcessingRun?         @relation(fields: [aiRunId, documentVersionId, documentId, userId], references: [id, documentVersionId, documentId, userId], onDelete: NoAction, onUpdate: Restrict)
+  predecessor      ProcessingJob?           @relation("JobDependency", fields: [predecessorJobId, documentVersionId, documentId, userId], references: [id, documentVersionId, documentId, userId], onDelete: NoAction, onUpdate: Restrict)
+  successors       ProcessingJob[]          @relation("JobDependency")
+  extraction       ExtractedText?           @relation(fields: [extractedTextId, documentVersionId, documentId, userId], references: [id, documentVersionId, documentId, userId], onDelete: NoAction, onUpdate: Restrict)
+  chunkSet         ChunkSet?                @relation(fields: [chunkSetId, documentVersionId, documentId, userId], references: [id, documentVersionId, documentId, userId], onDelete: NoAction, onUpdate: Restrict)
+  vectorIndex      VersionVectorIndex?      @relation(fields: [vectorIndexId, documentVersionId, documentId, userId], references: [id, documentVersionId, documentId, userId], onDelete: NoAction, onUpdate: Restrict)
+  searchProjection VersionSearchProjection? @relation(fields: [searchProjectionId, documentVersionId, documentId, userId], references: [id, documentVersionId, documentId, userId], onDelete: NoAction, onUpdate: Restrict)
+  extractionStates VersionAiState[]         @relation("LastExtraction")
 
   document Document           @relation(fields: [documentId, userId], references: [id, userId], onDelete: Cascade, onUpdate: Restrict)
   version  DocumentVersion    @relation(fields: [documentVersionId, documentId, userId], references: [id, documentId, userId], onDelete: Cascade, onUpdate: Restrict)
@@ -277,6 +284,7 @@ model ProcessingJob {
   @@unique([id, documentVersionId, documentId, userId], map: "processing_jobs_owned_identity_key")
   @@index([aiRunId, jobType], map: "processing_jobs_run_type_idx")
   @@index([predecessorJobId], map: "processing_jobs_predecessor_idx")
+  @@index([searchProjectionId, jobType], map: "processing_jobs_search_projection_type_idx")
   @@index([userId, documentId, documentVersionId, createdAt], map: "processing_jobs_owner_version_created_idx")
   @@index([status, availableAt, id])
   @@index([status, leaseExpiresAt])
@@ -374,25 +382,26 @@ model AiProcessingRun {
 }
 
 model ExtractedText {
-  id                    String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId                String          @map("user_id") @db.Uuid
-  documentId            String          @map("document_id") @db.Uuid
-  documentVersionId     String          @map("document_version_id") @db.Uuid
-  extractionFingerprint String          @map("extraction_fingerprint") @db.VarChar(64)
-  extractor             String          @db.VarChar(100)
-  extractorVersion      String          @map("extractor_version") @db.VarChar(100)
-  normalizationVersion  String          @map("normalization_version") @db.VarChar(100)
-  sourceChecksum        String          @map("source_checksum") @db.VarChar(64)
-  contentHash           String          @map("content_hash") @db.VarChar(64)
-  text                  String          @db.Text
-  pageSpans             Json            @map("page_spans") @db.JsonB
-  characterCount        Int             @map("character_count")
-  pageCount             Int             @map("page_count")
-  outcome               String          @default("COMPLETED") @db.VarChar(16)
-  createdAt             DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
-  version               DocumentVersion @relation(fields: [documentVersionId, documentId, userId], references: [id, documentId, userId], onDelete: Cascade, onUpdate: Restrict)
+  id                    String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                String                    @map("user_id") @db.Uuid
+  documentId            String                    @map("document_id") @db.Uuid
+  documentVersionId     String                    @map("document_version_id") @db.Uuid
+  extractionFingerprint String                    @map("extraction_fingerprint") @db.VarChar(64)
+  extractor             String                    @db.VarChar(100)
+  extractorVersion      String                    @map("extractor_version") @db.VarChar(100)
+  normalizationVersion  String                    @map("normalization_version") @db.VarChar(100)
+  sourceChecksum        String                    @map("source_checksum") @db.VarChar(64)
+  contentHash           String                    @map("content_hash") @db.VarChar(64)
+  text                  String                    @db.Text
+  pageSpans             Json                      @map("page_spans") @db.JsonB
+  characterCount        Int                       @map("character_count")
+  pageCount             Int                       @map("page_count")
+  outcome               String                    @default("COMPLETED") @db.VarChar(16)
+  createdAt             DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+  version               DocumentVersion           @relation(fields: [documentVersionId, documentId, userId], references: [id, documentId, userId], onDelete: Cascade, onUpdate: Restrict)
   chunkSets             ChunkSet[]
   jobs                  ProcessingJob[]
+  searchProjections     VersionSearchProjection[]
 
   @@unique([documentVersionId, extractionFingerprint], map: "extracted_texts_version_fingerprint_key")
   @@unique([id, documentVersionId, documentId, userId], map: "extracted_texts_owned_identity_key")
@@ -563,4 +572,124 @@ model AiServingProfile {
   profile            EmbeddingProfile @relation(fields: [embeddingProfileId], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
   @@map("ai_serving_profile")
+}
+
+// Phase 5 T02 foundations only. No search generations, states or jobs are seeded.
+// Publication, monotonicity and transition guards are enforced by migration SQL.
+model SearchIndexGeneration {
+  id                    String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  generation            Int                          @unique
+  schemaVersion         Int                          @map("schema_version")
+  mappingVersion        String                       @map("mapping_version") @db.VarChar(100)
+  analyzerVersion       String                       @map("analyzer_version") @db.VarChar(100)
+  extractor             String                       @db.VarChar(100)
+  extractorVersion      String                       @map("extractor_version") @db.VarChar(100)
+  normalizationVersion  String                       @map("normalization_version") @db.VarChar(100)
+  segmentationVersion   String                       @map("segmentation_version") @db.VarChar(100)
+  fingerprint           String                       @db.VarChar(64)
+  metadataIndexName     String                       @unique @map("metadata_index_name") @db.VarChar(200)
+  pageIndexName         String                       @unique @map("page_index_name") @db.VarChar(200)
+  status                String                       @default("BUILDING") @db.VarChar(16)
+  createdAt             DateTime                     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime                     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  projections           VersionSearchProjection[]
+  maintenanceOperations SearchMaintenanceOperation[]
+
+  @@unique([fingerprint, generation])
+  @@map("search_index_generations")
+}
+
+model DocumentSearchState {
+  documentId        String                   @id @map("document_id") @db.Uuid
+  userId            String                   @map("user_id") @db.Uuid
+  desiredVersionId  String                   @map("desired_version_id") @db.Uuid
+  desiredRevision   Int                      @default(1) @map("desired_revision")
+  readyProjectionId String?                  @map("ready_projection_id") @db.Uuid
+  createdAt         DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime                 @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  document          Document                 @relation(fields: [documentId, userId], references: [id, userId], onDelete: Cascade, onUpdate: Restrict)
+  version           DocumentVersion          @relation(fields: [desiredVersionId, documentId, userId], references: [id, documentId, userId], onDelete: NoAction, onUpdate: Restrict)
+  readyProjection   VersionSearchProjection? @relation("SearchReadyProjection", fields: [readyProjectionId, desiredVersionId, documentId, userId, desiredRevision], references: [id, documentVersionId, documentId, userId, revision], onDelete: NoAction, onUpdate: Restrict)
+
+  @@unique([documentId, userId])
+  @@index([userId, desiredVersionId])
+  @@index([readyProjectionId])
+  @@map("document_search_states")
+}
+
+model VersionSearchProjection {
+  id                  String                @id @db.Uuid
+  userId              String                @map("user_id") @db.Uuid
+  documentId          String                @map("document_id") @db.Uuid
+  documentVersionId   String                @map("document_version_id") @db.Uuid
+  indexGenerationId   String                @map("index_generation_id") @db.Uuid
+  revision            Int
+  extractedTextId     String?               @map("extracted_text_id") @db.Uuid
+  metadataHash        String                @map("metadata_hash") @db.VarChar(64)
+  expectedRecordIds   Json                  @default("[]") @map("expected_record_ids") @db.JsonB
+  expectedRecordCount Int                   @default(0) @map("expected_record_count")
+  recordsHash         String?               @map("records_hash") @db.VarChar(64)
+  metadataReady       Boolean               @default(false) @map("metadata_ready")
+  textCoverage        String                @default("NOT_REQUESTED") @map("text_coverage") @db.VarChar(16)
+  status              String                @default("BUILDING") @db.VarChar(16)
+  verifiedAt          DateTime?             @map("verified_at") @db.Timestamptz(3)
+  createdAt           DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version             DocumentVersion       @relation(fields: [documentVersionId, documentId, userId], references: [id, documentId, userId], onDelete: Cascade, onUpdate: Restrict)
+  generation          SearchIndexGeneration @relation(fields: [indexGenerationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  extraction          ExtractedText?        @relation(fields: [extractedTextId, documentVersionId, documentId, userId], references: [id, documentVersionId, documentId, userId], onDelete: NoAction, onUpdate: Restrict)
+  readyStates         DocumentSearchState[] @relation("SearchReadyProjection")
+  jobs                ProcessingJob[]
+
+  @@unique([documentVersionId, indexGenerationId, revision], map: "search_projection_version_generation_revision_key")
+  @@unique([id, documentVersionId, documentId, userId], map: "search_projection_owned_identity_key")
+  @@unique([id, documentVersionId, documentId, userId, revision], map: "search_projection_owned_revision_key")
+  @@index([userId, documentId, documentVersionId])
+  @@index([indexGenerationId, status, id])
+  @@map("version_search_projections")
+}
+
+// Operator scan/audit state only. Actual work remains processing_jobs + outbox.
+model SearchMaintenanceOperation {
+  id              String                @id @db.Uuid
+  kind            String                @db.VarChar(16)
+  initiator       String                @db.VarChar(100)
+  userId          String?               @map("user_id") @db.Uuid
+  generationId    String                @map("generation_id") @db.Uuid
+  status          String                @default("RUNNING") @db.VarChar(16)
+  afterDocumentId String?               @map("after_document_id") @db.Uuid
+  examined        Int                   @default(0)
+  scheduled       Int                   @default(0)
+  skipped         Int                   @default(0)
+  discrepancies   Int                   @default(0)
+  failures        Int                   @default(0)
+  lastFailureCode String?               @map("last_failure_code") @db.VarChar(64)
+  leaseToken      String?               @map("lease_token") @db.Uuid
+  leaseExpiresAt  DateTime?             @map("lease_expires_at") @db.Timestamptz(3)
+  createdAt       DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  completedAt     DateTime?             @map("completed_at") @db.Timestamptz(3)
+  outcome         Json                  @default("{}") @db.JsonB
+  user            User?                 @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  generation      SearchIndexGeneration @relation(fields: [generationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([generationId, status])
+  @@map("search_maintenance_operations")
+}
+
+model SearchProjectionChange {
+  id              String    @id @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  reason          String    @db.VarChar(32)
+  resourceId      String    @map("resource_id") @db.Uuid
+  afterDocumentId String?   @map("after_document_id") @db.Uuid
+  status          String    @default("PENDING") @db.VarChar(16)
+  completedAt     DateTime? @map("completed_at") @db.Timestamptz(3)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user            User      @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([userId, reason, resourceId], map: "search_projection_change_owner_reason_resource_key")
+  @@index([status, updatedAt, id])
+  @@map("search_projection_changes")
 }

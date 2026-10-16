@@ -22,6 +22,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
   )
   const [api] = useState(() => new AuthApi())
+  useEffect(() => {
+    let owner: string | undefined
+    return queryClient.getQueryCache().subscribe((event) => {
+      if (event.query.queryKey[0] !== userKey[0]) return
+      const next = (event.query.state.data as { id?: string } | null)?.id
+      if (next === owner) return
+      owner = next
+      for (const key of ["search-draft", "search-source", "search-lookups"]) {
+        void queryClient.cancelQueries({ queryKey: [key] })
+        queryClient.removeQueries({ queryKey: [key] })
+      }
+    })
+  }, [queryClient])
   return (
     <QueryClientProvider client={queryClient}>
       <ApiContext.Provider value={api}>{children}</ApiContext.Provider>
@@ -50,6 +63,7 @@ export function useCurrentUser() {
     enabled:
       pathname.startsWith("/dashboard") ||
       pathname === "/ai" ||
+      pathname === "/search" ||
       pathname === "/settings" ||
       pathname === "/categories" ||
       pathname === "/tags" ||
@@ -64,9 +78,13 @@ export function useCurrentUser() {
     if (typeof BroadcastChannel === "undefined") return
     const channel = new BroadcastChannel("document-tracker-auth")
     channel.onmessage = (event: MessageEvent<unknown>) => {
-      if (event.data === "logout") cache.setQueryData(userKey, null)
-      else if (event.data === "login")
+      if (event.data === "logout") {
+        cache.removeQueries({ queryKey: ["search-draft"] })
+        cache.setQueryData(userKey, null)
+      } else if (event.data === "login") {
+        cache.removeQueries({ queryKey: ["search-draft"] })
         void cache.resetQueries({ queryKey: userKey })
+      }
     }
     return () => channel.close()
   }, [cache])

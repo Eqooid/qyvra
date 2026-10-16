@@ -90,6 +90,31 @@ export class QdrantVectorStore implements VectorStore, VectorSearchStore {
       );
     }
   }
+  /** Read-only collection/profile compatibility, including a valid empty candidate scope. */
+  async check(
+    request: Pick<
+      VectorSearchRequest,
+      'embeddingProfileId' | 'embeddingProfileVersion' | 'dimensions'
+    >,
+  ): Promise<void> {
+    await this.operation(async (client) => {
+      const collection = vectorCollectionName(request.embeddingProfileId);
+      const info = await client.getCollection(collection);
+      const vectors = info.config.params.vectors;
+      if (
+        !vectors ||
+        !('size' in vectors) ||
+        vectors.size !== request.dimensions ||
+        vectors.distance !== 'Cosine' ||
+        info.config.metadata?.embeddingProfileId !==
+          request.embeddingProfileId ||
+        info.config.metadata?.embeddingProfileVersion !==
+          request.embeddingProfileVersion ||
+        info.config.metadata?.payloadSchemaVersion !== 1
+      )
+        throw new VectorStoreFailure('VECTOR_COLLECTION_INCOMPATIBLE');
+    });
+  }
   async search(request: VectorSearchRequest): Promise<VectorCandidate[]> {
     const uuid = (value: unknown): value is string =>
       typeof value === 'string' &&
@@ -117,20 +142,7 @@ export class QdrantVectorStore implements VectorStore, VectorSearchStore {
     return this.operation(async (client) => {
       const collection = vectorCollectionName(request.embeddingProfileId);
       // Read-only compatibility check. Never create an absent collection during a query.
-      const info = await client.getCollection(collection);
-      const vectors = info.config.params.vectors;
-      if (
-        !vectors ||
-        !('size' in vectors) ||
-        vectors.size !== request.dimensions ||
-        vectors.distance !== 'Cosine' ||
-        info.config.metadata?.embeddingProfileId !==
-          request.embeddingProfileId ||
-        info.config.metadata?.embeddingProfileVersion !==
-          request.embeddingProfileVersion ||
-        info.config.metadata?.payloadSchemaVersion !== 1
-      )
-        throw new VectorStoreFailure('VECTOR_COLLECTION_INCOMPATIBLE');
+      await this.check(request);
       const found = await client.query(collection, {
         query: normalized(request.vector),
         limit: request.limit,

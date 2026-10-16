@@ -1,5 +1,11 @@
 # Environment variables
 
+**Phase 5 T10:** [search maintenance](../phase-5-search-operations.md) reuses existing
+server-only database, Elasticsearch and enrollment configuration. There are no new
+environment variables. Supply an operator-specific `DATABASE_URL` whose PostgreSQL
+login has `qyvra_search_operator` membership; do not grant that role to the normal
+API/worker login. Command flags bound batches, owner scope and operation IDs.
+
 **v1.3.1 T04:** API/worker share endpoint validation. Enabled official
 `api.openai.com` operations require their own `EMBEDDING_API_KEY` or
 `GENERATION_API_KEY` and HTTPS; native/private compatible services keep optional
@@ -311,3 +317,41 @@ The [T12 production review](../phase-4-verification.md#production-configuration-
 distinguishes mandatory services/settings, optional Redis progress and fixture-only
 HTTP/trust authentication. Its [recovery procedures](../phase-4-verification.md#operational-recovery)
 preserve authoritative database/files and reuse durable embeddings after Qdrant loss.
+
+## Phase 5 private Elasticsearch transport
+
+See the [T04 configuration table](../phase-5-elasticsearch.md#configuration) for
+server-only `ELASTICSEARCH_*` settings, Basic/API-key alternatives, trusted CA,
+namespace/schema and request/concurrency limits. Defaults are off; production
+requires authenticated HTTPS. Compose-only `SEARCH_*_PASSWORD_FILE` settings
+identify existing private host files, never password values. Enrollment/serving
+remain independent; transport enablement starts neither indexing nor retrieval.
+
+## Phase 5 keyword serving
+
+[T06 configuration and budgets](../phase-5-keyword-search.md#configuration-failures-and-budgets)
+define default-off KEYWORD_SEARCH_ENABLED, independent required serving-generation
+fingerprint and bounded scope/hit/deadline/concurrency/admission settings. The API
+receives them through Compose; the worker/outbox retain enrollment responsibilities.
+Elasticsearch must already be enabled, compatible and privately authenticated.
+No model setting or Redis connection is required for T06 first-page retrieval.
+Keyword cursors remain T07, and live acceptance remains pending.
+
+## Phase 5 hybrid search and result windows
+
+`HYBRID_SEARCH_ENABLED=false` defaults off. Enable only with keyword and semantic
+serving, matching SQL generation/profile and compatible Qdrant/query embeddings.
+It does not require RAG or a generation provider. Keyword does not depend on AI.
+Reuse `REDIS_URL`, `REDIS_CONNECT_TIMEOUT_MS` and `REDIS_COMMAND_TIMEOUT_MS` for
+private fixed windows. No cursor signing secret or new service is configured.
+[Bounds, five-minute TTL, quotas and Redis failure behavior](../phase-5-hybrid-search.md#deterministic-fusion-and-fixed-windows)
+are fixed server policy in T07. Compose forwards the hybrid flag only to the API.
+
+### Search outbox worker capability
+
+SEARCH_OUTBOX_DELIVERY_ENABLED is an optional boolean identifying deployment of
+real search handlers. If absent outside Compose it defaults to ELASTICSEARCH_ENABLED,
+preserving earlier delivery behavior. The private search Compose override sets it
+true on outbox without granting Elasticsearch credentials or network access.
+Enable only with matching real workers. It does not enable public search serving
+or bypass durable job/outbox recovery. See [live verification](../phase-5-live-verification.md).

@@ -1,0 +1,86 @@
+name: Phase 5 private search verification
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  private-search:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    services:
+      redis:
+        image: redis:7.4-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: qyvra_test
+          POSTGRES_PASSWORD: disposable-test-password
+          POSTGRES_DB: qyvra_search_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U qyvra_test -d qyvra_search_test"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      TEST_REDIS_URL: redis://127.0.0.1:6379
+      TEST_DATABASE_URL: postgresql://qyvra_test:disposable-test-password@127.0.0.1:5432/qyvra_search_test
+      DATABASE_URL: postgresql://qyvra_test:disposable-test-password@127.0.0.1:5432/qyvra_search_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Locked installs and shared build
+        run: |
+          mkdir -p .tools
+          npm --prefix packages/storage ci
+          npm --prefix packages/database ci
+          npm --prefix apps/api ci
+          npm --prefix apps/api run shared:build
+      - name: Parser sandbox and disposable migrations
+        run: |
+          sudo apt-get update && sudo apt-get install -y qpdf gcc
+          npm --prefix apps/api run pdf:sandbox:build
+          npm --prefix packages/database run migrate:deploy
+      - name: Populated T09 to T10 migration and operator CLI contracts
+        run: |
+          node --test packages/database/test/search-maintenance-migration.test.cjs
+          node --test apps/api/scripts/search-maintenance-args.test.cjs
+      - name: SQL publication and AI extraction regressions
+        run: node apps/api/node_modules/jest/bin/jest.js --config apps/api/test/jest-integration.json --runInBand --testPathPattern='(keyword-search|search-publication|search-maintenance|pdf-extraction|search-enrollment|search-contracts)\.integration-spec\.ts$'
+      - name: Adapter and configuration unit tests
+        working-directory: apps/api
+        run: npm test -- --runInBand --testPathPattern='(elasticsearch-(store|transport|configuration)|search-maintenance.service|keyword-search.service|safe-highlights|lexical-source.service|hybrid-search.service|search-ranking|search-window.store|semantic-search.service|keyword-search-configuration|lexical-projection|pdf-parser)\.spec\.ts$'
+      - name: Keyword HTTP security and OpenAPI
+        working-directory: apps/api
+        run: node node_modules/jest/bin/jest.js --config test/jest-e2e.json --runInBand --testPathPattern='keyword-search.e2e-spec.ts$'
+      - name: Private Compose contracts
+        run: node --test infrastructure/test/search-compose.test.cjs
+      - name: Real isolated search runtime and restart verification
+        run: node infrastructure/test/search-runtime.cjs
+  search-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Locked frontend install and checks
+        working-directory: apps/web
+        run: |
+          npm ci
+          # Existing unrelated frontend formatting debt is recorded in the T11 review.
+          node node_modules/prettier/bin/prettier.cjs --check app/search features/search lib/api/search.ts e2e/search.mock.spec.ts e2e/phase-five-search.spec.ts tests/search-client.test.ts tests/search.fixture.ts tests/search.integration.test.tsx playwright.search.config.ts
+          npm run lint
+          npm run typecheck
+          npm test -- --maxWorkers=1
+          npm run build
+      - name: Install Chromium
+        working-directory: apps/web
+        run: npx playwright install --with-deps chromium
+      - name: Production frontend browser checks with explicitly mocked API
+        working-directory: apps/web
+        run: node node_modules/@playwright/test/cli.js test --config playwright.search.config.ts

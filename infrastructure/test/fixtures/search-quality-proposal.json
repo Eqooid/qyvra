@@ -1,0 +1,479 @@
+{
+  "schemaVersion": 1,
+  "name": "phase5-synthetic-search-v1",
+  "status": "PROPOSED_NOT_OWNER_APPROVED",
+  "labelsAuthor": "Codex; proposed synthetic relevance judgments, not human-approved gold labels",
+  "relevanceScale": {
+    "0": "not relevant",
+    "1": "related",
+    "2": "relevant",
+    "3": "direct answer or exact target"
+  },
+  "ownerAliases": ["owner-a", "owner-b"],
+  "notes": [
+    "Aliases are fixture identities, not real user IDs or API filter UUIDs.",
+    "Create only in an isolated test stack; record assigned UUIDs, immutable versions and generation/profile pins.",
+    "Render page text without OCR; verify the PDF text layer preserves Unicode before evaluating.",
+    "Labels, hybrid non-regression and performance budgets require owner review before acceptance.",
+    "No live retrieval, relevance score or performance pass is claimed by this fixture."
+  ],
+  "budgets": {
+    "approval": "PENDING",
+    "p95KeywordMs": null,
+    "p95HybridMs": null,
+    "p95SuggestionsMs": null,
+    "maxResidentMemoryMiB": null,
+    "hybridNonRegression": null
+  },
+  "documents": [
+    {
+      "id": "D01",
+      "owner": "owner-a",
+      "title": "Orion hardware invoice",
+      "referenceNumber": "INV-2026-0042",
+      "category": "finance",
+      "tags": ["office"],
+      "pages": [
+        "Invoice INV-2026-0042 from Orion. USB-C docking station and external monitor. Payment due 30 October 2026.",
+        "The docking station supports two displays. Total payable 420 dollars."
+      ]
+    },
+    {
+      "id": "D02",
+      "owner": "owner-a",
+      "title": "Shop return policy",
+      "referenceNumber": "RET-30",
+      "category": "policies",
+      "tags": ["shopping"],
+      "pages": [
+        "Unused products may be returned within thirty days. Keep the purchase receipt. Refunds go to the original payment method."
+      ]
+    },
+    {
+      "id": "D03",
+      "owner": "owner-a",
+      "title": "Travel insurance coverage",
+      "referenceNumber": "POL-9917",
+      "category": "insurance",
+      "tags": ["travel"],
+      "pages": [
+        "Policy POL-9917 covers emergency medical treatment abroad and trip cancellation. Claims require supporting receipts."
+      ]
+    },
+    {
+      "id": "D04",
+      "owner": "owner-a",
+      "title": "Apartment seventeen lease",
+      "referenceNumber": "LEASE-17",
+      "category": "housing",
+      "tags": ["home"],
+      "pages": [
+        "The security deposit is refundable within thirty days after the tenant vacates apartment seventeen, subject to deductions for damage."
+      ]
+    },
+    {
+      "id": "D05",
+      "owner": "owner-a",
+      "title": "Solar maintenance handbook",
+      "referenceNumber": "SOL-203",
+      "category": "manuals",
+      "tags": ["home", "energy"],
+      "pages": [
+        "Annual inspection of solar panels is required. Isolate the DC supply before servicing.",
+        "Annual inspection includes checking panel mounts and cable insulation."
+      ]
+    },
+    {
+      "id": "D06",
+      "owner": "owner-a",
+      "title": "ค่าไฟฟ้าเดือนกันยายน",
+      "referenceNumber": "TH-2026-09",
+      "category": "finance",
+      "tags": ["home", "energy"],
+      "pages": [
+        "ค่าไฟฟ้าเดือนกันยายน จำนวนเงิน 1250 บาท กำหนดชำระวันที่ 15 ตุลาคม 2026"
+      ]
+    },
+    {
+      "id": "D07",
+      "owner": "owner-a",
+      "title": "Café reimbursement — Zoë",
+      "referenceNumber": "CAF-007",
+      "category": "finance",
+      "tags": ["travel"],
+      "pages": [
+        "Zoë paid for café refreshments during the team visit. Reimburse the receipt amount of 28 euros. Emoji fixture: ☕ 🧾."
+      ]
+    },
+    {
+      "id": "D08",
+      "owner": "owner-a",
+      "title": "Developer onboarding",
+      "referenceNumber": "DEV-101",
+      "category": "manuals",
+      "tags": ["office"],
+      "pages": [
+        "Install the development toolchain and run the local test suite. Never store passwords in source files."
+      ]
+    },
+    {
+      "id": "D09",
+      "owner": "owner-a",
+      "title": "Refrigerator warranty",
+      "referenceNumber": "WAR-220",
+      "category": "manuals",
+      "tags": ["home"],
+      "pages": [
+        "The refrigerator has a two year warranty. Registration and the original purchase receipt are required for a claim."
+      ]
+    },
+    {
+      "id": "D10",
+      "owner": "owner-a",
+      "title": "Monitor credit note",
+      "referenceNumber": "CRD-2042",
+      "category": "finance",
+      "tags": ["office"],
+      "pages": [
+        "Credit note for a returned external monitor. Refund amount 120 dollars to the original payment method."
+      ]
+    },
+    {
+      "id": "D11",
+      "owner": "owner-a",
+      "title": "Emergency contacts",
+      "referenceNumber": "SAFE-11",
+      "category": "policies",
+      "tags": ["office"],
+      "pages": [
+        "For a building evacuation, follow the marked exits and contact the site safety coordinator. This is a synthetic fixture, not emergency advice."
+      ]
+    },
+    {
+      "id": "D12",
+      "owner": "owner-a",
+      "title": "Employment leave policy",
+      "referenceNumber": "HR-12",
+      "category": "policies",
+      "tags": ["office"],
+      "pages": [
+        "Annual paid leave requests must be approved by the manager. Unused leave can be carried forward subject to the policy limit."
+      ]
+    },
+    {
+      "id": "F01",
+      "owner": "owner-b",
+      "title": "Private Orion invoice",
+      "referenceNumber": "FOREIGN-42",
+      "category": "finance",
+      "tags": ["office"],
+      "pages": [
+        "Orion USB-C docking station. lexicalprivatecanary42 belongs only to owner-b."
+      ]
+    },
+    {
+      "id": "F02",
+      "owner": "owner-b",
+      "title": "Private travel policy",
+      "referenceNumber": "FOREIGN-9917",
+      "category": "insurance",
+      "tags": ["travel"],
+      "pages": [
+        "Emergency medical treatment abroad. foreigntravelcanary99 is private."
+      ]
+    }
+  ],
+  "queries": [
+    {
+      "id": "Q01",
+      "query": "INV-2026-0042",
+      "kind": "exact-reference",
+      "labels": {
+        "D01": 3
+      },
+      "constraint": "D01 rank 1"
+    },
+    {
+      "id": "Q02",
+      "query": "POL-9917",
+      "kind": "exact-reference",
+      "labels": {
+        "D03": 3
+      },
+      "constraint": "D03 rank 1"
+    },
+    {
+      "id": "Q03",
+      "query": "LEASE-17",
+      "kind": "exact-reference",
+      "labels": {
+        "D04": 3
+      },
+      "constraint": "D04 rank 1"
+    },
+    {
+      "id": "Q04",
+      "query": "USB-C docking station",
+      "kind": "punctuation",
+      "labels": {
+        "D01": 3
+      }
+    },
+    {
+      "id": "Q05",
+      "query": "original payment method",
+      "match": "phrase",
+      "kind": "phrase",
+      "labels": {
+        "D02": 3,
+        "D10": 3
+      },
+      "constraint": "D02 and D10 within top 5"
+    },
+    {
+      "id": "Q06",
+      "query": "cable insulation",
+      "match": "phrase",
+      "kind": "pdf-body-second-page",
+      "labels": {
+        "D05": 3
+      },
+      "constraint": "D05 within top 5; page 2 source"
+    },
+    {
+      "id": "Q07",
+      "query": "Orion hardware invoice",
+      "kind": "title",
+      "labels": {
+        "D01": 3
+      }
+    },
+    {
+      "id": "Q08",
+      "query": "security deposit refundable",
+      "kind": "pdf-body",
+      "labels": {
+        "D04": 3
+      }
+    },
+    {
+      "id": "Q09",
+      "query": "emergency medical treatment abroad",
+      "match": "phrase",
+      "kind": "phrase",
+      "labels": {
+        "D03": 3
+      },
+      "constraint": "D03 within top 5"
+    },
+    {
+      "id": "Q10",
+      "query": "ค่าไฟฟ้า",
+      "kind": "unicode-thai",
+      "labels": {
+        "D06": 3
+      }
+    },
+    {
+      "id": "Q11",
+      "query": "Café",
+      "kind": "unicode-accent",
+      "labels": {
+        "D07": 3
+      }
+    },
+    {
+      "id": "Q12",
+      "query": "Zoë",
+      "kind": "unicode-name",
+      "labels": {
+        "D07": 3
+      }
+    },
+    {
+      "id": "Q13",
+      "query": "getting money back after moving out",
+      "kind": "semantic-paraphrase",
+      "labels": {
+        "D04": 3
+      }
+    },
+    {
+      "id": "Q14",
+      "query": "coverage if I become ill overseas",
+      "kind": "semantic-paraphrase",
+      "labels": {
+        "D03": 3
+      }
+    },
+    {
+      "id": "Q15",
+      "query": "how often should rooftop power equipment be checked",
+      "kind": "semantic-paraphrase",
+      "labels": {
+        "D05": 3
+      }
+    },
+    {
+      "id": "Q16",
+      "query": "can I return an unused purchase",
+      "kind": "semantic-paraphrase",
+      "labels": {
+        "D02": 3
+      }
+    },
+    {
+      "id": "Q17",
+      "query": "paid time away from work",
+      "kind": "semantic-paraphrase",
+      "labels": {
+        "D12": 3
+      }
+    },
+    {
+      "id": "Q18",
+      "query": "invoice",
+      "filters": {
+        "categoryAlias": "finance"
+      },
+      "kind": "category-filter",
+      "labels": {
+        "D01": 3
+      }
+    },
+    {
+      "id": "Q19",
+      "query": "inspection",
+      "filters": {
+        "tagAliases": ["energy"]
+      },
+      "kind": "tag-filter",
+      "labels": {
+        "D05": 3
+      }
+    },
+    {
+      "id": "Q20",
+      "query": "refund",
+      "filters": {
+        "categoryAlias": "finance"
+      },
+      "kind": "category-filter",
+      "labels": {
+        "D10": 3
+      }
+    },
+    {
+      "id": "Q21",
+      "query": "receipt",
+      "filters": {
+        "tagAliases": ["home"]
+      },
+      "kind": "tag-filter",
+      "labels": {
+        "D09": 3
+      }
+    },
+    {
+      "id": "Q22",
+      "query": "galactic marmalade telescope",
+      "kind": "no-match",
+      "labels": {},
+      "constraint": "No keyword matches expected; semantic false positives must be reviewed"
+    },
+    {
+      "id": "Q23",
+      "query": "UNISSUED-REF-0000",
+      "kind": "no-match",
+      "labels": {}
+    },
+    {
+      "id": "Q24",
+      "query": "refund",
+      "kind": "ambiguous",
+      "labels": {
+        "D02": 3,
+        "D10": 3,
+        "D04": 2
+      }
+    },
+    {
+      "id": "Q25",
+      "query": "receipt",
+      "kind": "ambiguous",
+      "labels": {
+        "D02": 3,
+        "D03": 2,
+        "D07": 3,
+        "D09": 3
+      }
+    },
+    {
+      "id": "Q26",
+      "query": "Orion",
+      "kind": "owner-isolation",
+      "labels": {
+        "D01": 3
+      },
+      "constraint": "No owner-b document or content"
+    },
+    {
+      "id": "Q27",
+      "query": "lexicalprivatecanary42",
+      "kind": "owner-isolation-no-match",
+      "labels": {},
+      "constraint": "Zero owner-b records, snippets, suggestions or foreign counts. No keyword match expected; report semantic false positives separately."
+    },
+    {
+      "id": "Q28",
+      "query": "foreigntravelcanary99",
+      "kind": "owner-isolation-no-match",
+      "labels": {},
+      "constraint": "Zero owner-b records, snippets, suggestions or foreign counts. No keyword match expected; report semantic false positives separately."
+    },
+    {
+      "id": "Q29",
+      "query": "CAF-007",
+      "kind": "exact-reference",
+      "labels": {
+        "D07": 3
+      },
+      "constraint": "D07 rank 1"
+    },
+    {
+      "id": "Q30",
+      "query": "annual inspection",
+      "kind": "multi-page-deduplication",
+      "labels": {
+        "D05": 3
+      },
+      "constraint": "One D05 document result, bounded page provenance"
+    }
+  ],
+  "evaluation": {
+    "defaultOwner": "owner-a",
+    "modes": ["keyword", "semantic", "hybrid"],
+    "metrics": [
+      "Recall@10",
+      "MRR",
+      "nDCG@10",
+      "foreignResultCount",
+      "exactReferenceRank",
+      "phraseTargetRank"
+    ],
+    "emptyLabelPolicy": "Report no-match and isolation cases separately; exclude undefined relevance denominators from aggregate Recall/MRR/nDCG and report denominators.",
+    "requiredRecord": [
+      "corpus hash",
+      "label approval",
+      "tree identity",
+      "index generation",
+      "model digest/profile/dimensions",
+      "candidate budgets",
+      "hardware",
+      "cold/warm timings",
+      "resource samples",
+      "all returned document identities"
+    ],
+    "executionStatus": "NOT_EXECUTED"
+  }
+}

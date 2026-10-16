@@ -1,3 +1,8 @@
+import { SearchIndexHandler } from './search-index.handler';
+import { SearchRemovalHandler } from './search-removal.handler';
+import { SearchTextExtractionHandler } from './search-text-extraction.handler';
+import { LEXICAL_STORE, type LexicalStore } from '../search/lexical-store';
+import { LexicalStoreModule } from '../search/lexical-store.module';
 import { Module } from '@nestjs/common';
 import { ProcessingRepository } from '@qyvra/database';
 import { STORAGE, type Storage } from '@qyvra/storage';
@@ -29,9 +34,78 @@ import {
 
 /** Independent worker context; no public HTTP modules. */
 @Module({
-  imports: [ConfigurationModule, DatabaseModule, StorageModule, ProgressModule],
+  imports: [
+    LexicalStoreModule,
+    ConfigurationModule,
+    DatabaseModule,
+    StorageModule,
+    ProgressModule,
+  ],
   providers: [
     WorkerReadiness,
+    {
+      provide: SearchRemovalHandler,
+      inject: [PrismaService, LEXICAL_STORE, ConfigurationService],
+      useFactory: (
+        database: PrismaService,
+        store: LexicalStore,
+        config: ConfigurationService,
+      ) =>
+        new SearchRemovalHandler(
+          database.client,
+          store,
+          config.elasticsearch.indexPrefix,
+          config.worker.jobLeaseMs,
+        ),
+    },
+    {
+      provide: SearchIndexHandler,
+      inject: [
+        PrismaService,
+        LEXICAL_STORE,
+        ConfigurationService,
+        PROCESSING_PROGRESS,
+      ],
+      useFactory: (
+        database: PrismaService,
+        store: LexicalStore,
+        config: ConfigurationService,
+        progress: ProcessingProgressStore,
+      ) =>
+        new SearchIndexHandler(
+          database.client,
+          store,
+          config.elasticsearch,
+          config.worker.jobLeaseMs,
+          progress,
+        ),
+    },
+    {
+      provide: SearchTextExtractionHandler,
+      inject: [
+        PrismaService,
+        STORAGE,
+        ConfigurationService,
+        PROCESSING_PROGRESS,
+      ],
+      useFactory: (
+        database: PrismaService,
+        storage: Storage,
+        config: ConfigurationService,
+        progress: ProcessingProgressStore,
+      ) =>
+        new SearchTextExtractionHandler(
+          database.client,
+          storage,
+          new IsolatedPdfParser(
+            config.extraction,
+            config.application.environment === 'production',
+          ),
+          config.extraction,
+          config.worker.jobLeaseMs,
+          progress,
+        ),
+    },
     {
       provide: QdrantVectorStore,
       inject: [ConfigurationService],
@@ -165,6 +239,9 @@ import {
         EmbeddingGenerationHandler,
         VectorIndexHandler,
         VectorRemovalHandler,
+        SearchIndexHandler,
+        SearchTextExtractionHandler,
+        SearchRemovalHandler,
         PROCESSING_PROGRESS,
       ],
       useFactory: (
@@ -176,11 +253,24 @@ import {
         embeddings: EmbeddingGenerationHandler,
         indexing: VectorIndexHandler,
         removal: VectorRemovalHandler,
+        searchIndex: SearchIndexHandler,
+        searchText: SearchTextExtractionHandler,
+        searchRemoval: SearchRemovalHandler,
         progress: ProcessingProgressStore,
       ) =>
         new ProcessingMessageHandler(
           new ProcessingRepository(database.client),
-          [integrity, extraction, chunks, embeddings, indexing, removal],
+          [
+            integrity,
+            extraction,
+            chunks,
+            embeddings,
+            indexing,
+            removal,
+            searchIndex,
+            searchText,
+            searchRemoval,
+          ],
           () => new Date(),
           config.worker.jobLeaseMs,
           progress,

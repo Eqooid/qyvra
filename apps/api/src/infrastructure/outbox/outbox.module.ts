@@ -1,3 +1,5 @@
+import { SearchEnrollmentModule } from '../../modules/search/search-enrollment.module';
+import { SearchEnrollmentService } from '../../modules/search/search-enrollment.service';
 import { Module } from '@nestjs/common';
 import { ProcessingRepository } from '@qyvra/database';
 import {
@@ -15,7 +17,12 @@ import { OutboxDispatcher } from './outbox-dispatcher.service';
 import { ProcessingRecovery } from './processing-recovery.service';
 
 @Module({
-  imports: [ConfigurationModule, DatabaseModule, MessagingModule],
+  imports: [
+    ConfigurationModule,
+    DatabaseModule,
+    MessagingModule,
+    SearchEnrollmentModule,
+  ],
   providers: [
     {
       provide: OutboxDispatcher,
@@ -29,15 +36,25 @@ import { ProcessingRecovery } from './processing-recovery.service';
           new ProcessingRepository(database.client),
           publisher,
           config.outbox,
+          undefined,
+          (config.outbox.searchDeliveryEnabled ?? config.elasticsearch.enabled)
+            ? ['INDEX_SEARCH', 'EXTRACT_SEARCH_TEXT', 'REMOVE_SEARCH_INDEX']
+            : [],
         ),
     },
     {
       provide: ProcessingRecovery,
-      inject: [PrismaService, ConfigurationService],
-      useFactory: (database: PrismaService, config: ConfigurationService) =>
+      inject: [PrismaService, ConfigurationService, SearchEnrollmentService],
+      useFactory: (
+        database: PrismaService,
+        config: ConfigurationService,
+        search: SearchEnrollmentService,
+      ) =>
         new ProcessingRecovery(
           new ProcessingRepository(database.client),
           config.processingRecovery,
+          undefined,
+          () => search.reconcile(config.processingRecovery.batchSize),
         ),
     },
   ],

@@ -142,6 +142,7 @@ test('Phase 3 to Phase 4 additive upgrade preserves jobs, originals and receipts
       'extracted_text_id',
       'chunk_set_id',
       'vector_index_id',
+      'search_projection_id',
     ]) {
       assert.equal(upgradedJob[field], null);
       delete upgradedJob[field];

@@ -1,0 +1,414 @@
+{
+  "recorded": "2026-10-16T05:33:02.459Z",
+  "acceptance": "NOT_READY",
+  "scope": "Exploratory keyword quality on agent-proposed labels; no semantic/hybrid comparison or peak-memory qualification",
+  "labelsStatus": "AGENT_PROPOSED_NOT_HUMAN_GOLD",
+  "corpusHash": "b4d52da5de61483f33dd9633af6fe9bf291f8852fc200d665f05fae213f0b5b4",
+  "rendering": "72-column word wrapping; unchanged logical text",
+  "correctedSyntheticVersions": [
+    "D01",
+    "D02",
+    "D03",
+    "D04",
+    "D07",
+    "D08",
+    "D09",
+    "D10",
+    "D11",
+    "D12"
+  ],
+  "extractionFidelity": [
+    {
+      "id": "D01",
+      "exactNormalizedText": true
+    },
+    {
+      "id": "D02",
+      "exactNormalizedText": true
+    },
+    {
+      "id": "D03",
+      "exactNormalizedText": true
+    },
+    {
+      "id": "D04",
+      "exactNormalizedText": true
+    },
+    {
+      "id": "D05",
+      "exactNormalizedText": true
+    },
+    {
+      "id": "D06",
+      "exactNormalizedText": true
+    },
+    {
+      "id": "D07",
+      "exactNormalizedText": true
+    },
+    {
+      "id": "D08",
+      "exactNormalizedText": true
+    },
+    {
+      "id": "D09",
+      "exactNormalizedText": true
+    },
+    {
+      "id": "D10",
+      "exactNormalizedText": true
+    },
+    {
+      "id": "D11",
+      "exactNormalizedText": true
+    },
+    {
+      "id": "D12",
+      "exactNormalizedText": true
+    },
+    {
+      "id": "F01",
+      "exactNormalizedText": true
+    },
+    {
+      "id": "F02",
+      "exactNormalizedText": true
+    }
+  ],
+  "repetitionsPerQuery": 2,
+  "paceBetweenRequestsMs": 2100,
+  "warmSamples": 30,
+  "warmP95Ms": 156.9490000000078,
+  "referenceBudgetMs": 1500,
+  "referenceBudgetSource": "Agent-selected local reference after delegated execution; not a production SLO",
+  "metrics": {
+    "recallAt10": {
+      "value": 0.733974358974359,
+      "queries": 26
+    },
+    "reciprocalRank": {
+      "value": 0.7692307692307693,
+      "queries": 26
+    },
+    "ndcgAt10": {
+      "value": 0.7485472777970237,
+      "queries": 26
+    }
+  },
+  "exactReferenceChecks": [
+    {
+      "id": "Q01",
+      "rankOne": true
+    },
+    {
+      "id": "Q02",
+      "rankOne": true
+    },
+    {
+      "id": "Q03",
+      "rankOne": true
+    },
+    {
+      "id": "Q29",
+      "rankOne": true
+    }
+  ],
+  "phraseChecks": [
+    {
+      "id": "Q05",
+      "allTargetsTopFive": true
+    },
+    {
+      "id": "Q09",
+      "allTargetsTopFive": true
+    }
+  ],
+  "queries": [
+    {
+      "id": "Q01",
+      "ranked": ["D01"],
+      "timingsMs": [280.4573000000091, 168.64270000001125],
+      "stable": true,
+      "recallAt10": 1,
+      "reciprocalRank": 1,
+      "ndcgAt10": 1
+    },
+    {
+      "id": "Q02",
+      "ranked": ["D03"],
+      "timingsMs": [165.4320999999909, 111.16890000000421],
+      "stable": true,
+      "recallAt10": 1,
+      "reciprocalRank": 1,
+      "ndcgAt10": 1
+    },
+    {
+      "id": "Q03",
+      "ranked": ["D04"],
+      "timingsMs": [96.59429999999702, 104.63310000000638],
+      "stable": true,
+      "recallAt10": 1,
+      "reciprocalRank": 1,
+      "ndcgAt10": 1
+    },
+    {
+      "id": "Q04",
+      "ranked": ["D01"],
+      "timingsMs": [88.20859999999811, 156.9490000000078],
+      "stable": true,
+      "recallAt10": 1,
+      "reciprocalRank": 1,
+      "ndcgAt10": 1
+    },
+    {
+      "id": "Q05",
+      "ranked": ["D10", "D02"],
+      "timingsMs": [110.3628999999928, 85.2957999999926],
+      "stable": true,
+      "recallAt10": 1,
+      "reciprocalRank": 1,
+      "ndcgAt10": 1
+    },
+    {
+      "id": "Q06",
+      "ranked": ["D05"],
+      "timingsMs": [83.08260000000882, 81.35039999999572],
+      "stable": true,
+      "recallAt10": 1,
+      "reciprocalRank": 1,
+      "ndcgAt10": 1
+    },
+    {
+      "id": "Q07",
+      "ranked": ["D01"],
+      "timingsMs": [149.60929999999644, 94.28040000000328],
+      "stable": true,
+      "recallAt10": 1,
+      "reciprocalRank": 1,
+      "ndcgAt10": 1
+    },
+    {
+      "id": "Q08",
+      "ranked": ["D04"],
+      "timingsMs": [97.48939999999129, 81.71370000000752],
+      "stable": true,
+      "recallAt10": 1,
+      "reciprocalRank": 1,
+      "ndcgAt10": 1
+    },
+    {
+      "id": "Q09",
+      "ranked": ["D03"],
+      "timingsMs": [81.01299999999173, 107.6987000000081],
+      "stable": true,
+      "recallAt10": 1,
+      "reciprocalRank": 1,
+      "ndcgAt10": 1
+    },
+    {
+      "id": "Q10",
+      "ranked": [],
+      "timingsMs": [103.68520000000717, 71.30999999999767],
+      "stable": true,
+      "recallAt10": 0,
+      "reciprocalRank": 0,
+      "ndcgAt10": 0
+    },
+    {
+      "id": "Q11",
+      "ranked": ["D07"],
+      "timingsMs": [93.42980000001262, 96.32469999999739],
+      "stable": true,
+      "recallAt10": 1,
+      "reciprocalRank": 1,
+      "ndcgAt10": 1
+    },
+    {
+      "id": "Q12",
+      "ranked": ["D07"],
+      "timingsMs": [102.84500000000116, 103.32850000000326],
+      "stable": true,
+      "recallAt10": 1,
+      "reciprocalRank": 1,
+      "ndcgAt10": 1
+    },
+    {
+      "id": "Q13",
+      "ranked": [],
+      "timingsMs": [85.48989999998594, 68.05289999998058],
+      "stable": true,
+      "recallAt10": 0,
+      "reciprocalRank": 0,
+      "ndcgAt10": 0
+    },
+    {
+      "id": "Q14",
+      "ranked": [],
+      "timingsMs": [93.7845999999845, 71.6429000000062],
+      "stable": true,
+      "recallAt10": 0,
+      "reciprocalRank": 0,
+      "ndcgAt10": 0
+    },
+    {
+      "id": "Q15",
+      "ranked": [],
+      "timingsMs": [69.75710000001709, 84.07110000000102],
+      "stable": true,
+      "recallAt10": 0,
+      "reciprocalRank": 0,
+      "ndcgAt10": 0
+    },
+    {
+      "id": "Q16",
+      "ranked": [],
+      "timingsMs": [82.40129999999772, 119.61280000000261],
+      "stable": true,
+      "recallAt10": 0,
+      "reciprocalRank": 0,
+      "ndcgAt10": 0
+    },
+    {
+      "id": "Q17",
+      "ranked": [],
+      "timingsMs": [93.91240000000107, 87.24169999998412],
+      "stable": true,
+      "recallAt10": 0,
+      "reciprocalRank": 0,
+      "ndcgAt10": 0
+    },
+    {
+      "id": "Q18",
+      "ranked": ["D01"],
+      "timingsMs": [101.0341999999946, 100.69199999998091],
+      "stable": true,
+      "recallAt10": 1,
+      "reciprocalRank": 1,
+      "ndcgAt10": 1
+    },
+    {
+      "id": "Q19",
+      "ranked": ["D05"],
+      "timingsMs": [175.7670999999973, 85.70570000002044],
+      "stable": true,
+      "recallAt10": 1,
+      "reciprocalRank": 1,
+      "ndcgAt10": 1
+    },
+    {
+      "id": "Q20",
+      "ranked": ["D10"],
+      "timingsMs": [100.5570000000007, 66.1478000000061],
+      "stable": true,
+      "recallAt10": 1,
+      "reciprocalRank": 1,
+      "ndcgAt10": 1
+    },
+    {
+      "id": "Q21",
+      "ranked": ["D09"],
+      "timingsMs": [89.2724000000162, 116.68950000000768],
+      "stable": true,
+      "recallAt10": 1,
+      "reciprocalRank": 1,
+      "ndcgAt10": 1
+    },
+    {
+      "id": "Q22",
+      "ranked": [],
+      "timingsMs": [64.84890000001178, 70.89240000001155],
+      "stable": true,
+      "recallAt10": null,
+      "reciprocalRank": null,
+      "ndcgAt10": null
+    },
+    {
+      "id": "Q23",
+      "ranked": [],
+      "timingsMs": [74.56410000001779, 69.66849999999977],
+      "stable": true,
+      "recallAt10": null,
+      "reciprocalRank": null,
+      "ndcgAt10": null
+    },
+    {
+      "id": "Q24",
+      "ranked": ["D10"],
+      "timingsMs": [108.26589999999851, 94.62029999998049],
+      "stable": true,
+      "recallAt10": 0.3333333333333333,
+      "reciprocalRank": 1,
+      "ndcgAt10": 0.541942129480027
+    },
+    {
+      "id": "Q25",
+      "ranked": ["D09", "D02", "D07"],
+      "timingsMs": [79.67480000000796, 80.17110000000685],
+      "stable": true,
+      "recallAt10": 0.75,
+      "reciprocalRank": 1,
+      "ndcgAt10": 0.920287093242588
+    },
+    {
+      "id": "Q26",
+      "ranked": ["D01"],
+      "timingsMs": [83.60719999999856, 149.1085000000021],
+      "stable": true,
+      "recallAt10": 1,
+      "reciprocalRank": 1,
+      "ndcgAt10": 1
+    },
+    {
+      "id": "Q27",
+      "ranked": [],
+      "timingsMs": [61.37269999997807, 62.280500000022585],
+      "stable": true,
+      "recallAt10": null,
+      "reciprocalRank": null,
+      "ndcgAt10": null
+    },
+    {
+      "id": "Q28",
+      "ranked": [],
+      "timingsMs": [88.7449000000197, 79.05369999998948],
+      "stable": true,
+      "recallAt10": null,
+      "reciprocalRank": null,
+      "ndcgAt10": null
+    },
+    {
+      "id": "Q29",
+      "ranked": ["D07"],
+      "timingsMs": [126.45309999998426, 88.89299999998184],
+      "stable": true,
+      "recallAt10": 1,
+      "reciprocalRank": 1,
+      "ndcgAt10": 1
+    },
+    {
+      "id": "Q30",
+      "ranked": ["D05"],
+      "timingsMs": [151.07690000001458, 81.01999999998952],
+      "stable": true,
+      "recallAt10": 1,
+      "reciprocalRank": 1,
+      "ndcgAt10": 1
+    }
+  ],
+  "remaining": [
+    "Thai Q10 returns no result despite complete canonical extraction",
+    "No human gold judgments or approved hybrid non-regression threshold",
+    "Live hybrid remains unrun under the explicit prior instruction; configured endpoint is now reachable",
+    "Peak-memory, dense-load and exhaustive interruption scenarios remain unverified",
+    "Final-candidate remote CI requires owner manual push"
+  ],
+  "recoveryChecks": [
+    "14 corpus PDFs reached verified READY text publication through broker/worker",
+    "30 queries / 90 live keyword requests with no foreign-owner result IDs",
+    "Broker outage upload persisted jobs and published after broker restart",
+    "Worker unavailability retained pending work and published on restart",
+    "Archive with cleanup worker stopped excludes physically stale index content; restore/restart and soft deletion preserve lifecycle visibility",
+    "Elasticsearch outage gives controlled 503 while document list works; restart restores keyword search"
+  ],
+  "duplicateDeliveryCheck": "Two real workers drained duplicate completed-job envelopes without changing the ready publication"
+}

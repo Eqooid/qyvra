@@ -13,6 +13,41 @@ The [developer baseline](developer/README.md), [v1.1.0 delta](developer/versions
 and [v1.2.0 processing walkthrough](developer/versions/v1.2.0.md) describe their recorded
 versions. Current architecture and Phase 4 contracts are linked below.
 
+## Phase 5 — v1.4.0 planned
+
+- [Live continuation evidence and remaining gates](phase-5-live-verification.md)
+- [Proposed 30-query relevance corpus](phase-5-search-quality.md)
+
+- [T12 final verification and owner-only manual Git handoff](phase-5-manual-git-handoff.md)
+- [T11 acceptance matrix, security findings and NOT READY decision](phase-5-verification.md)
+- [v1.4.0 draft candidate scope, upgrade and rollback](releases/v1.4.0.md)
+- [v1.4.0 developer walkthrough](developer/versions/v1.4.0.md)
+- [T01 scope, audited baseline, architecture, ordered tasks, acceptance and testing](phase-5-search.md)
+- [T02 implemented search persistence, v3 contracts and verification](phase-5-data-foundation.md)
+- [T03 enrollment, lifecycle fencing, durable fanout and verification](phase-5-search-enrollment.md)
+- [T04 private Elasticsearch adapter, mappings, deployment and verification](phase-5-elasticsearch.md)
+- [T05 independent PDF extraction, verified lexical publication and test evidence](phase-5-lexical-publication.md)
+- [T06 authorized keyword API, canonical snippets, limits and test evidence](phase-5-keyword-search.md)
+- [T07 hybrid candidates, RRF, bounded Redis windows and verification](phase-5-hybrid-search.md)
+- [T08 safe highlights, private suggestions and exact lexical sources](phase-5-search-evidence.md)
+- [T09 search frontend, browser source workflows and verification](phase-5-search-frontend.md)
+- [T10 backfill, rebuild, reconciliation, operator recovery and verification](phase-5-search-operations.md)
+- [ADR-007: Rebuildable keyword projections with SQL publication](decisions/ADR-007-rebuildable-keyword-search.md)
+- [ADR-008: Application-side cross-index document ranking](decisions/ADR-008-cross-index-hybrid-ranking.md)
+- [ADR-009: Maintenance generations and bounded SQL cutover](decisions/ADR-009-search-maintenance-generations.md)
+
+T01 design and T02/T03 foundations are implemented. T04 transport/deployment
+configuration and T05 lexical handlers are implemented and locally verified, with
+live acceptance pending. T06 keyword serving is implemented and defaults off;
+T07 cursor/hybrid and T08 highlights/private suggestions/source reads are implemented
+with live acceptance pending; T09 frontend is implemented and locally verified,
+with the initial live Nginx workflow passed and extended/hybrid acceptance pending. `VERSION`
+remains `1.3.1`; v1.4.0 is a target, not a prepared or published release.
+T10 maintenance is implemented with local verification and pending live recovery
+acceptance. T11 reviewed the candidate: **NOT READY**, with mandatory live,
+quality/resource and reviewed-candidate remote CI gates outstanding. T11 remains
+PARTIAL; see its continuation checkpoint rather than repeating implementation.
+
 ## Phase 4 — v1.3.0
 
 - [T01 architecture, scope and contracts](phase-4-ai-rag.md)

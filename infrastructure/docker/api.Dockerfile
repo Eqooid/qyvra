@@ -39,6 +39,8 @@ COPY --from=build /app/apps/api/dist /app/apps/api/dist
 COPY --from=pdf-sandbox /tmp/pdf-parser-guard /app/apps/api/dist/infrastructure/extraction/pdf-parser-guard
 COPY --from=build /app/apps/api/package.json /app/apps/api/package.json
 COPY apps/api/scripts/ai-backfill.cjs /app/apps/api/scripts/ai-backfill.cjs
+COPY apps/api/scripts/search-maintenance.cjs /app/apps/api/scripts/search-maintenance.cjs
+COPY apps/api/scripts/search-maintenance-args.cjs /app/apps/api/scripts/search-maintenance-args.cjs
 COPY --from=production-dependencies /app/packages/database/node_modules /app/packages/database/node_modules
 COPY --from=build /app/packages/database/dist /app/packages/database/dist
 COPY --from=build /app/packages/database/package.json /app/packages/database/package.json

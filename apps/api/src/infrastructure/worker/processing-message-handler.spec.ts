@@ -34,6 +34,7 @@ const job = {
 function setup(handlers: ProcessingJobHandler[] = []) {
   const repository = {
     findById: jest.fn().mockResolvedValue(job),
+    cancelObsoleteSearchJob: jest.fn().mockResolvedValue(false),
     claim: jest.fn().mockResolvedValue({
       ...job,
       status: 'PROCESSING',
@@ -58,6 +59,47 @@ function setup(handlers: ProcessingJobHandler[] = []) {
 }
 
 describe('processing message boundary', () => {
+  it('rejects mismatched v3 lineage and dead-letters unavailable search handlers without claiming work', async () => {
+    const { repository, handler } = setup();
+    const search = {
+      ...message,
+      schemaVersion: 3 as const,
+      jobType: 'INDEX_SEARCH' as const,
+      searchProjectionId: '66666666-6666-5666-8666-666666666666',
+      indexGenerationId: '77777777-7777-4777-8777-777777777777',
+      revision: 1,
+    };
+    const row = {
+      ...job,
+      jobType: search.jobType,
+      searchProjectionId: search.searchProjectionId,
+      searchProjection: {
+        indexGenerationId: search.indexGenerationId,
+        revision: 1,
+      },
+    };
+    repository.findById.mockResolvedValue(row);
+    expect(await handler.handle(search, false)).toBe('dead-letter');
+    expect(repository.claim).not.toHaveBeenCalled();
+    expect(repository.complete).not.toHaveBeenCalled();
+    expect(repository.fail).not.toHaveBeenCalled();
+    repository.cancelObsoleteSearchJob.mockResolvedValueOnce(true);
+    expect(await handler.handle(search, true)).toBe('ack');
+    repository.cancelObsoleteSearchJob.mockRejectedValueOnce(
+      new Error('database unavailable'),
+    );
+    expect(await handler.handle(search, true)).toBe('retry');
+    repository.cancelObsoleteSearchJob.mockClear();
+    for (const altered of [
+      { revision: 2 },
+      { indexGenerationId: message.jobId },
+      { searchProjectionId: message.jobId },
+    ])
+      expect(await handler.handle({ ...search, ...altered }, false)).toBe(
+        'dead-letter',
+      );
+    expect(repository.cancelObsoleteSearchJob).not.toHaveBeenCalled();
+  });
   it('persists unavailable AI handler failure and acknowledges only after the write', async () => {
     const { repository, handler } = setup();
     const ai = {

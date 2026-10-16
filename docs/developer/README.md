@@ -1,5 +1,10 @@
 # QYVRA developer documentation
 
+**Phase 5 target v1.4.0:** use the [candidate walkthrough](versions/v1.4.0.md),
+[upgrade guide](../releases/v1.4.0.md) and [T11 acceptance review](../phase-5-verification.md).
+Implemented search is under review, **NOT READY** for release; `VERSION` stays
+`1.3.1`. Historical guides below retain their recorded version scope.
+
 **Current implementation: v1.3.1 — Local AI Provider Compatibility, unpublished candidate.**
 Start with the [v1.3.1 walkthrough](versions/v1.3.1.md), [local setup](../development/local-ai.md)
 and [release notes](../releases/v1.3.1.md). T05 certifies the documented pinned pair

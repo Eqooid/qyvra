@@ -1,4 +1,46 @@
+**Live continuation (16 October 2026):** [current evidence](phase-5-live-verification.md)
+records passed real Elasticsearch and Nginx/browser checks. Earlier Docker-blocked
+statements below describe their dated checkpoints. Hybrid and quality/resource
+acceptance remain open; no release is claimed.
+
 # QYVRA delivery roadmap
+
+**Phase 5 T12 follow-up (16 October 2026):** [manual Git handoff review](phase-5-manual-git-handoff.md)
+preserves the T11 NOT READY decision. Source evidence is unchanged; Docker/live
+acceptance and A11 remain outstanding. T12 is an owner-requested follow-up to the
+approved T01–T11 plan, not a new feature phase or permission to publish.
+
+**Phase 5 T11 review:** [acceptance and release readiness](phase-5-verification.md)
+is **PARTIAL**, decision **NOT READY**. T01/T02 are complete; T03–T10 retain
+applicable mandatory live gates. A11 judged quality/resource measurements and
+reviewed-candidate remote CI are outstanding. Continue verification, not new
+feature work. `VERSION` stays `1.3.1`; v1.4.0 is an unreleased target.
+
+**Phase 5 T10 increment:** [search maintenance and operator recovery](phase-5-search-operations.md)
+are implemented with local SQL/parser and simulated-transport verification. Live
+Elasticsearch/broker/restart acceptance is pending; T10 is **PARTIAL**, not fully
+accepted. Next: **T11 — Acceptance Review, Documentation Finalization, and Release
+Readiness**, including outstanding acceptance gates. `VERSION` remains `1.3.1`.
+
+**Phase 5 T09 increment:** [search frontend and browser source workflows](phase-5-search-frontend.md)
+are implemented and locally verified, including real Chromium with mocked APIs.
+Live Nginx/Compose/model acceptance remains pending; T09 is not fully accepted.
+Next: T10 — Backfill, rebuild, reconciliation and operator recovery. `VERSION`
+stays `1.3.1`; Phase 5 is unreleased.
+
+**Phase 5 T08 increment:** [safe highlights, private suggestions and lexical sources](phase-5-search-evidence.md)
+are implemented with live acceptance pending. Keyword/hybrid lexical matches gain
+plain canonical scalar ranges and text segments; ranking stays unchanged.
+Authenticated `POST /api/v1/search/suggestions` returns only authorized title/issuer/
+reference text. Exact version/extraction/page/segment GET reads follow the approved
+retained historical-source policy. T09 frontend is next; `VERSION` stays `1.3.1`.
+
+**Phase 5 T07 increment:** [hybrid retrieval and fixed result windows](phase-5-hybrid-search.md)
+are implemented, default off, with live infrastructure/model acceptance pending.
+`POST /api/v1/search/hybrid` fuses authorized lexical/semantic document ranks with
+RRF60. Keyword gains owner/session-bound Redis continuation; every page reauthorizes
+canonical PostgreSQL sources. Existing semantic/RAG contracts remain unchanged.
+T08 is implemented in the increment above; T09 frontend is next; `VERSION` remains `1.3.1`.
 
 **Current candidate: v1.3.1 — Local AI Provider Compatibility.** T01–T06 are complete
 within the [documented support matrix](local-provider-release-preparation.md).
@@ -207,7 +249,9 @@ LIMITATIONS**, 8 October 2026. **T13 complete:** [release snapshot/notes](releas
 changelog and [versioning/preparation assessment](phase-4-release-preparation.md)
 finalize Phase 4. Implementation, local verification and release preparation are
 complete; remote CI on the reviewed commit, tagging and publication remain separate
-user-approved steps. No v1.3.0 release is declared or tagged; Phase 5 is not started.
+user-approved steps. No v1.3.0 release is declared or tagged in that preparation
+record; Phase 5 keyword/hybrid feature delivery remains **Planned**. Its T01 plan
+and T02 persistence foundation are documented separately below.
 
 The [v1.3.0 developer delta](developer/versions/v1.3.0.md), completed in the
 [9 October T13 correction](phase-4-release-preparation.md#t13-correction--9-october-2026),
@@ -260,6 +304,54 @@ invariants remain intact. T05 verifies the pinned pair; T06 prepares the candida
 
 No agents, OCR, streaming, new formats, hybrid search, frameworks or GPU management.
 No model downloads, reindex, version bump, release action or Phase 5 work in T01.
+
+## Phase 5 — v1.4.0 planned: advanced keyword and hybrid search
+
+**T01 documentation/design, T02 persistence/contracts and T03 enrollment/fencing implemented.**
+The [implemented T02 foundation](phase-5-data-foundation.md) adds owned SQL state,
+an additive migration and v3 job/outbox contracts. [T03](phase-5-search-enrollment.md)
+adds atomic enrollment, lifecycle revocation and bounded fanout; enrollment defaults
+off. T04 provides optional private Elasticsearch configuration;
+[T05](phase-5-lexical-publication.md) registers real metadata/PDF handlers and
+verified publication. Removal delivery remains held for T10. T04/T05 live
+acceptance is pending. [T06](phase-5-keyword-search.md) adds the default-off keyword
+route with canonical SQL authorization; [T07](phase-5-hybrid-search.md) implements
+fixed keyword/hybrid continuation and document RRF, with live acceptance pending.
+The [canonical Phase 5 plan](phase-5-search.md) validates the existing roadmap
+theme against the v1.3.1 candidate code and records proposed architecture,
+security/reliability acceptance, testing and independently reviewable tasks.
+Target version is **v1.4.0** under the minor-feature policy; `VERSION` remains
+`1.3.1` until final release preparation. No release or Elasticsearch deployment
+is performed by T01.
+
+Planned scope: owned current-version metadata/PDF keyword search, highlights,
+bounded private autocomplete and application-side hybrid ranking with existing
+Qdrant. Accepted ADR [007](decisions/ADR-007-rebuildable-keyword-search.md) and
+accepted-for-implementation ADR [008](decisions/ADR-008-cross-index-hybrid-ranking.md) describe rebuildable SQL-fenced
+projections and rank fusion. New parser enrollment reuses canonical extraction
+without requiring models; existing catalog and semantic/RAG contracts stay intact.
+OCR, historical/archived search, automatic hybrid RAG, agents/frameworks and
+identity changes are excluded. Legacy no-version records remain in the catalog.
+
+| Task | Planned deliverable                                                  | Status                                                                          |
+| ---- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| T01  | Scope, architecture and implementation plan                          | Complete; ADR-007 accepted, ADR-008 Proposed                                    |
+| T02  | Search persistence and versioned processing contracts                | Implemented; verified foundation                                                |
+| T03  | Search enrollment, lifecycle fencing and durable fanout              | Implemented; local verification, live transport outstanding                     |
+| T04  | Private Elasticsearch adapter and deployment configuration           | Implemented; live acceptance pending                                            |
+| T05  | Model-independent PDF text and verified lexical publication          | Implemented; local tests pass, live acceptance pending                          |
+| T06  | Authorized keyword search API                                        | Implemented first page; defaults off, live acceptance pending; continuation T07 |
+| T07  | Hybrid candidates, document fusion and bounded result windows        | Implemented locally; live acceptance pending                                    |
+| T08  | Safe highlights, private autocomplete and lexical source navigation  | Implemented locally; live acceptance pending                                    |
+| T09  | Search frontend and browser source workflows                         | Planned                                                                         |
+| T10  | Backfill, rebuild, reconciliation and operator recovery              | Partial acceptance; implemented/local verification, live recovery pending        |
+| T11  | Acceptance Review, Documentation Finalization, and Release Readiness | Partial; review/docs/local checks recorded, mandatory acceptance gates open       |
+
+T02–T11 dependencies, affected modules, acceptance, tests, documentation and risks
+are defined in the owning plan. T02 records real PostgreSQL/contract verification;
+no Elasticsearch or live search feature verification is claimed. Review
+proposed scope details and ADR choices in their implementation slices; preserve
+historical Phase 1–4 and local-provider records.
 
 ## Later phases and earlier planning directions
 

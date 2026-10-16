@@ -24,6 +24,9 @@ export const settings = registerAs('settings', () =>
  */
 @Injectable()
 export class ConfigurationService {
+  get elasticsearch() {
+    return this.settings.elasticsearch;
+  }
   get rag() {
     return this.settings.rag;
   }
@@ -32,6 +35,15 @@ export class ConfigurationService {
   }
   get semanticSearch() {
     return this.settings.semanticSearch;
+  }
+  get hybridSearch() {
+    return this.settings.hybridSearch;
+  }
+  get keywordSearch() {
+    return this.settings.keywordSearch;
+  }
+  get searchEnrollment() {
+    return this.settings.searchEnrollment;
   }
   get aiIngestion() {
     return this.settings.aiIngestion;

@@ -1,0 +1,85 @@
+# Optional authenticated local lexical index; load after docker-compose.yml.
+# Production must use authenticated HTTPS; this isolated development HTTP is explicit.
+services:
+  elasticsearch:
+    image: &search-image docker.elastic.co/elasticsearch/elasticsearch:9.4.6@sha256:6650a69591cddfb3afc1a586ce3796c5c0099852d8429fe13e71ec18e0150135
+    init: true
+    restart: unless-stopped
+    networks: [search]
+    mem_limit: 2g
+    cpus: 2
+    entrypoint: ["bash", "/usr/share/elasticsearch/qyvra-entrypoint.sh"]
+    command: ["eswrapper"]
+    tmpfs:
+      - /run/qyvra-search-secrets:rw,noexec,nosuid,nodev,size=1m,uid=1000,gid=0,mode=0700
+    environment:
+      discovery.type: single-node
+      node.store.allow_mmap: "false"
+      xpack.security.enabled: "true"
+      xpack.security.autoconfiguration.enabled: "false"
+      xpack.security.enrollment.enabled: "false"
+      xpack.security.http.ssl.enabled: "false"
+      xpack.security.transport.ssl.enabled: "false"
+      xpack.license.self_generated.type: basic
+      action.auto_create_index: "false"
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+      ELASTIC_PASSWORD_FILE: /run/secrets/search_bootstrap_password
+    secrets: [search_bootstrap_password]
+    volumes:
+      - search_data:/usr/share/elasticsearch/data
+      - ./infrastructure/search/health.sh:/usr/share/elasticsearch/qyvra-health.sh:ro
+      - ./infrastructure/search/entrypoint.sh:/usr/share/elasticsearch/qyvra-entrypoint.sh:ro
+    healthcheck:
+      test: ["CMD", "bash", "/usr/share/elasticsearch/qyvra-health.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+  search-setup:
+    image: *search-image
+    restart: "no"
+    networks: [search]
+    entrypoint: ["bash", "/usr/share/elasticsearch/qyvra-setup.sh"]
+    secrets: [search_bootstrap_password, search_runtime_password]
+    volumes:
+      - ./infrastructure/search/setup.sh:/usr/share/elasticsearch/qyvra-setup.sh:ro
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+  api:
+    networks: [default, vector, search]
+    environment: &search-client
+      ELASTICSEARCH_ENABLED: "true"
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      ELASTICSEARCH_ALLOW_HTTP: "true"
+      ELASTICSEARCH_USERNAME: qyvra_search
+      ELASTICSEARCH_PASSWORD_FILE: /run/secrets/search_runtime_password
+      ELASTICSEARCH_INDEX_PREFIX: ${ELASTICSEARCH_INDEX_PREFIX:-qyvra-search}
+      ELASTICSEARCH_SCHEMA_VERSION: "1"
+      ELASTICSEARCH_TIMEOUT_MS: ${ELASTICSEARCH_TIMEOUT_MS:-10000}
+      ELASTICSEARCH_MAX_REQUEST_BYTES: ${ELASTICSEARCH_MAX_REQUEST_BYTES:-1048576}
+      ELASTICSEARCH_MAX_RESPONSE_BYTES: ${ELASTICSEARCH_MAX_RESPONSE_BYTES:-4194304}
+      ELASTICSEARCH_BULK_SIZE: ${ELASTICSEARCH_BULK_SIZE:-100}
+      ELASTICSEARCH_MAX_SCOPES: ${ELASTICSEARCH_MAX_SCOPES:-100}
+      ELASTICSEARCH_CONCURRENCY: ${ELASTICSEARCH_CONCURRENCY:-4}
+    secrets: [search_runtime_password]
+  worker:
+    networks: [default, vector, search]
+    environment: *search-client
+    secrets: [search_runtime_password]
+  outbox:
+    environment:
+      SEARCH_OUTBOX_DELIVERY_ENABLED: "true"
+# Deliberately no health depends_on: optional ES outages must not gate CRUD/workers.
+networks:
+  search:
+    internal: true
+volumes:
+  search_data:
+    name: ${SEARCH_VOLUME_NAME:-${COMPOSE_PROJECT_NAME}_search_data}
+    external: ${SEARCH_VOLUME_EXTERNAL:-false}
+secrets:
+  search_bootstrap_password:
+    file: ${SEARCH_BOOTSTRAP_PASSWORD_FILE:?Set an existing private bootstrap password file}
+  search_runtime_password:
+    file: ${SEARCH_RUNTIME_PASSWORD_FILE:?Set an existing private runtime password file}

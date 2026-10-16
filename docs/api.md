@@ -1,5 +1,47 @@
 # API conventions and OpenAPI
 
+Phase 5 contracts are summarized in the [v1.4.0 candidate walkthrough](developer/versions/v1.4.0.md#http-and-frontend-contracts).
+The [T11 acceptance review](phase-5-verification.md) records source/security and
+local HTTP evidence separately from pending live stack verification. No T11 public
+API, DTO, authorization policy or OpenAPI schema behavior changes were introduced.
+
+**Phase 5 T10:** [operator search maintenance](phase-5-search-operations.md) adds
+no HTTP routes or public DTO changes. The CLI requires a separately authorized
+PostgreSQL role; ordinary application sessions cannot invoke it. Existing search,
+autocomplete, source, document and RAG API contracts remain unchanged.
+
+**Phase 5 T08 increment:** [safe highlights, private suggestions and lexical sources](phase-5-search-evidence.md)
+are implemented with live acceptance pending. Keyword/hybrid lexical matches gain
+plain canonical scalar ranges and text segments; ranking stays unchanged.
+Authenticated `POST /api/v1/search/suggestions` returns only authorized title/issuer/
+reference text. Exact version/extraction/page/segment GET reads follow the approved
+retained historical-source policy. T09 frontend is next; `VERSION` stays `1.3.1`.
+
+**Phase 5 T07 increment:** [hybrid retrieval and fixed result windows](phase-5-hybrid-search.md)
+are implemented, default off, with live infrastructure/model acceptance pending.
+`POST /api/v1/search/hybrid` fuses authorized lexical/semantic document ranks with
+RRF60. Keyword gains owner/session-bound Redis continuation; every page reauthorizes
+canonical PostgreSQL sources. Existing semantic/RAG contracts remain unchanged.
+T08 is implemented in the increment above; T09 frontend is next; `VERSION` remains `1.3.1`.
+
+**Phase 5 T06 increment:** [authorized keyword API](phase-5-keyword-search.md)
+adds POST `/api/v1/search/keyword`, strict filters, SQL current-projection scopes
+and canonical revalidation/snippets. Serving defaults off; local checks pass and
+live acceptance remains pending. Deterministic first-page output is implemented;
+T07 owns Redis cursor windows/continuation. Existing semantic/RAG contracts are unchanged.
+
+**Phase 5 T05 increment:** [model-independent PDF text and verified lexical publication](phase-5-lexical-publication.md)
+register real metadata/PDF worker handlers, shared canonical extraction, fenced SQL
+branch completion and exact search-visible verification. Local verification passes;
+live infrastructure acceptance is pending. Existing processing status adds optional
+independent lexical coverage. No new migration or public search route is introduced.
+Historical phase-specific statements below retain their original scope.
+
+**Phase 5 T02 is internal:** [v3 search processing contracts](phase-5-data-foundation.md)
+add no public search endpoint or request fields. Existing processing-status
+job-type vocabulary recognizes future search jobs, while retaining its safe
+projection and AI pipeline behavior. Automatic search enrollment is not enabled.
+
 **Phase 4 T03 orchestration, T04 PDF extraction and T05 chunking are implemented:** [durable stage contracts and lifecycle](phase-4-processing.md)
 cover atomic successor scheduling, v2 transport, shared retry/recovery, worker routing,
 lifecycle fencing and the owned status extension. [Durable PDF text extraction](phase-4-pdf-extraction.md)
@@ -58,13 +100,18 @@ envelopes; request-provided ownership/profile/provider fields are rejected. POST
 requests require `X-CSRF-Protection: 1` and the existing Origin policy. This table
 links to detailed implemented contracts; controller-generated schemas remain authoritative.
 
-| Method and route                                                           | Request / result                                                                                                        | Authorization, limits and failures                                                                                                                                                | Detailed contract                                                           |
-| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `GET /api/v1/documents/{documentId}/versions/{versionId}/processing`       | No input body; jobs, optional pipeline, SQL-derived `aiReadiness`                                                       | Owned UUID pair; unavailable/foreign version 404, anonymous 401; safe failures and disposable progress                                                                            | [Processing](phase-4-processing.md)                                         |
-| `POST /api/v1/documents/{documentId}/versions/{versionId}/ai/reprocess`    | `{mode?}`; default `repair`, or `extraction`, `chunking`, `embedding`, `index`; 202 run ID/generation/status            | Owned eligible current version; UUIDv4 `Idempotency-Key` required; malformed 400, inaccessible 404, incompatible replay/state 409, disabled configuration 503                     | [Reprocessing](phase-4-ingestion.md#owned-reprocessing-contract)            |
-| `POST /api/v1/search/semantic`                                             | `{query, limit?, documentIds?}`; canonical results/excerpts/profile/manifest IDs and similarity scores                  | Trimmed query 1–4,000 UTF-16 units; limit 1–20/default 8; optional 1–50 unique owned active document UUIDs; empty matches are valid; 429 admission, 503 unavailable, 504 deadline | [Search](phase-4-semantic-search.md)                                        |
-| `POST /api/v1/rag/answers`                                                 | `{question, documentIds?}`; `answered` claims/citations or `insufficient_evidence` with null answer and empty citations | Question/scope bounds as above; authorized context and publication recheck; 502 invalid output, 429 rate limit, 503 outage/disabled, 504 timeout; insufficient evidence is 200    | [RAG](phase-4-rag-answers.md)                                               |
-| `GET /api/v1/documents/{documentId}/versions/{versionId}/chunks/{chunkId}` | No query/body; exact canonical excerpt/hash/offsets, page spans and document/version/chunk metadata                     | Owned complete source; retained historical text is allowed, archived/deleted/foreign/missing source 404; malformed UUID/query/body 400                                            | [Citation source](phase-4-ai-frontend.md#minimal-additive-backend-contract) |
+| Method and route                                                                                                           | Request / result                                                                                                                                              | Authorization, limits and failures                                                                                                                                                                                 | Detailed contract                                                                     |
+| -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| `GET /api/v1/documents/{documentId}/versions/{versionId}/processing`                                                       | No input body; jobs, optional pipeline, SQL-derived `aiReadiness`                                                                                             | Owned UUID pair; unavailable/foreign version 404, anonymous 401; safe failures and disposable progress                                                                                                             | [Processing](phase-4-processing.md)                                                   |
+| `POST /api/v1/documents/{documentId}/versions/{versionId}/ai/reprocess`                                                    | `{mode?}`; default `repair`, or `extraction`, `chunking`, `embedding`, `index`; 202 run ID/generation/status                                                  | Owned eligible current version; UUIDv4 `Idempotency-Key` required; malformed 400, inaccessible 404, incompatible replay/state 409, disabled configuration 503                                                      | [Reprocessing](phase-4-ingestion.md#owned-reprocessing-contract)                      |
+| `POST /api/v1/search/keyword`                                                                                              | `{query, match?, limit?, sort?, documentIds?, filters?, cursor?}`; canonical owned metadata/page matches, ordinal ranks, coverage and fixed-window pagination | Session/CSRF; 400 invalid or oversized scope, 404 foreign explicit IDs, 409 cursor/serving change, 429 admission, 503 backend, 504 deadline. No raw scores/DSL/HTML; five-minute owner/session-bound continuation. | [Keyword](phase-5-keyword-search.md)                                                  |
+| `POST /api/v1/search/hybrid`                                                                                               | Same keyword request DTO; canonical document-level RRF and metadata/page/chunk matches, coverage and fixed-window pagination                                  | Session/CSRF; strict lexical + semantic availability. No automatic fallback; 409 restart after expiry/selection changes.                                                                                           | [Hybrid/window contract](phase-5-hybrid-search.md)                                    |
+| `POST /api/v1/search/suggestions`                                                                                          | `{prefix,limit?,documentIds?,filters?}`; <=10 canonical title/reference/issuer suggestions, no totals                                                         | Session/Origin/CSRF; current verified SQL publications; disabled/outage 503, deadline 504, invalid 400                                                                                                             | [Evidence contract](phase-5-search-evidence.md#private-autocomplete)                  |
+| `GET /api/v1/documents/{documentId}/versions/{versionId}/extractions/{extractionId}/pages/{pageNumber}/segments/{segment}` | <=8192 scalars of canonical exact source text, offsets/hash and next/previous segment                                                                         | Session; no query/body; 400 malformed, uniform 404 unauthorized/missing/unpublished/ineligible; retained historical sources allowed                                                                                | [Lexical source contract](phase-5-search-evidence.md#exact-lexical-source-navigation) |
+
+| `POST /api/v1/search/semantic` | `{query, limit?, documentIds?}`; canonical results/excerpts/profile/manifest IDs and similarity scores | Trimmed query 1–4,000 UTF-16 units; limit 1–20/default 8; optional 1–50 unique owned active document UUIDs; empty matches are valid; 429 admission, 503 unavailable, 504 deadline | [Search](phase-4-semantic-search.md) |
+| `POST /api/v1/rag/answers` | `{question, documentIds?}`; `answered` claims/citations or `insufficient_evidence` with null answer and empty citations | Question/scope bounds as above; authorized context and publication recheck; 502 invalid output, 429 rate limit, 503 outage/disabled, 504 timeout; insufficient evidence is 200 | [RAG](phase-4-rag-answers.md) |
+| `GET /api/v1/documents/{documentId}/versions/{versionId}/chunks/{chunkId}` | No query/body; exact canonical excerpt/hash/offsets, page spans and document/version/chunk metadata | Owned complete source; retained historical text is allowed, archived/deleted/foreign/missing source 404; malformed UUID/query/body 400 | [Citation source](phase-4-ai-frontend.md#minimal-additive-backend-contract) |
 
 Common 400/401/403 validation/session/CSRF failures apply. Scores are similarity,
 not confidence; limits and provider deadlines are validated server settings. No
@@ -316,3 +363,8 @@ Semantic retrieval and RAG are implemented in T09/T10; citation-source resolutio
 `GET /api/v1/documents/:documentId/versions/:versionId/chunks/:chunkId` returns an owned complete canonical chunk with document/version identity, title, filename, ordinal, text/hash, scalar offsets and page spans. Session auth, UUID parameters, no query/body, standard no-store envelope and indistinguishable unavailable/foreign 404s apply. Retained historical sources are resolvable independently of index activation.
 
 The existing version processing-status response adds `aiReadiness` (`READY`, `PROCESSING`, `FAILED`, `UNAVAILABLE`, `UNSUPPORTED`). READY requires the current active owned version, valid SQL ready pointer/complete manifest and API-compatible serving profile with semantic search enabled; a READY run alone is insufficient. It is durable eligibility rather than provider health. See [T11 fields, client behavior and security](phase-4-ai-frontend.md).
+
+Phase 5 [T03](phase-5-search-enrollment.md) connects existing upload, version, PATCH
+and lifecycle transactions to opt-in search enrollment without new HTTP routes.
+Assigned-category deletion retains its conflict policy; tag deletion now commits
+a durable bounded search fanout checkpoint. Search processing is held, not completed.

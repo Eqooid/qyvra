@@ -1,3 +1,11 @@
+import { SearchSuggestionsController } from './search-suggestions.controller';
+import { HybridSearchController } from './hybrid-search.controller';
+import { HybridSearchService } from './hybrid-search.service';
+import { SearchWindowStore } from '../../infrastructure/search/search-window.store';
+import { KeywordSearchController } from './keyword-search.controller';
+import { KeywordSearchService } from './keyword-search.service';
+import { KeywordSearchRepository } from './keyword-search.repository';
+import { LexicalStoreModule } from '../../infrastructure/search/lexical-store.module';
 import { Module } from '@nestjs/common';
 import {
   ConfigurationModule,
@@ -19,15 +27,25 @@ import { SemanticSearchController } from './semantic-search.controller';
 
 @Module({
   imports: [
+    LexicalStoreModule,
     AuthModule,
     ConfigurationModule,
     DatabaseModule,
     ObservabilityModule,
   ],
-  controllers: [SemanticSearchController],
+  controllers: [
+    SemanticSearchController,
+    KeywordSearchController,
+    HybridSearchController,
+    SearchSuggestionsController,
+  ],
   exports: [SemanticSearchService],
   providers: [
     OwnedMutationGuard,
+    HybridSearchService,
+    SearchWindowStore,
+    KeywordSearchRepository,
+    KeywordSearchService,
     SemanticSearchRepository,
     SemanticSearchService,
     {

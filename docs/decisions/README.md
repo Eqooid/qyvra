@@ -13,6 +13,12 @@ If rationale is unknown, document observed behavior in architecture instead.
 
 ## Index
 
+- [ADR-009: Search maintenance generations and bounded SQL cutover](ADR-009-search-maintenance-generations.md)
+  - Accepted for T10 implementation; operator-only recovery, same-profile shadows and verified SQL promotion; live acceptance pending.
+- [ADR-007: Rebuildable keyword projections with SQL publication](ADR-007-rebuildable-keyword-search.md)
+  - Accepted Phase 5 design; candidate runtime/deployment implemented, mandatory live acceptance pending in the T11 review.
+- [ADR-008: Application-side document ranking across lexical and vector indexes](ADR-008-cross-index-hybrid-ranking.md)
+  - Accepted for T07 implementation; cross-engine RRF, bounded windows and explicit failures; live acceptance pending.
 - [ADR-006: Native local-provider adapters behind existing AI interfaces](ADR-006-local-provider-compatibility.md)
   - Embedding and generation portions implemented in v1.3.1 T02/T03. Live models unverified.
 - [ADR-001: Create-only local file publication](ADR-001-create-only-file-publication.md)

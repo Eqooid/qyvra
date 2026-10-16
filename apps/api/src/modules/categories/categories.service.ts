@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Optional, Injectable } from '@nestjs/common';
 import { Prisma } from '@qyvra/database';
+import { SearchEnrollmentService } from '../search/search-enrollment.service';
 import { PrismaService } from '../../database/prisma.service';
 import { PaginatedData } from '../../common/paginated-data';
 import {
@@ -42,7 +43,10 @@ export class CategoriesService {
    * @param database - The PrismaService instance for database operations.
    * @constructor
    */
-  constructor(private readonly database: PrismaService) {}
+  constructor(
+    private readonly database: PrismaService,
+    @Optional() private readonly searchEnrollment?: SearchEnrollmentService,
+  ) {}
 
   /**
    * @author Cristono Wijaya
@@ -133,10 +137,24 @@ export class CategoriesService {
    */
   async delete(userId: string, id: string): Promise<{ deleted: true }> {
     try {
-      await this.database.client.category.delete({
-        where: { id, userId },
-        select: { id: true },
-      });
+      if (this.searchEnrollment)
+        await this.database.client.$transaction(async (tx) => {
+          await tx.category.delete({
+            where: { id, userId },
+            select: { id: true },
+          });
+          await this.searchEnrollment!.recordOrganizationChangeInTransaction(
+            tx,
+            userId,
+            id,
+            'CATEGORY_DELETED',
+          );
+        });
+      else
+        await this.database.client.category.delete({
+          where: { id, userId },
+          select: { id: true },
+        });
       return { deleted: true };
     } catch (error) {
       this.mapFailure(error);

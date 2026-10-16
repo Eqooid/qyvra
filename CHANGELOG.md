@@ -1,11 +1,64 @@
 # Changelog
 
+Phase 5 T08 (unreleased, 15 October 2026): safe canonical highlight ranges/segments,
+private bounded autocomplete, and authenticated exact lexical page-source reads.
+Local evidence is recorded separately from outstanding live infrastructure acceptance.
+
+Phase 5 T07 (unreleased, 15 October 2026): document-level RRF hybrid retrieval and
+owner/session-bound fixed Redis continuation for keyword/hybrid, with canonical
+SQL page reauthorization. Default off; live store/model acceptance pending.
+
 Notable changes are recorded here, with Added, Changed and Fixed categories as
 applicable. Releases follow [Semantic Versioning](docs/development/conventions.md#versioning).
 
 ## [Unreleased]
 
-No next phase has started. The prepared candidates below have not been published.
+Phase 5 T11 review: **NOT READY**; see [acceptance evidence](docs/phase-5-verification.md),
+[draft v1.4.0 scope/upgrade](docs/releases/v1.4.0.md) and
+[developer guide](docs/developer/versions/v1.4.0.md). Mandatory live, quality/resource
+and reviewed-candidate CI gates are outstanding. No release or version bump.
+
+### Changed
+
+- T09 adds the protected search workspace, safe marks/private autocomplete and exact
+  canonical source Sheets; T10 adds bounded durable operator recovery and shadow
+  generation cutover. These are implemented with live acceptance pending.
+- T11 includes maintenance upgrade/CLI/SQL/unit selectors and an explicitly mocked
+  Chromium frontend job in Phase 5 CI. Browser configuration owns its test server.
+
+Phase 5 foundations are in progress toward v1.4.0. The prepared candidates below
+have not been published; `VERSION` remains `1.3.1`.
+
+### Added
+
+- T06 authenticated, default-off keyword search API with strict filters, SQL-owned
+  current projection scopes/canonical snippets, bounded deterministic lexical
+  ranks and explicit partial coverage/errors. Raw shared-index scores stay internal.
+  Local verification passes; live acceptance is pending and cursor windows remain T07.
+
+- Phase 5 T01 scope/architecture/task plan and proposed cross-index ranking ADR.
+- T02 owned search generation, desired revision, projection and durable fanout
+  persistence; additive migration with no enrollment or backfill.
+- Explicit v3 search job/outbox contracts, identity/validation guards, safe
+  unimplemented-handler rejection, real SQL migration/concurrency/recovery tests
+  and retained v1/v2 compatibility. No Elasticsearch service or search API yet.
+
+- T03 atomic upload/version/metadata enrollment, lifecycle revision and canonical
+  membership fencing, durable organization-deletion fanout, retained cleanup
+  intent and capability-held v3 delivery. Enrollment defaults off; no indexing or
+  search API implementation. Database sessions explicitly use UTC.
+
+- T04 official private Elasticsearch adapter, strict metadata/page mapping contracts,
+  validated server-only settings, optional authenticated private Compose topology,
+  scoped secret-file provisioning and isolated verification harness. Live acceptance
+  remains pending; no production indexing or search APIs are activated.
+
+- T05 real metadata/PDF lexical handlers with shared model-independent canonical
+  extraction, deterministic bounded page records, durable search branch scheduling,
+  search-visible exact publication verification and lease/lifecycle SQL fences.
+  Existing owned processing status adds independent lexical coverage; local tests
+  pass and live Elasticsearch/broker/Compose acceptance remains pending. No public
+  search route, OCR, model dependency or new migration is added.
 
 ## [1.3.1] — Release candidate, prepared 2026-10-13
 

@@ -68,6 +68,7 @@ export class ProcessingStatusService {
         'NOT_SCHEDULED',
     }));
     return {
+      ...(version.search ? { search: version.search } : {}),
       aiReadiness: version.aiReadiness ?? 'UNAVAILABLE',
       ...(run
         ? {

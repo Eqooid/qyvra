@@ -50,6 +50,12 @@ export interface VectorCandidate {
   score: number;
 }
 export interface VectorSearchStore {
+  check?(
+    request: Pick<
+      VectorSearchRequest,
+      'embeddingProfileId' | 'embeddingProfileVersion' | 'dimensions'
+    >,
+  ): Promise<void>;
   search(request: VectorSearchRequest): Promise<VectorCandidate[]>;
 }
 export class VectorStoreFailure extends Error {

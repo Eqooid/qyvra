@@ -14,13 +14,28 @@ export const processingJobStatuses = [
 export type ProcessingJobStatus = (typeof processingJobStatuses)[number];
 
 // Persistence/domain vocabulary only. V1 delivery and creation remain integrity-only.
-export const processingJobTypes = [
+export const legacyProcessingJobTypes = [
   'VERIFY_STORED_FILE',
   'EXTRACT_TEXT',
   'GENERATE_CHUNKS',
   'GENERATE_EMBEDDINGS',
   'INDEX_VECTORS',
   'REMOVE_VECTOR_INDEX',
+] as const;
+export const searchProcessingJobTypes = [
+  'INDEX_SEARCH',
+  'EXTRACT_SEARCH_TEXT',
+  'REMOVE_SEARCH_INDEX',
+] as const;
+export type SearchProcessingJobType = (typeof searchProcessingJobTypes)[number];
+export function isSearchJobType(
+  value: string,
+): value is SearchProcessingJobType {
+  return searchProcessingJobTypes.some((type) => type === value);
+}
+export const processingJobTypes = [
+  ...legacyProcessingJobTypes,
+  ...searchProcessingJobTypes,
 ] as const;
 export type ProcessingJobType = (typeof processingJobTypes)[number];
 
@@ -45,9 +60,20 @@ export interface ProcessingMessageV2 extends Omit<
   'schemaVersion' | 'jobType'
 > {
   readonly schemaVersion: 2;
-  readonly jobType: ProcessingJobType;
+  readonly jobType: (typeof legacyProcessingJobTypes)[number];
 }
-export type ProcessingMessage = ProcessingMessageV1 | ProcessingMessageV2;
+export interface ProcessingMessageV3 extends Omit<
+  ProcessingMessageV1,
+  'schemaVersion' | 'jobType'
+> {
+  readonly schemaVersion: 3;
+  readonly jobType: SearchProcessingJobType;
+  readonly searchProjectionId: string;
+  readonly indexGenerationId: string;
+  readonly revision: number;
+}
+export type ProcessingMessage =
+  ProcessingMessageV1 | ProcessingMessageV2 | ProcessingMessageV3;
 
 export interface NewStoredFileVerification {
   readonly jobType?: string;
@@ -115,16 +141,24 @@ export async function createProcessingOutboxIntent(
   job: ProcessingJob,
   dispatchSequence: number,
   occurredAt: Date,
-  schemaVersion: 1 | 2 = job.jobType === 'VERIFY_STORED_FILE' ? 1 : 2,
+  schemaVersion: 1 | 2 | 3 = isSearchJobType(job.jobType)
+    ? 3
+    : job.jobType === 'VERIFY_STORED_FILE'
+      ? 1
+      : 2,
 ) {
+  if (![1, 2, 3].includes(schemaVersion))
+    throw new Error('Unsupported processing schema version.');
   if (schemaVersion === 1 && job.jobType !== 'VERIFY_STORED_FILE')
     throw new Error('Unsupported v1 processing job type.');
   if (!processingJobTypes.includes(job.jobType as ProcessingJobType))
     throw new Error('Unsupported processing job type.');
+  if ((schemaVersion === 3) !== isSearchJobType(job.jobType))
+    throw new Error('Unsupported processing schema version for job type.');
   if (!Number.isSafeInteger(dispatchSequence) || dispatchSequence < 1)
     throw new Error('Invalid dispatch sequence.');
   const messageId = randomUUID();
-  const envelope = {
+  const base = {
     schemaVersion,
     messageId,
     type: 'processing.execute',
@@ -135,7 +169,32 @@ export async function createProcessingOutboxIntent(
     documentVersionId: job.documentVersionId,
     jobType: job.jobType as ProcessingJobType,
     dispatchSequence,
-  } as ProcessingMessage;
+  };
+  let envelope: ProcessingMessage;
+  if (schemaVersion === 3 && isSearchJobType(job.jobType)) {
+    const projection = job.searchProjectionId
+      ? await tx.versionSearchProjection.findFirst({
+          where: {
+            id: job.searchProjectionId,
+            documentVersionId: job.documentVersionId,
+            documentId: job.documentId,
+            userId: job.userId,
+          },
+        })
+      : null;
+    if (!projection) throw new Error('Missing owned search projection.');
+    envelope = {
+      ...base,
+      type: 'processing.execute',
+      schemaVersion: 3,
+      jobType: job.jobType,
+      searchProjectionId: projection.id,
+      indexGenerationId: projection.indexGenerationId,
+      revision: projection.revision,
+    };
+  } else {
+    envelope = base as ProcessingMessageV1 | ProcessingMessageV2;
+  }
   const outbox = await tx.processingOutbox.create({
     data: {
       id: messageId,

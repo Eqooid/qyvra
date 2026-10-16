@@ -1,5 +1,13 @@
+import {
+  advanceSearchBranch,
+  resumeSearchAfterIntegrity,
+} from './search-processing';
 import { Prisma, ProcessingJob } from './generated/prisma/client';
-import { createProcessingOutboxIntent, ProcessingJobType } from './processing';
+import {
+  createProcessingOutboxIntent,
+  isSearchJobType,
+  ProcessingJobType,
+} from './processing';
 
 export interface AiRunRequest {
   userId: string;
@@ -55,7 +63,8 @@ export async function eligibleJob(
   job: Pick<
     ProcessingJob,
     'documentVersionId' | 'documentId' | 'userId' | 'jobType' | 'aiRunId'
-  >,
+  > &
+    Partial<Pick<ProcessingJob, 'searchProjectionId'>>,
 ) {
   const version = await tx.documentVersion.findFirst({
     where: {
@@ -66,6 +75,48 @@ export async function eligibleJob(
     include: { document: true, aiState: true },
   });
   if (!version) return false;
+  if (isSearchJobType(job.jobType)) {
+    const projection = job.searchProjectionId
+      ? await tx.versionSearchProjection.findFirst({
+          where: {
+            id: job.searchProjectionId,
+            documentVersionId: job.documentVersionId,
+            documentId: job.documentId,
+            userId: job.userId,
+          },
+          include: { generation: true },
+        })
+      : null;
+    if (!projection) return false;
+    if (job.jobType === 'REMOVE_SEARCH_INDEX')
+      return (
+        projection.status === 'REMOVAL_PENDING' ||
+        projection.status === 'REMOVED'
+      );
+    const state = await tx.documentSearchState.findUnique({
+      where: { documentId: job.documentId },
+    });
+    const current = await tx.documentVersion.findFirst({
+      where: { documentId: job.documentId },
+      orderBy: { versionNumber: 'desc' },
+      select: { id: true },
+    });
+    const hashes = await tx.$queryRaw<
+      { hash: string | null }[]
+    >`SELECT search_metadata_hash(${job.documentVersionId}::uuid) AS hash`;
+    return (
+      hashes[0]?.hash === projection.metadataHash &&
+      !version.document.deletedAt &&
+      !version.document.isArchived &&
+      !['ARCHIVED', 'DELETING'].includes(version.document.status) &&
+      current?.id === job.documentVersionId &&
+      state?.userId === job.userId &&
+      state.desiredVersionId === job.documentVersionId &&
+      state.desiredRevision === projection.revision &&
+      projection.generation.status !== 'RETIRED' &&
+      ['BUILDING', 'READY'].includes(projection.status)
+    );
+  }
   if (job.jobType === 'REMOVE_VECTOR_INDEX') return true;
   if (
     version.document.deletedAt ||
@@ -95,6 +146,11 @@ export async function ensureNextStage(
   predecessor: ProcessingJob,
   now: Date,
 ) {
+  if (isSearchJobType(predecessor.jobType)) {
+    await advanceSearchBranch(tx, predecessor, now);
+    return null;
+  }
+  await resumeSearchAfterIntegrity(tx, predecessor, now);
   if (predecessor.status !== 'COMPLETED') return null;
   if (predecessor.jobType === 'VERIFY_STORED_FILE') {
     const latest = await tx.processingJob.findFirst({

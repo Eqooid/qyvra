@@ -5,6 +5,24 @@
  * @interface ApiConfiguration
  */
 export interface ApiConfiguration {
+  readonly elasticsearch: {
+    readonly enabled: boolean;
+    readonly url?: string;
+    readonly username?: string;
+    readonly password?: string;
+    readonly passwordFile?: string;
+    readonly apiKey?: string;
+    readonly apiKeyFile?: string;
+    readonly caFile?: string;
+    readonly indexPrefix: string;
+    readonly schemaVersion: 1;
+    readonly timeoutMs: number;
+    readonly maxRequestBytes: number;
+    readonly maxResponseBytes: number;
+    readonly bulkSize: number;
+    readonly maxScopes: number;
+    readonly concurrency: number;
+  };
   readonly rag: {
     readonly enabled: boolean;
     readonly maxSources: number;
@@ -36,6 +54,21 @@ export interface ApiConfiguration {
     readonly concurrency: number;
     readonly perUserPerMinute: number;
     readonly globalPerMinute: number;
+  };
+  readonly hybridSearch: { readonly enabled: boolean };
+  readonly keywordSearch: {
+    readonly enabled: boolean;
+    readonly generationFingerprint: string;
+    readonly timeoutMs: number;
+    readonly maxScopes: number;
+    readonly rawHitLimit: number;
+    readonly concurrency: number;
+    readonly perUserPerMinute: number;
+    readonly globalPerMinute: number;
+  };
+  readonly searchEnrollment: {
+    readonly enabled: boolean;
+    readonly generationFingerprint: string;
   };
   readonly aiIngestion: {
     readonly enabled: boolean;
@@ -89,6 +122,7 @@ export interface ApiConfiguration {
     readonly confirmTimeoutMs: number;
   };
   readonly outbox: {
+    readonly searchDeliveryEnabled?: boolean;
     readonly pollIntervalMs: number;
     readonly batchSize: number;
     readonly leaseMs: number;

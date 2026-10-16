@@ -1,5 +1,19 @@
 # Shared PostgreSQL client
 
+**Phase 5 T10:** [search maintenance](../../docs/phase-5-search-operations.md)
+adds durable operation checkpoints/leases and same-profile physical generation
+uniqueness. `SearchMaintenanceScheduler` reuses transaction-owned jobs/outbox;
+it is not a second queue. Apply the 18th migration with matching generated clients.
+The populated upgrade regression is `node --test test/search-maintenance-migration.test.cjs`
+with the disposable database configuration documented in that test.
+
+**Phase 5 T02 implemented:** [search persistence and v3 contracts](../../docs/phase-5-data-foundation.md)
+add four owner/version-fenced search models and nullable job lineage, with no
+automatic enrollment or backfill. `SearchPersistenceRepository` exposes caller-owned
+transaction primitives; search handlers and Elasticsearch remain later tasks.
+Use `test:search` with migrated TEST_DATABASE_URL and `test:search:migration` with
+a separate empty TEST_SEARCH_MIGRATION_DATABASE_URL. Regenerate/build the client.
+
 **Phase 4 T03 orchestration is implemented:** [durable stage contracts and lifecycle](../../docs/phase-4-processing.md)
 cover atomic successor scheduling, v2 transport, shared retry/recovery, worker routing,
 lifecycle fencing and the owned status extension. T04–T06 extraction/chunks/embeddings
@@ -86,3 +100,9 @@ for the T03 rules and real-PostgreSQL repository checks.
 Run `node --test test/processing-migration.test.cjs` against an empty disposable
 `TEST_MIGRATION_DATABASE_URL`, then `node --test test/processing-persistence.test.cjs`
 with `TEST_DATABASE_URL` pointing at the migrated test database.
+
+T03 [search enrollment and fencing](../../docs/phase-5-search-enrollment.md) reuse
+these entities through `SearchEnrollmentRepository`. The canonical hash guard
+migration is additive; sessions explicitly use UTC. `test:search:enrollment`
+requires a migrated disposable `TEST_DATABASE_URL`; `test:search:enrollment:migration`
+requires an empty `TEST_SEARCH_ENROLLMENT_MIGRATION_DATABASE_URL`.

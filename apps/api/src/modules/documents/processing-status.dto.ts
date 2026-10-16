@@ -103,7 +103,25 @@ export class ProcessingPipelineView {
   stages!: PipelineStageView[];
 }
 
+export class SearchProcessingCoverageView {
+  @ApiProperty({
+    description:
+      'Verified serving metadata for the authoritative active current revision.',
+  })
+  metadataReady!: boolean;
+  @ApiProperty({
+    enum: ['NOT_REQUESTED', 'PENDING', 'READY', 'UNSUPPORTED', 'FAILED'],
+  })
+  textCoverage!: string;
+  @ApiProperty({
+    enum: ['BUILDING', 'READY', 'REMOVAL_PENDING', 'REMOVED', 'FAILED'],
+  })
+  projectionStatus!: string;
+}
+
 export class ProcessingStatusView {
+  @ApiPropertyOptional({ type: () => SearchProcessingCoverageView })
+  search?: SearchProcessingCoverageView;
   @ApiProperty({
     enum: ['READY', 'PROCESSING', 'FAILED', 'UNAVAILABLE', 'UNSUPPORTED'],
     description:

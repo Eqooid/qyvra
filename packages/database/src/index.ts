@@ -3,6 +3,8 @@ import { PrismaClient } from './generated/prisma/client';
 
 export { Prisma, PrismaClient } from './generated/prisma/client';
 export type {
+  Document,
+  DocumentVersion,
   AiProcessingRun,
   ExtractedText,
   ChunkSet,
@@ -32,6 +34,9 @@ export {
   createProcessingOutboxIntent,
   processingJobStatuses,
   processingJobTypes,
+  legacyProcessingJobTypes,
+  searchProcessingJobTypes,
+  isSearchJobType,
   processingOutboxStatuses,
 } from './processing';
 export { ProcessingRepository } from './processing-repository';
@@ -48,6 +53,8 @@ export type {
   ProcessingOutboxStatus,
   ProcessingMessageV1,
   ProcessingMessageV2,
+  ProcessingMessageV3,
+  SearchProcessingJobType,
   ProcessingMessage,
 } from './processing';
 
@@ -61,6 +68,8 @@ export interface DatabaseOptions {
 export function createPrismaClient(options: DatabaseOptions): PrismaClient {
   const adapter = new PrismaPg({
     connectionString: options.url,
+    // Date parameters and versioned ISO envelopes must use the same UTC session.
+    options: '-c timezone=UTC',
     max: options.poolSize,
     connectionTimeoutMillis: options.connectTimeoutMs,
     query_timeout: options.queryTimeoutMs,
@@ -72,3 +81,24 @@ export function createPrismaClient(options: DatabaseOptions): PrismaClient {
 
 export type { AiRunRequest, StageCommit } from './processing-pipeline';
 export type { AiProcessingStart } from './ai-scheduling';
+export { SearchPersistenceRepository } from './search-repository';
+export {
+  searchGenerationFingerprint,
+  searchProjectionId,
+  searchRecordId,
+  searchGenerationStatuses,
+  searchProjectionStatuses,
+  searchTextCoverageStates,
+} from './search';
+export type { SearchGenerationIdentity, NewSearchJob } from './search';
+export type {
+  SearchIndexGeneration,
+  DocumentSearchState,
+  VersionSearchProjection,
+  SearchProjectionChange,
+} from './generated/prisma/client';
+
+export { SearchEnrollmentRepository } from './search-enrollment';
+export { SearchMaintenanceScheduler } from './search-maintenance';
+export type { SearchMaintenanceOperation } from './generated/prisma/client';
+export type { SearchEnrollmentPolicy } from './search-enrollment';

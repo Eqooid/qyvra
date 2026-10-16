@@ -19,6 +19,7 @@ export class ProcessingRecovery implements OnApplicationShutdown {
     private readonly repository: ProcessingRepository,
     private readonly settings: ProcessingRecoverySettings,
     private readonly clock: () => Date = () => new Date(),
+    private readonly reconcileSearch?: () => Promise<void>,
   ) {}
 
   start(): void {
@@ -92,6 +93,7 @@ export class ProcessingRecovery implements OnApplicationShutdown {
       }
     }
     await this.repository.reconcilePipelines(now, this.settings.batchSize);
+    await this.reconcileSearch?.();
     return { recovered, scheduled };
   }
 

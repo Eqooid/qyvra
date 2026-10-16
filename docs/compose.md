@@ -6,6 +6,12 @@
 
 ## Status and boundaries
 
+Phase 5 [operator maintenance](phase-5-search-operations.md) uses the API runtime
+image's CLI scripts and the existing private Elasticsearch deployment. There is
+no new service, public route or port. Use a separately authorized database login;
+ordinary runtime credentials must not have the maintenance operator role. Never
+reset volumes or delete active indexes to perform recovery.
+
 [v1.3.1 T04 provider deployment](local-provider-configuration.md) adds optional
 read-only assets/private provider network and native-Linux host-gateway overrides.
 Neither is loaded by default; no inference service/public port/GPU is added.
@@ -432,3 +438,16 @@ tests against development or production services.
 See the [production configuration review](phase-4-verification.md#production-configuration-review)
 before exposing this local HTTP stack. The private deterministic provider fixture
 is not a production provider and is absent from normal Compose.
+
+Phase 5 [T04 optional private search deployment](phase-5-elasticsearch.md#optional-local-deployment)
+uses `docker-compose.search.yml` with explicit secret files, an internal network,
+scoped runtime credentials and a persistent derived volume. It publishes no port
+and adds no Nginx route. Its debug override is explicit and loopback-only. Runtime
+verification remains pending where Docker is unavailable.
+
+[T06 keyword serving](phase-5-keyword-search.md#configuration-failures-and-budgets)
+adds API-only KEYWORD_SEARCH_* settings. Enable only with a provisioned compatible
+SERVING generation and the private search override; all defaults remain off.
+No extra service, host port or Elasticsearch proxy is added. The API scope ceiling
+inherits ELASTICSEARCH_MAX_SCOPES unless explicitly narrowed. T04-T06 live acceptance
+is pending; valid Compose rendering is not deployed runtime verification.

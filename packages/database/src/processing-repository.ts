@@ -1,4 +1,8 @@
 import {
+  advanceSearchBranch,
+  resumeSearchAfterIntegrity,
+} from './search-processing';
+import {
   AiRunRequest,
   StageCommit,
   eligibleJob,
@@ -15,6 +19,8 @@ import {
   createStoredFileVerificationIntent,
   NewStoredFileVerification,
   ProcessingJobStatus,
+  SearchProcessingJobType,
+  isSearchJobType,
 } from './processing';
 import {
   assertFailureCode,
@@ -543,7 +549,10 @@ export class ProcessingRepository {
   }
 
   findById(id: string) {
-    return this.db.processingJob.findUnique({ where: { id } });
+    return this.db.processingJob.findUnique({
+      where: { id },
+      include: { searchProjection: true },
+    });
   }
 
   findByDocument(userId: string, documentId: string, limit: number) {
@@ -568,7 +577,7 @@ export class ProcessingRepository {
     const rows = await this.db.$queryRaw<{ id: string }[]>`
       SELECT j.id FROM processing_jobs j JOIN documents d ON d.id = j.document_id
       WHERE j.status = 'RETRYING' AND j.available_at <= ${now}
-        AND j.attempts < j.max_attempts AND (j.job_type = 'REMOVE_VECTOR_INDEX' OR (d.deleted_at IS NULL
+        AND j.attempts < j.max_attempts AND (j.job_type IN ('REMOVE_VECTOR_INDEX','REMOVE_SEARCH_INDEX') OR (d.deleted_at IS NULL
         AND d.is_archived = false AND d.status NOT IN ('ARCHIVED', 'DELETING')))
         AND NOT EXISTS (
           SELECT 1 FROM processing_outbox o
@@ -585,7 +594,7 @@ export class ProcessingRepository {
     const rows = await this.db.$queryRaw<{ id: string }[]>`
       SELECT j.id FROM processing_jobs j JOIN documents d ON d.id = j.document_id
       WHERE j.status = 'PROCESSING' AND j.lease_expires_at <= ${now}
-        AND (j.job_type = 'REMOVE_VECTOR_INDEX' OR (d.deleted_at IS NULL AND d.is_archived = false
+        AND (j.job_type IN ('REMOVE_VECTOR_INDEX','REMOVE_SEARCH_INDEX') OR (d.deleted_at IS NULL AND d.is_archived = false
         AND d.status NOT IN ('ARCHIVED', 'DELETING')))
       ORDER BY j.lease_expires_at, j.id LIMIT ${limit}`;
     return rows.map((row) => row.id);
@@ -740,7 +749,9 @@ export class ProcessingRepository {
       const currentTime = () =>
         new Date(now.getTime() + Math.floor(performance.now() - began));
       if (
-        !['GENERATE_EMBEDDINGS', 'INDEX_VECTORS'].includes(job.jobType) ||
+        !['GENERATE_EMBEDDINGS', 'INDEX_VECTORS', 'INDEX_SEARCH'].includes(
+          job.jobType,
+        ) ||
         job.status !== 'PROCESSING' ||
         job.leaseToken !== leaseToken ||
         !job.leaseExpiresAt ||
@@ -955,7 +966,19 @@ export class ProcessingRepository {
                 : 'FAILED',
           },
         });
-      return tx.processingJob.findUniqueOrThrow({ where: { id } });
+      const failed = await tx.processingJob.findUniqueOrThrow({
+        where: { id },
+      });
+      if (!willRetry) {
+        if (failed.jobType === 'INDEX_SEARCH' && failed.searchProjectionId)
+          await tx.versionSearchProjection.updateMany({
+            where: { id: failed.searchProjectionId, status: 'BUILDING' },
+            data: { status: 'FAILED' },
+          });
+        await advanceSearchBranch(tx, failed, now);
+        await resumeSearchAfterIntegrity(tx, failed, now);
+      }
+      return failed;
     });
   }
 
@@ -997,11 +1020,38 @@ export class ProcessingRepository {
         job,
         dispatchSequence,
         now,
-        firstIntent?.schemaVersion === 2 || job.jobType !== 'VERIFY_STORED_FILE'
-          ? 2
-          : 1,
+        isSearchJobType(job.jobType)
+          ? 3
+          : firstIntent?.schemaVersion === 2 ||
+              job.jobType !== 'VERIFY_STORED_FILE'
+            ? 2
+            : 1,
       );
       return outbox;
+    });
+  }
+
+  /** Stale v3 work is terminal supersession, never a successful indexing result. */
+  async cancelObsoleteSearchJob(id: string, now: Date): Promise<boolean> {
+    return this.db.$transaction(async (tx) => {
+      const initial = await this.requireJob(id);
+      if (!isSearchJobType(initial.jobType)) return false;
+      await lockDocument(tx, initial.documentId);
+      const job = await tx.processingJob.findUniqueOrThrow({ where: { id } });
+      if (!activeStates.includes(job.status) || (await eligibleJob(tx, job)))
+        return false;
+      const result = await tx.processingJob.updateMany({
+        where: { id, status: job.status, attempts: job.attempts },
+        data: {
+          status: 'CANCELLED',
+          completedAt: now,
+          leaseToken: null,
+          leaseExpiresAt: null,
+          heartbeatAt: null,
+        },
+      });
+      if (result.count !== 1) throw new ProcessingError('CONCURRENT_CHANGE');
+      return true;
     });
   }
 
@@ -1015,7 +1065,7 @@ export class ProcessingRepository {
       where: {
         userId,
         documentId,
-        jobType: { not: 'REMOVE_VECTOR_INDEX' },
+        jobType: { notIn: ['REMOVE_VECTOR_INDEX', 'REMOVE_SEARCH_INDEX'] },
         status: { in: activeStates },
       },
       data: {
@@ -1035,11 +1085,26 @@ export class ProcessingRepository {
     return result.count;
   }
 
-  findPendingOutbox(now: Date, limit: number) {
+  findPendingOutbox(
+    now: Date,
+    limit: number,
+    supportedSearchJobTypes: readonly SearchProcessingJobType[] = [],
+  ) {
     boundedLimit(limit);
     return this.db.processingOutbox.findMany({
       where: {
         status: 'PENDING',
+        AND: [
+          {
+            OR: [
+              { schemaVersion: { not: 3 } },
+              {
+                schemaVersion: 3,
+                job: { jobType: { in: [...supportedSearchJobTypes] } },
+              },
+            ],
+          },
+        ],
         availableAt: { lte: now },
         OR: [{ claimToken: null }, { claimExpiresAt: { lte: now } }],
       },

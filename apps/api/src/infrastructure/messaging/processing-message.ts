@@ -1,6 +1,6 @@
 import {
-  processingJobTypes,
-  type ProcessingJobType,
+  legacyProcessingJobTypes,
+  isSearchJobType,
   type ProcessingMessage,
 } from '@qyvra/database';
 
@@ -23,16 +23,30 @@ export function parseProcessingMessage(value: unknown): ProcessingMessage {
   if (typeof value !== 'object' || value === null || Array.isArray(value))
     throw new Error('Invalid processing message contract.');
   const record = value as Record<string, unknown>;
+  const expectedFields =
+    record.schemaVersion === 3
+      ? [...fields, 'searchProjectionId', 'indexGenerationId', 'revision']
+      : [...fields];
   if (
-    Object.keys(record).length !== fields.length ||
-    fields.some(
+    Object.keys(record).length !== expectedFields.length ||
+    expectedFields.some(
       (field) => !Object.prototype.hasOwnProperty.call(record, field),
     ) ||
-    ![1, 2].includes(record.schemaVersion as number) ||
+    ![1, 2, 3].includes(record.schemaVersion as number) ||
     record.type !== 'processing.execute' ||
     (record.schemaVersion === 1
       ? record.jobType !== 'VERIFY_STORED_FILE'
-      : !processingJobTypes.includes(record.jobType as ProcessingJobType)) ||
+      : record.schemaVersion === 2
+        ? !legacyProcessingJobTypes.some((type) => type === record.jobType)
+        : typeof record.jobType !== 'string' ||
+          !isSearchJobType(record.jobType)) ||
+    (record.schemaVersion === 3 &&
+      (!Number.isSafeInteger(record.revision) ||
+        (record.revision as number) < 1 ||
+        (record.revision as number) > 2147483647 ||
+        ![record.searchProjectionId, record.indexGenerationId].every(
+          (id) => typeof id === 'string' && uuid.test(id),
+        ))) ||
     !Number.isSafeInteger(record.dispatchSequence) ||
     (record.dispatchSequence as number) < 1 ||
     ![
@@ -49,7 +63,7 @@ export function parseProcessingMessage(value: unknown): ProcessingMessage {
     throw new Error('Invalid processing message contract.');
 
   const ordered = Object.fromEntries(
-    fields.map((field) => [field, record[field]]),
+    expectedFields.map((field) => [field, record[field]]),
   );
   const bytes = Buffer.from(JSON.stringify(ordered), 'utf8');
   if (bytes.length > 4096)

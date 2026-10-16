@@ -334,6 +334,7 @@ describe('environment configuration', () => {
   });
   it('validates bounded outbox polling, batch, and lease settings', () => {
     expect(validateEnvironment({ ...base }).outbox).toEqual({
+      searchDeliveryEnabled: false,
       pollIntervalMs: 1000,
       batchSize: 10,
       leaseMs: 120000,
@@ -668,5 +669,32 @@ describe('full typed settings', () => {
       expect(String(error)).toContain('DATABASE_URL');
       expect(String(error)).not.toContain(credential);
     }
+  });
+});
+
+describe('keyword search enrollment configuration', () => {
+  it('defaults off and requires an explicit generation fingerprint only when enabled', () => {
+    expect(validateEnvironment(base).searchEnrollment).toEqual({
+      enabled: false,
+      generationFingerprint: '',
+    });
+    expect(
+      validateEnvironment({
+        ...base,
+        SEARCH_ENROLLMENT_ENABLED: 'true',
+        SEARCH_GENERATION_FINGERPRINT: 'a'.repeat(64),
+      }).searchEnrollment.enabled,
+    ).toBe(true);
+    for (const value of ['', 'unknown', 'A'.repeat(64)])
+      expect(() =>
+        validateEnvironment({
+          ...base,
+          SEARCH_ENROLLMENT_ENABLED: 'true',
+          SEARCH_GENERATION_FINGERPRINT: value,
+        }),
+      ).toThrow('SEARCH_GENERATION_FINGERPRINT');
+    expect(() =>
+      validateEnvironment({ ...base, SEARCH_ENROLLMENT_ENABLED: 'yes' }),
+    ).toThrow('SEARCH_ENROLLMENT_ENABLED');
   });
 });

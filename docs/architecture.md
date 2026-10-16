@@ -1,5 +1,65 @@
 # QYVRA architecture — v1.3.1 candidate, Phase 4 foundation
 
+Current Phase 5 [T11 architecture/security review](phase-5-verification.md#architecture-security-and-compatibility-review)
+confirms candidate boundaries and documents bounded windows, historical canonical
+sources, short cutover write fences and pending live acceptance. Decision: NOT
+READY; implementation is not release certification. Existing runtime guides below
+retain task-specific history; the [versioned walkthrough](developer/versions/v1.4.0.md)
+maps the complete candidate.
+
+**Phase 5 T10 increment:** [operator search maintenance](phase-5-search-operations.md)
+reuses existing jobs/outbox and canonical text. PostgreSQL owns operation leases,
+keyset checkpoints and serving pointers. Same-profile BUILDING generations preserve
+the serving index; externally verified publications are promoted under a bounded
+SQL write fence. Exact-manifest cleanup is durable; unknown index records are
+report-only. See [ADR-009](decisions/ADR-009-search-maintenance-generations.md).
+Live Elasticsearch/broker recovery acceptance is pending; no public admin API is added.
+
+**Phase 5 T09 increment:** [search frontend and browser source workflows](phase-5-search-frontend.md)
+add a protected `/search` workspace using existing authenticated transport, shadcn
+components and exact source reads. Private form drafts stay in owner-scoped memory;
+no query history/URL persistence or backend changes. Local and mocked-API Chromium
+checks pass; live Nginx/Compose acceptance is pending. T10 is next.
+
+**Phase 5 T08 increment:** [safe highlights, private suggestions and lexical sources](phase-5-search-evidence.md)
+are implemented with live acceptance pending. Keyword/hybrid lexical matches gain
+plain canonical scalar ranges and text segments; ranking stays unchanged.
+Authenticated `POST /api/v1/search/suggestions` returns only authorized title/issuer/
+reference text. Exact version/extraction/page/segment GET reads follow the approved
+retained historical-source policy. T09 frontend is next; `VERSION` stays `1.3.1`.
+
+**Phase 5 T07 increment:** [hybrid retrieval and fixed result windows](phase-5-hybrid-search.md)
+are implemented, default off, with live infrastructure/model acceptance pending.
+`POST /api/v1/search/hybrid` fuses authorized lexical/semantic document ranks with
+RRF60. Keyword gains owner/session-bound Redis continuation; every page reauthorizes
+canonical PostgreSQL sources. Existing semantic/RAG contracts remain unchanged.
+T08 is implemented in the increment above; T09 frontend is next; `VERSION` remains `1.3.1`.
+
+**Phase 5 T06 increment:** [authorized keyword API](phase-5-keyword-search.md)
+adds POST `/api/v1/search/keyword`, strict filters, SQL current-projection scopes
+and canonical revalidation/snippets. Serving defaults off; local checks pass and
+live acceptance remains pending. Deterministic first-page output is implemented;
+T07 owns Redis cursor windows/continuation. Existing semantic/RAG contracts are unchanged.
+
+**Phase 5 T05 increment:** [model-independent PDF text and verified lexical publication](phase-5-lexical-publication.md)
+register real metadata/PDF worker handlers, shared canonical extraction, fenced SQL
+branch completion and exact search-visible verification. Local verification passes;
+live infrastructure acceptance is pending. Existing processing status adds optional
+independent lexical coverage. No new migration or public search route is introduced.
+Historical phase-specific statements below retain their original scope.
+
+**Phase 5 T04 internal transport:** [private Elasticsearch adapter and deployment](phase-5-elasticsearch.md)
+provide a shared API/worker DI boundary, explicit mappings and optional authenticated
+private topology. Live acceptance is pending; no indexing handler or search API
+is activated, and optional outages do not gate existing application readiness.
+
+**Phase 5 T02 historical foundation:** [search persistence and v3 contracts](phase-5-data-foundation.md)
+extend the shared SQL/job/outbox boundary. Opt-in persistence helpers are not
+registered for application enrollment. The existing worker validates search
+identity and rejects missing handlers without claiming/completing work. There
+is no Elasticsearch deployment or new HTTP/frontend behavior. T03 owns mutation
+enrollment/lifecycle/fanout; T04/T05 own search transport/execution.
+
 **Phase 4 T03 orchestration, T04 PDF extraction and T05 chunking are implemented:** [durable stage contracts and lifecycle](phase-4-processing.md)
 cover atomic successor scheduling, v2 transport, shared retry/recovery, worker routing,
 lifecycle fencing and the owned status extension. [Durable PDF text extraction](phase-4-pdf-extraction.md)
@@ -249,3 +309,8 @@ The SearchModule owns interactive authorized retrieval, reuses the T06 query emb
 ## Phase 4 T11 frontend and source boundary — Implemented
 
 [AI Search](phase-4-ai-frontend.md) uses the existing protected Next.js shell and shared AuthApi. Search and answers stay independent POST requests; the browser never accesses providers or indexes. Citation buttons come only from validated T10 sources, and the Sheet/exact-version route reauthorizes through the DocumentsModule canonical chunk endpoint. SQL-derived readiness extends the existing owned processing-status boundary. No migration or job framework is introduced.
+
+Phase 5 [T03](phase-5-search-enrollment.md) adds database-only lifecycle enrollment
+and bounded reconciliation to the existing recovery process. Search delivery is
+held until implemented handlers are wired. Canonical SQL metadata/membership and
+revision checks fence publication; external cleanup remains unimplemented.

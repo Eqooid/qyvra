@@ -19,6 +19,11 @@ const statusJob = {
 } satisfies Prisma.ProcessingJobSelect;
 
 export interface ProcessingStatusSnapshot {
+  search?: {
+    metadataReady: boolean;
+    textCoverage: string;
+    projectionStatus: string;
+  };
   aiReadiness?:
     'READY' | 'PROCESSING' | 'FAILED' | 'UNAVAILABLE' | 'UNSUPPORTED';
   id: string;
@@ -121,6 +126,30 @@ export class ProcessingStatusRepository {
               ? 'FAILED'
               : 'UNAVAILABLE';
     }
-    return { ...version, aiReadiness };
+    const search = this.configuration.searchEnrollment?.enabled
+      ? await this.database.client.$queryRaw<
+          NonNullable<ProcessingStatusSnapshot['search']>[]
+        >(Prisma.sql`
+      SELECT (p.status='READY' AND p.metadata_ready AND s.ready_projection_id=p.id
+        AND g.status='SERVING') AS "metadataReady", p.text_coverage AS "textCoverage",
+        p.status AS "projectionStatus"
+      FROM document_search_states s JOIN version_search_projections p
+        ON p.document_id=s.document_id AND p.user_id=s.user_id
+        AND p.document_version_id=s.desired_version_id AND p.revision=s.desired_revision
+      JOIN search_index_generations g ON g.id=p.index_generation_id
+      JOIN documents d ON d.id=s.document_id
+      WHERE s.user_id=${userId}::uuid AND s.document_id=${documentId}::uuid
+        AND s.desired_version_id=${versionId}::uuid AND g.status <> 'RETIRED'
+        AND NOT d.is_archived AND d.deleted_at IS NULL AND d.status NOT IN ('ARCHIVED','DELETING')
+        AND p.metadata_hash=search_metadata_hash(${versionId}::uuid)
+        AND NOT EXISTS (SELECT 1 FROM document_versions n WHERE n.document_id=d.id
+          AND n.version_number>(SELECT version_number FROM document_versions WHERE id=${versionId}::uuid))
+      ORDER BY g.generation DESC LIMIT 1`)
+      : [];
+    return {
+      ...version,
+      aiReadiness,
+      ...(search[0] ? { search: search[0] } : {}),
+    };
   }
 }

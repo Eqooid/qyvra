@@ -149,6 +149,48 @@ export class SemanticSearchService {
       return match ? [{ ...match, score: s.score }] : [];
     });
   }
+  /** T07 server-owned candidate budget; public semantic/RAG search still caps at 20 chunks. */
+  async candidates(
+    userId: string,
+    query: string,
+    documentIds: string[],
+    signal: AbortSignal,
+  ) {
+    if (!this.configuration.semanticSearch.enabled)
+      throw new ServiceUnavailableException();
+    this.admit(userId);
+    try {
+      const profile = await this.repository.profile();
+      if (
+        !profile ||
+        profile.fingerprint !==
+          this.configuration.embedding.profileFingerprint ||
+        embeddingProfileFingerprint({ ...profile, distance: 'Cosine' }) !==
+          profile.fingerprint ||
+        profile.distance !== 'Cosine'
+      )
+        throw new ServiceUnavailableException();
+      if (!this.vectors.check) throw new ServiceUnavailableException();
+      await this.vectors.check({
+        embeddingProfileId: profile.id,
+        embeddingProfileVersion: profile.profileVersion,
+        dimensions: profile.dimensions,
+      });
+      signal.throwIfAborted();
+      // No explicit scope means the vault in public search; [] must mean no candidates here.
+      const results = documentIds.length
+        ? await this.execute(userId, { query, limit: 100, documentIds }, signal)
+        : [];
+      return {
+        profileId: profile.id,
+        profileFingerprint: profile.fingerprint,
+        results,
+        truncated: results.length >= 100,
+      };
+    } finally {
+      this.active--;
+    }
+  }
   private admit(userId: string) {
     const p = this.configuration.semanticSearch;
     if (Date.now() >= this.resetAt) {

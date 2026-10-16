@@ -1,4 +1,33 @@
-# QYVRA database and storage model — v1.3.1 candidate, unchanged Phase 4 schema
+# QYVRA database and storage model — v1.3.1 baseline with Phase 5 T02 foundation
+
+The [v1.4.0 draft upgrade record](releases/v1.4.0.md#architecture-and-database-changes)
+lists all three Phase 5 migrations and coordinated runtime/rollback limitations.
+[T11 verification](phase-5-verification.md) reuses the unchanged real migration/SQL
+evidence; T11 adds no migration or production data operation.
+
+**Phase 5 T10 increment:** the 18th additive migration adds
+`SearchMaintenanceOperation` with owner/generation foreign keys, durable operation
+identity, counters, keyset checkpoint and lease. A partial unique index permits
+one RUNNING operation; SQL guards protect immutable identity and monotonic progress.
+Generation uniqueness becomes `(fingerprint, generation)` to permit isolated
+same-profile rebuilds. Existing document versions and artifacts are unchanged;
+there is no automatic backfill. See [schema, upgrade and rollback limits](phase-5-search-operations.md)
+and [ADR-009](decisions/ADR-009-search-maintenance-generations.md).
+
+**Phase 5 T05 increment:** [model-independent PDF text and verified lexical publication](phase-5-lexical-publication.md)
+register real metadata/PDF worker handlers, shared canonical extraction, fenced SQL
+branch completion and exact search-visible verification. Local verification passes;
+live infrastructure acceptance is pending. Existing processing status adds optional
+independent lexical coverage. No new migration or public search route is introduced.
+Historical phase-specific statements below retain their original scope.
+
+**Phase 5 T02 implemented:** [owned search persistence and versioned contracts](phase-5-data-foundation.md)
+adds SearchIndexGeneration, DocumentSearchState, VersionSearchProjection and
+SearchProjectionChange, plus a nullable owned projection reference on existing
+jobs. The 16th additive migration seeds no state or work. SQL owns fingerprints,
+monotonic revisions, manifest/publication guards, lineage and v3 outbox validation.
+Earlier migrations and AI artifacts remain intact; enrollment/lifecycle wiring
+and search execution are later tasks. `VERSION` remains `1.3.1`.
 
 **Phase 4 T03 orchestration, T04 PDF extraction and T05 chunking are implemented:** [durable stage contracts and lifecycle](phase-4-processing.md)
 cover atomic successor scheduling, v2 transport, shared retry/recovery, worker routing,
@@ -503,3 +532,9 @@ T09 needs no migration. `AiServingProfile` selects an immutable profile; `Versio
 ## T11 source navigation and readiness — Implemented, no schema change
 
 The owned source endpoint joins `DocumentChunk → DocumentVersion → Document`, checks complete `ChunkSet` and active lifecycle, and can resolve retained historical provenance. Readiness derives from `VersionReadyIndex → VersionVectorIndex → ChunkSet`, the current owned active version and `AiServingProfile → EmbeddingProfile` compatibility. A successful run without a serving pointer is unavailable. No new tables, vectors, ownership model, transcript persistence or migration is added. [T11 contracts](phase-4-ai-frontend.md).
+
+Phase 5 T03 adds `20261014010000_search_lifecycle_fencing`: UTC canonical metadata
+hashing and READY/publication guards, reusing all T02 entities and constraints.
+Document-first transactions own revision advancement, cancellation, cleanup intent
+and durable organization fanout. See [T03](phase-5-search-enrollment.md). No data
+backfill or historical migration rewrite occurs.

@@ -1,3 +1,4 @@
+import { SearchEnrollmentModule } from '../search/search-enrollment.module';
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth';
 import { DatabaseModule } from '../../database/database.module';
@@ -12,7 +13,12 @@ import { CategoryMutationGuard } from './category-mutation.guard';
  * @tags Categories
  */
 @Module({
-  imports: [AuthModule, DatabaseModule, ConfigurationModule],
+  imports: [
+    SearchEnrollmentModule,
+    AuthModule,
+    DatabaseModule,
+    ConfigurationModule,
+  ],
   controllers: [CategoriesController],
   providers: [CategoriesService, CategoryMutationGuard],
 })

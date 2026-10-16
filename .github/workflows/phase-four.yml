@@ -33,6 +33,8 @@ jobs:
       DATABASE_URL: postgresql://qyvra_test@127.0.0.1:5432/qyvra_ci_test
       TEST_DATABASE_URL: postgresql://qyvra_test@127.0.0.1:5432/qyvra_ci_test
       TEST_MIGRATION_DATABASE_URL: postgresql://qyvra_test@127.0.0.1:5432/qyvra_ci_upgrade_test
+      TEST_SEARCH_ENROLLMENT_MIGRATION_DATABASE_URL: postgresql://qyvra_test@127.0.0.1:5432/qyvra_ci_enrollment_upgrade_test
+      TEST_SEARCH_MIGRATION_DATABASE_URL: postgresql://qyvra_test@127.0.0.1:5432/qyvra_ci_search_upgrade_test
       TEST_QDRANT_URL: http://127.0.0.1:6333
       TEST_RABBITMQ_URL: amqp://guest:guest@127.0.0.1:5672
       TEST_REDIS_URL: redis://127.0.0.1:6379
@@ -71,12 +73,18 @@ jobs:
           npm --prefix packages/database run migrate:deploy
           node -e "const {Client}=require('./packages/database/node_modules/pg');const c=new Client({connectionString:process.env.DATABASE_URL});c.connect().then(()=>c.query('CREATE DATABASE qyvra_ci_upgrade_test')).finally(()=>c.end())"
           npm --prefix packages/database run test:ai:migration
+          node -e "const {Client}=require('./packages/database/node_modules/pg');const c=new Client({connectionString:process.env.DATABASE_URL});c.connect().then(()=>c.query('CREATE DATABASE qyvra_ci_search_upgrade_test')).finally(()=>c.end())"
+          npm --prefix packages/database run test:search:migration
+          node -e "const {Client}=require('./packages/database/node_modules/pg');const c=new Client({connectionString:process.env.DATABASE_URL});c.connect().then(()=>c.query('CREATE DATABASE qyvra_ci_enrollment_upgrade_test')).finally(()=>c.end())"
+          npm --prefix packages/database run test:search:enrollment:migration
       - name: Deterministic tests and real-infrastructure integration
         run: |
           npm --prefix packages/storage test
           npm --prefix packages/storage run test:integration
           npm --prefix packages/database run test:ai
           npm --prefix packages/database run test:pipeline
+          npm --prefix packages/database run test:search
+          npm --prefix packages/database run test:search:enrollment
           npm --prefix apps/api test -- --runInBand
           npm --prefix apps/api run test:e2e -- --runInBand
           TEST_RABBITMQ_CONTAINER=${{ job.services.rabbitmq.id }} npm --prefix apps/api run test:integration:isolated

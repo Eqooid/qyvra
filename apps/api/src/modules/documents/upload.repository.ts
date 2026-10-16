@@ -11,6 +11,7 @@ import { PrismaService } from '../../database/prisma.service';
 import { ConfigurationService } from '../../configuration/configuration.module';
 import { UploadedFile } from './upload-multipart';
 import { UploadResponse } from './upload.dto';
+import { SearchEnrollmentService } from '../search/search-enrollment.service';
 import { AiIngestionService } from '../ai/ai-ingestion.service';
 
 const uploadDocumentSelect = {
@@ -43,6 +44,7 @@ export class UploadRepository {
     private readonly database: PrismaService,
     private readonly configuration: ConfigurationService,
     @Optional() private readonly aiIngestion?: AiIngestionService,
+    @Optional() private readonly searchEnrollment?: SearchEnrollmentService,
   ) {
     this.processing = new ProcessingRepository(database.client);
   }
@@ -321,6 +323,11 @@ export class UploadRepository {
           await tx.documentTag.createMany({
             data: tags.map((tag) => ({ documentId, userId, tagId: tag.id })),
           });
+        await this.searchEnrollment?.enrollInTransaction(
+          tx,
+          userId,
+          documentId,
+        );
         const response: UploadResponse = {
           ...document,
           createdAt: document.createdAt.toISOString(),

@@ -41,9 +41,11 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "storage:build": "npm --prefix ../../packages/storage run build",
     "shared:build": "npm run storage:build && npm run database:build",
-    "ai:backfill": "node scripts/ai-backfill.cjs"
+    "ai:backfill": "node scripts/ai-backfill.cjs",
+    "search:maintenance": "node scripts/search-maintenance.cjs"
   },
   "dependencies": {
+    "@elastic/elasticsearch": "9.4.0",
     "@huggingface/tokenizers": "0.2.0",
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^3.3.0",

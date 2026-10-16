@@ -29,9 +29,9 @@ export interface SearchSource {
 @Injectable()
 export class SemanticSearchRepository {
   constructor(private readonly prisma: PrismaService) {}
-  async profile() {
+  async profile(db: Prisma.TransactionClient = this.prisma.client) {
     return (
-      await this.prisma.client.aiServingProfile.findUnique({
+      await db.aiServingProfile.findUnique({
         where: { id: 1 },
         include: { profile: true },
       })
@@ -81,6 +81,7 @@ export class SemanticSearchRepository {
     userId: string,
     profileId: string,
     candidates: readonly VectorCandidate[],
+    db: Prisma.TransactionClient = this.prisma.client,
   ): Promise<SearchSource[]> {
     if (!candidates.length) return [];
     // The tuple binds every candidate reference to SQL; text is selected only through
@@ -89,7 +90,7 @@ export class SemanticSearchRepository {
       (c) =>
         Prisma.sql`(${c.chunkId}::uuid, ${c.indexManifestId}::uuid, ${c.documentId}::uuid, ${c.documentVersionId}::uuid, ${c.chunkSetId}::uuid)`,
     );
-    return this.prisma.client.$queryRaw<SearchSource[]>(Prisma.sql`
+    return db.$queryRaw<SearchSource[]>(Prisma.sql`
       SELECT c.id AS "chunkId", c.document_id AS "documentId", c.document_version_id AS "documentVersionId",
         c.chunk_set_id AS "chunkSetId", i.id AS "indexManifestId", i.embedding_profile_id AS "embeddingProfileId",
         c.ordinal AS "chunkOrdinal", c.text AS excerpt, c.text_hash AS "excerptHash",

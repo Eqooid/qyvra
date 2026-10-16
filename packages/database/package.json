@@ -23,7 +23,11 @@
     "test:migration": "node --test test/description-migration.test.cjs",
     "test:ai": "node --test test/ai-contracts.test.cjs test/ai-persistence.test.cjs",
     "test:pipeline": "node --test --test-concurrency=1 test/processing-pipeline.test.cjs test/processing-repository.test.cjs test/processing-persistence.test.cjs test/processing-rules.test.cjs",
-    "test:ai:migration": "node --test test/ai-migration.test.cjs"
+    "test:ai:migration": "node --test test/ai-migration.test.cjs",
+    "test:search": "node --test test/search-contracts.test.cjs test/search-persistence.test.cjs",
+    "test:search:migration": "node --test test/search-migration.test.cjs",
+    "test:search:enrollment": "node --test test/search-enrollment.test.cjs",
+    "test:search:enrollment:migration": "node --test test/search-enrollment-migration.test.cjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.0.0",

@@ -71,6 +71,7 @@ export function AppSidebar() {
                     icon: LayoutDashboard,
                   },
                   { href: "/documents", label: "Documents", icon: Files },
+                  { href: "/search", label: "Search", icon: Search },
                   { href: "/ai", label: "AI Search", icon: Search },
                   {
                     href: "/categories",

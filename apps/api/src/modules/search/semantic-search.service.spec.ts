@@ -63,7 +63,10 @@ describe('authorized semantic retrieval', () => {
     const embeddings = {
       embed: jest.fn(async () => [{ id: 'query', vector: [1, 2, 3] }]),
     };
-    const vectors = { search: jest.fn(async () => [candidate]) };
+    const vectors = {
+      check: jest.fn(async () => {}),
+      search: jest.fn(async () => [candidate]),
+    };
     const lines: string[] = [];
     const config = validateEnvironment({
       DATABASE_URL: 'postgresql://localhost/test',
@@ -97,6 +100,44 @@ describe('authorized semantic retrieval', () => {
       settings,
     };
   }
+  it('offers a separate bounded T07 candidate boundary without relaxing public limits', async () => {
+    const f = fixture();
+    const found = await f.service.candidates(
+      f.owner,
+      'query',
+      [f.candidate.documentId],
+      new AbortController().signal,
+    );
+    expect(found.results).toHaveLength(1);
+    expect(f.vectors.check).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dimensions: 3,
+        embeddingProfileId: f.profile.id,
+      }),
+    );
+    expect(f.vectors.search).toHaveBeenCalledWith(
+      expect.objectContaining({ limit: 100, userId: f.owner }),
+    );
+    await expect(
+      f.service.search(f.owner, { query: 'query', limit: 100 }),
+    ).rejects.toThrow();
+  });
+  it('treats an empty internal document scope as empty, checks collection compatibility and skips provider work', async () => {
+    const f = fixture();
+    expect(
+      (
+        await f.service.candidates(
+          f.owner,
+          'query',
+          [],
+          new AbortController().signal,
+        )
+      ).results,
+    ).toEqual([]);
+    expect(f.vectors.check).toHaveBeenCalled();
+    expect(f.embeddings.embed).not.toHaveBeenCalled();
+    expect(f.repository.scope).not.toHaveBeenCalled();
+  });
   it('uses query purpose, exact immutable profile, trusted owner, bounded overfetch, canonical provenance and private logs', async () => {
     const f = fixture();
     const result = await f.service.search(f.owner, {

@@ -1,2 +1,3 @@
 infrastructure/nginx/*.envsh text eol=lf
+infrastructure/search/*.sh text eol=lf
 *.pdf binary

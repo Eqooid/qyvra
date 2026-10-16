@@ -1,3 +1,6 @@
+import { LexicalSourceController } from './lexical-source.controller';
+import { LexicalSourceService } from './lexical-source.service';
+import { SearchEnrollmentModule } from '../search/search-enrollment.module';
 import { Module } from '@nestjs/common';
 import { StorageModule } from '../../infrastructure/storage/storage.module';
 import { ObservabilityModule } from '../../common/observability.module';
@@ -31,6 +34,7 @@ import { CitationSourceService } from './citation-source.service';
  */
 @Module({
   imports: [
+    SearchEnrollmentModule,
     AuthModule,
     DatabaseModule,
     ConfigurationModule,
@@ -46,10 +50,12 @@ import { CitationSourceService } from './citation-source.service';
     ProcessingStatusController,
     AiReprocessingController,
     CitationSourceController,
+    LexicalSourceController,
   ],
   providers: [
     DocumentsService,
     CitationSourceService,
+    LexicalSourceService,
     AiIngestionService,
     OwnedMutationGuard,
     UploadRepository,

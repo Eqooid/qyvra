@@ -62,6 +62,29 @@ describe('ProcessingStatusService', () => {
     ).toBe('NOT_SCHEDULED');
   });
 
+  it('reports lexical metadata and PDF coverage independently from AI readiness', async () => {
+    findOwnedVersion.mockResolvedValue({
+      id: versionId,
+      documentId,
+      processingJobs: [],
+      search: {
+        metadataReady: true,
+        textCoverage: 'UNSUPPORTED',
+        projectionStatus: 'READY',
+      },
+    });
+    expect(
+      await service.forVersion(userId, documentId, versionId),
+    ).toMatchObject({
+      aiReadiness: 'UNAVAILABLE',
+      search: {
+        metadataReady: true,
+        textCoverage: 'UNSUPPORTED',
+        projectionStatus: 'READY',
+      },
+    });
+  });
+
   it('uses the owner and version boundary and hides missing resources', async () => {
     findOwnedVersion.mockResolvedValue(null);
     await expect(

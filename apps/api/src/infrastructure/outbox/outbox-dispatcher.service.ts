@@ -1,5 +1,9 @@
 import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
-import { ProcessingError, ProcessingRepository } from '@qyvra/database';
+import {
+  ProcessingError,
+  ProcessingRepository,
+  SearchProcessingJobType,
+} from '@qyvra/database';
 import type { MessagePublisher } from '../messaging/message-publisher';
 import { parseProcessingMessage } from '../messaging/processing-message';
 import { outboxRetryDelayMs } from './outbox-policy';
@@ -24,6 +28,7 @@ export class OutboxDispatcher implements OnApplicationShutdown {
     private readonly publisher: MessagePublisher,
     private readonly settings: OutboxSettings,
     private readonly clock: () => Date = () => new Date(),
+    private readonly supportedSearchJobTypes: readonly SearchProcessingJobType[] = [],
   ) {}
 
   start(): void {
@@ -55,6 +60,7 @@ export class OutboxDispatcher implements OnApplicationShutdown {
     const due = await this.repository.findPendingOutbox(
       this.clock(),
       this.settings.batchSize,
+      this.supportedSearchJobTypes,
     );
     let processed = 0;
     for (const candidate of due) {

@@ -12,6 +12,7 @@ import {
 } from './document-lifecycle';
 import { DocumentListQuery, UpdateDocumentDto } from './documents.dto';
 import { documentCursor, parseDocumentCursor } from './document-pagination';
+import { SearchEnrollmentService } from '../search/search-enrollment.service';
 import { AiIngestionService } from '../ai/ai-ingestion.service';
 
 /** @description Only metadata needed by the public contract and relationship batching is selected. */
@@ -83,6 +84,7 @@ export class DocumentsService {
   constructor(
     private readonly database: PrismaService,
     @Optional() private readonly aiIngestion?: AiIngestionService,
+    @Optional() private readonly searchEnrollment?: SearchEnrollmentService,
   ) {
     this.processing = new ProcessingRepository(database.client);
   }
@@ -348,6 +350,7 @@ export class DocumentsService {
               skipDuplicates: true,
             });
         }
+        await this.searchEnrollment?.enrollInTransaction(tx, userId, id);
         return (await this.hydrate(tx, userId, [updated]))[0];
       }),
     );
@@ -417,6 +420,16 @@ export class DocumentsService {
               currentVersionId,
             );
           }
+        }
+        if (Object.keys(data).length) {
+          if (action === 'restore')
+            await this.searchEnrollment?.enrollInTransaction(tx, userId, id);
+          else
+            await this.searchEnrollment?.invalidateInTransaction(
+              tx,
+              userId,
+              id,
+            );
         }
         return (await this.hydrate(tx, userId, [updated]))[0];
       }),

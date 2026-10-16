@@ -1,4 +1,8 @@
-import type { ProcessingMessageV1 } from '@qyvra/database';
+import {
+  searchProcessingJobTypes,
+  type ProcessingMessageV1,
+  type ProcessingMessageV3,
+} from '@qyvra/database';
 import {
   parseProcessingMessage,
   serializeProcessingMessage,
@@ -18,6 +22,52 @@ export const sampleMessage: ProcessingMessageV1 = {
 };
 
 describe('processing message transport serialization', () => {
+  const search: ProcessingMessageV3 = {
+    ...sampleMessage,
+    schemaVersion: 3,
+    jobType: 'INDEX_SEARCH',
+    searchProjectionId: '66666666-6666-5666-8666-666666666666',
+    indexGenerationId: '77777777-7777-4777-8777-777777777777',
+    revision: 1,
+  };
+  it.each(searchProcessingJobTypes)(
+    'round-trips explicit v3 %s identifiers only',
+    (jobType) => {
+      const message = { ...search, jobType };
+      expect(
+        parseProcessingMessage(
+          JSON.parse(serializeProcessingMessage(message).toString()),
+        ),
+      ).toEqual(message);
+    },
+  );
+  it('rejects version confusion, malformed v3 fields and expanded payloads', () => {
+    for (const invalid of [
+      { ...search, schemaVersion: 2 },
+      { ...search, schemaVersion: 4 },
+      { ...sampleMessage, schemaVersion: 3 },
+      { ...search, jobType: 'VERIFY_STORED_FILE' },
+      { ...search, searchProjectionId: undefined },
+      { ...search, indexGenerationId: 'bad' },
+      { ...search, revision: 0 },
+      { ...search, revision: 1.5 },
+      { ...search, revision: 2147483648 },
+      { ...search, revision: '1' },
+      { ...search, dispatchSequence: 0 },
+      { ...search, occurredAt: '2026-01-01' },
+      { ...search, userId: search.documentId },
+      { ...search, content: 'secret' },
+      { ...search, apiKey: 'secret' },
+    ])
+      expect(() => parseProcessingMessage(invalid)).toThrow(
+        'Invalid processing message contract.',
+      );
+    for (const field of Object.keys(search)) {
+      const missing = { ...search } as Record<string, unknown>;
+      delete missing[field];
+      expect(() => parseProcessingMessage(missing)).toThrow();
+    }
+  });
   it('keeps the canonical versioned envelope and stable field order', () => {
     const encoded = serializeProcessingMessage(sampleMessage);
     expect(JSON.parse(encoded.toString('utf8'))).toEqual(sampleMessage);

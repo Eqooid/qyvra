@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const {
   embeddingProfileFingerprint,
   aiStagePrerequisites,
-  processingJobTypes,
+  legacyProcessingJobTypes,
   createProcessingOutboxIntent,
 } = require('../dist');
 
@@ -58,7 +58,7 @@ test('embedding identity is stable and distinguishes every semantic configuratio
 });
 
 test('AI vocabulary declares existing-job dependencies without enabling v1 AI delivery', async () => {
-  assert.deepEqual(processingJobTypes, [
+  assert.deepEqual(legacyProcessingJobTypes, [
     'VERIFY_STORED_FILE',
     'EXTRACT_TEXT',
     'GENERATE_CHUNKS',

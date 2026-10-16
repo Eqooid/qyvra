@@ -4,6 +4,45 @@
 with immutable file versions, organization and an opt-in AI/RAG foundation.
 
 **Current development candidate: v1.3.1 — Local AI Provider Compatibility.**
+
+**Phase 5 / v1.4.0 acceptance decision: NOT READY.**
+The [T11 review](docs/phase-5-verification.md) records implemented search,
+local verification and mandatory live/quality/CI gates still outstanding.
+See the [draft target scope and upgrade guide](docs/releases/v1.4.0.md) and
+[v1.4.0 developer walkthrough](docs/developer/versions/v1.4.0.md).
+Phase 5 is unreleased; the current prepared version remains `1.3.1`.
+
+[Live continuation evidence](docs/phase-5-live-verification.md) records 45 selected
+passing tests, real Elasticsearch restart checks and a passed live Nginx/browser
+workflow. Hybrid and quality gates remain open; Phase 5 is not complete.
+
+[T12 manual Git handoff](docs/phase-5-manual-git-handoff.md) records the final
+working-tree review and owner-only commands. Mandatory local acceptance remains
+incomplete; no staging, commit, push or release has been performed.
+
+[Phase 5 T01](docs/phase-5-search.md) plans advanced keyword and hybrid search
+for **v1.4.0**. Scope, architecture and implementation tasks are documented;
+[T02 persistence and v3 processing contracts](docs/phase-5-data-foundation.md) are
+implemented. [T03 enrollment, lifecycle fencing and durable fanout](docs/phase-5-search-enrollment.md)
+are implemented with enrollment disabled by default. Matching search workers now
+execute the approved contracts; disabled transport or unsupported work stays durable.
+[T04 private Elasticsearch transport and optional deployment](docs/phase-5-elasticsearch.md)
+are implemented with live acceptance pending. [T05 model-independent PDF extraction
+and verified lexical publication](docs/phase-5-lexical-publication.md) is implemented
+and locally verified; live Elasticsearch/broker/Compose acceptance is pending.
+[T06 authorized keyword API](docs/phase-5-keyword-search.md) is implemented with
+serving disabled by default and live acceptance pending. Cursor continuation,
+[T07 hybrid retrieval and fixed Redis windows](docs/phase-5-hybrid-search.md) are implemented,
+with live acceptance pending. [T08 safe highlights, private suggestions and source reads](docs/phase-5-search-evidence.md)
+are implemented with live acceptance pending. [T09 search frontend and source workflows](docs/phase-5-search-frontend.md)
+are implemented and locally verified; the initial live Nginx workflow passed,
+with remaining acceptance tracked in the live continuation ledger.
+[T10 search maintenance](docs/phase-5-search-operations.md) provides bounded,
+resumable backfill, shadow rebuild and verified SQL cutover, reconciliation and
+exact-record cleanup through an operator-only CLI. Local verification is recorded;
+live recovery acceptance remains pending. T11 is acceptance and release readiness.
+`VERSION` stays `1.3.1`.
+
 [Release notes](docs/releases/v1.3.1.md), [T05 evidence](docs/local-provider-verification.md)
 and [T06 preparation](docs/local-provider-release-preparation.md) record
 **CONDITIONALLY READY** for the pinned Nomic/Qwen deployment. [VERSION](VERSION)
@@ -32,8 +71,8 @@ reuse and bounded backfill use the same durable pipeline.
 
 The browser reaches Next.js and NestJS through Nginx. PostgreSQL owns durable state,
 RabbitMQ is transport, Redis is disposable progress and Qdrant is rebuildable.
-Providers sit behind independent embedding/generation interfaces. Elasticsearch is
-**Planned**, not a Phase 4 service. The stack uses Node.js 24+, TypeScript, Next.js 16,
+Providers sit behind independent embedding/generation interfaces. Elasticsearch has an optional private Phase 5 deployment with live acceptance pending;
+it is not part of the v1.3.1 release scope. The stack uses Node.js 24+, TypeScript, Next.js 16,
 React 19, NestJS 10, Prisma 7 and PostgreSQL 17; lockfiles pin dependencies.
 
 Limitations: PDF AI text only, no OCR, persistent chat, streaming or agents/tools.

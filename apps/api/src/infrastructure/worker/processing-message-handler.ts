@@ -74,7 +74,12 @@ export class ProcessingMessageHandler {
       job.documentId !== message.documentId ||
       job.documentVersionId !== message.documentVersionId ||
       job.jobType !== message.jobType ||
-      job.correlationId !== message.correlationId
+      job.correlationId !== message.correlationId ||
+      (message.schemaVersion === 3 &&
+        (job.searchProjectionId !== message.searchProjectionId ||
+          job.searchProjection?.indexGenerationId !==
+            message.indexGenerationId ||
+          job.searchProjection?.revision !== message.revision))
     ) {
       this.logger.warn(
         `Processing message identity mismatch: message=${message.messageId} job=${job.id}.`,
@@ -82,6 +87,19 @@ export class ProcessingMessageHandler {
       return 'dead-letter';
     }
     if (['COMPLETED', 'FAILED', 'CANCELLED'].includes(job.status)) return 'ack';
+    if (message.schemaVersion === 3) {
+      try {
+        if (await this.repository.cancelObsoleteSearchJob(job.id, this.clock()))
+          return 'ack';
+      } catch {
+        return 'retry';
+      }
+    }
+    // Eligible work without an implemented handler must remain unfinished.
+    if (message.schemaVersion === 3 && !this.handlers.has(message.jobType)) {
+      this.logger.warn(`Search handler unavailable: job=${job.id}.`);
+      return 'dead-letter';
+    }
     if (job.status === 'PROCESSING') {
       if (message.dispatchSequence < job.attempts) return 'ack';
       if (message.dispatchSequence > job.attempts) return 'dead-letter';
@@ -174,7 +192,19 @@ export class ProcessingMessageHandler {
     error: unknown,
   ): Promise<DeliveryDecision> {
     if (error instanceof ProcessingError) {
-      if (error.code === 'INELIGIBLE_DOCUMENT') return 'ack';
+      if (error.code === 'INELIGIBLE_DOCUMENT') {
+        if (message.schemaVersion === 3) {
+          try {
+            await this.repository.cancelObsoleteSearchJob(
+              message.jobId,
+              this.clock(),
+            );
+          } catch {
+            return 'retry';
+          }
+        }
+        return 'ack';
+      }
       if (error.code === 'NOT_FOUND') return 'dead-letter';
       if (error.code === 'INVALID_TRANSITION') {
         let current: Awaited<ReturnType<ProcessingRepository['findById']>>;

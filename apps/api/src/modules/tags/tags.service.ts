@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Optional, Injectable } from '@nestjs/common';
 import { Prisma } from '@qyvra/database';
+import { SearchEnrollmentService } from '../search/search-enrollment.service';
 import { PrismaService } from '../../database/prisma.service';
 import { PaginatedData } from '../../common/paginated-data';
 import { TagListQuery, CreateTagDto, UpdateTagDto } from './tags.dto';
@@ -36,7 +37,10 @@ export class TagsService {
    * @param database - The PrismaService instance for database operations.
    * @constructor
    */
-  constructor(private readonly database: PrismaService) {}
+  constructor(
+    private readonly database: PrismaService,
+    @Optional() private readonly searchEnrollment?: SearchEnrollmentService,
+  ) {}
 
   /**
    * @author Cristono Wijaya
@@ -139,10 +143,21 @@ export class TagsService {
    */
   async delete(userId: string, id: string): Promise<{ deleted: true }> {
     try {
-      await this.database.client.tag.delete({
-        where: { id, userId },
-        select: { id: true },
-      });
+      if (this.searchEnrollment)
+        await this.database.client.$transaction(async (tx) => {
+          await tx.tag.delete({ where: { id, userId }, select: { id: true } });
+          await this.searchEnrollment!.recordOrganizationChangeInTransaction(
+            tx,
+            userId,
+            id,
+            'TAG_DELETED',
+          );
+        });
+      else
+        await this.database.client.tag.delete({
+          where: { id, userId },
+          select: { id: true },
+        });
       return { deleted: true };
     } catch (error) {
       this.mapFailure(error);

@@ -1,0 +1,4 @@
+# Explicit development-only host access. The regular override publishes no ES port.
+services:
+  elasticsearch:
+    ports: ["127.0.0.1:9200:9200"]
