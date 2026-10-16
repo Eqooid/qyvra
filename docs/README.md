@@ -104,6 +104,8 @@ limits recorded in the report. T06 is complete; no release occurred.
 
 ## Development
 
+- [Windows launcher and PowerShell startup](development/start-local.md): double-click startup with automatic local search setup
+
 - [v1.3.1: implemented local-provider development guide](developer/versions/v1.3.1.md)
 - [v1.3.0: AI/RAG development guide](developer/versions/v1.3.0.md)
 - [Versioned developer history: v1.0.0 baseline and v1.1.0/v1.2.0/v1.3.0](developer/README.md)

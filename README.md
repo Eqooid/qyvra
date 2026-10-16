@@ -110,6 +110,20 @@ Register, then log in. Stop with `docker compose down`; do not add `--volumes`,
 which deletes the database and uploaded files. This is a local HTTP deployment.
 See [Compose operations](docs/compose.md) for persistence, backups and deployment limits.
 
+On Windows, double-click **[Start QYVRA.cmd](Start%20QYVRA.cmd)** to start the
+configured local app, AI and search, then open the browser. It starts Docker Desktop
+when needed, prepares missing local search credentials and verifies search indexes.
+First-time local AI models/assets and the root `.env` must already be prepared.
+PowerShell users can run the same setup with:
+
+```powershell
+.\scripts\start-local.ps1 -All -OpenBrowser
+```
+
+Use `-AI` or `-Search` instead of `-All` for operator-managed subsets. Existing
+volumes/password files are retained; automatic search setup is local development
+only. See [the startup script guide](docs/development/start-local.md).
+
 ## Develop and test
 
 For optional local RAG, T05 verified `nomic-embed-text:v1.5` (768 dimensions) and
